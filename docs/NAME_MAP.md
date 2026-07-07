@@ -18,3 +18,9 @@ Lean/Mathlib ports, per `docs/superpowers/plans/2026-07-06-odd-order-port.md` §
 | `SchurZassenhaus_trans_sol` | `Subgroup.IsComplement'.exists_conj_of_coprime` | `OddOrder/Mathlib/GroupTheory/SchurZassenhaus.lean` |
 | `Hall_trans` | `Subgroup.isHall_conj` | `OddOrder/Mathlib/GroupTheory/Hall.lean` |
 | `Hall_superset` | `Subgroup.IsPiGroup.le_isHall_conj` | `OddOrder/Mathlib/GroupTheory/Hall.lean` |
+| `pgroupM` (for the product with a normal subgroup) | `Subgroup.Normal.isPiGroup_sup` | `OddOrder/Mathlib/GroupTheory/PiGroup.lean` |
+| `pcore` (`'O_pi(G)`) | `Subgroup.pcore` | `OddOrder/Mathlib/GroupTheory/PiGroup.lean` |
+| `pcore_pgroup` | `Subgroup.pcore_isPiGroup` | `OddOrder/Mathlib/GroupTheory/PiGroup.lean` |
+| `pcore_normal` | `Subgroup.pcore_normal` | `OddOrder/Mathlib/GroupTheory/PiGroup.lean` |
+| `pcore_char` | `Subgroup.pcore_characteristic` | `OddOrder/Mathlib/GroupTheory/PiGroup.lean` |
+| `pcore_max` | `Subgroup.pcore_max` | `OddOrder/Mathlib/GroupTheory/PiGroup.lean` |
