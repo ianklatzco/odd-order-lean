@@ -24,3 +24,17 @@ Lean/Mathlib ports, per `docs/superpowers/plans/2026-07-06-odd-order-port.md` §
 | `pcore_normal` | `Subgroup.pcore_normal` | `OddOrder/Mathlib/GroupTheory/PiGroup.lean` |
 | `pcore_char` | `Subgroup.pcore_characteristic` | `OddOrder/Mathlib/GroupTheory/PiGroup.lean` |
 | `pcore_max` | `Subgroup.pcore_max` | `OddOrder/Mathlib/GroupTheory/PiGroup.lean` |
+| `A \subset 'N(H)` (A-invariance, external form) | `Subgroup.SMulInvariant` | `OddOrder/Mathlib/GroupTheory/CoprimeAction.lean` |
+| `[~: H, A]` (commutator with an action, external form) | `Subgroup.actionCommutator` | `OddOrder/Mathlib/GroupTheory/CoprimeAction.lean` |
+| `'C_G(A)` / `gacent` (external action) | `FixedPoints.subgroup` | Mathlib (`Mathlib/GroupTheory/GroupAction/Defs.lean`) |
+| `coprime_quotient_cent` | `coprime_fixedPoints_quotient_surjective`, `coprime_fixedPoints_quotient_eq` | `OddOrder/Mathlib/GroupTheory/CoprimeAction.lean` |
+| `coprime_cent_prod` | `coprime_cent_prod` | `OddOrder/Mathlib/GroupTheory/CoprimeAction.lean` |
+| `coprime_commGid` | `coprime_commutator_eq` | `OddOrder/Mathlib/GroupTheory/CoprimeAction.lean` |
+| `coprime_abelian_cent_dprod` | `coprime_abelian_cent_dprod` | `OddOrder/Mathlib/GroupTheory/CoprimeAction.lean` |
+| `coprime_Hall_exists` | `coprime_hall_exists` | `OddOrder/Mathlib/GroupTheory/CoprimeAction.lean` |
+| `coprime_Hall_trans` | `coprime_hall_trans` | `OddOrder/Mathlib/GroupTheory/CoprimeAction.lean` |
+
+Future work (not ported yet): `coprime_Hall_subset` and the Glauberman-lemma
+variants of the coprime-action suite (`glauberman_...`, `ext_coprime_quotient_cent`
+for non-solvable kernels) — see the scope note in
+`OddOrder/Mathlib/GroupTheory/CoprimeAction.lean`.
