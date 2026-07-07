@@ -612,7 +612,45 @@ This corresponds to MathComp's `coprime_abelian_cent_dprod`. -/
 theorem coprime_abelian_cent_dprod [Finite A] [Finite G] [IsMulCommutative G]
     (hco : (Nat.card A).Coprime (Nat.card G)) :
     IsComplement' (actionCommutator A (⊤ : Subgroup G)) (FixedPoints.subgroup A G) := by
-  sorry
+  have := Fintype.ofFinite A
+  -- The averaging ("norm") homomorphism `φ g = ∏ a, a • g` (well defined: `G` abelian).
+  set φ : G →* G :=
+    { toFun := fun g => ∏ a : A, a • g
+      map_one' := by simp
+      map_mul' := fun x y => by
+        simp only [smul_mul']
+        exact Finset.prod_mul_distrib } with hφ
+  -- `[G, A]` lies in the kernel of `φ` ...
+  have hker : actionCommutator A (⊤ : Subgroup G) ≤ φ.ker := by
+    rw [actionCommutator_le]
+    rintro a g -
+    have hshift : φ (a • g) = φ g := by
+      change (∏ b : A, b • a • g) = ∏ b : A, b • g
+      calc (∏ b : A, b • a • g) = ∏ b : A, (b * a) • g := by
+            refine Finset.prod_congr rfl fun b _ => ?_
+            rw [mul_smul]
+        _ = ∏ b : A, b • g := by
+            simpa using Equiv.prod_comp (Equiv.mulRight a) (fun b : A => b • g)
+    rw [MonoidHom.mem_ker, map_mul, map_inv, hshift, inv_mul_cancel]
+  -- ... while `φ` is the `|A|`-th power map on the fixed points, which is injective
+  -- there by coprimality; hence the two subgroups are disjoint.
+  have hdisj : Disjoint (actionCommutator A (⊤ : Subgroup G)) (FixedPoints.subgroup A G) := by
+    rw [disjoint_def]
+    intro x hx1 hx2
+    have hpow : φ x = x ^ Nat.card A := by
+      change (∏ _a : A, _ • x) = _
+      calc (∏ a : A, a • x) = ∏ _a : A, x := Finset.prod_congr rfl fun a _ => hx2 a
+        _ = x ^ Nat.card A := by
+            rw [Finset.prod_const, Finset.card_univ, Nat.card_eq_fintype_card]
+    have hx1' : x ^ Nat.card A = 1 := by
+      rw [← hpow]
+      exact hker hx1
+    have h1 : orderOf x ∣ Nat.card A := orderOf_dvd_of_pow_eq_one hx1'
+    have h2 : orderOf x ∣ Nat.card G := orderOf_dvd_natCard x
+    rw [← orderOf_eq_one_iff]
+    exact Nat.dvd_one.mp (hco ▸ Nat.dvd_gcd h1 h2)
+  refine isComplement'_of_disjoint_and_mul_eq_univ hdisj ?_
+  rw [← normal_mul, coprime_cent_prod hco, coe_top]
 
 /-- **Existence of `A`-invariant Hall subgroups** : if `A` acts coprimely on a finite
 solvable group `G`, then `G` has an `A`-invariant Hall π-subgroup for every `π`.
