@@ -317,6 +317,138 @@ end ActionCommutator
 end Subgroup
 
 /-!
+### The semidirect-product bridge
+
+The Hall-subgroup statements are proved by transporting the action to the external
+semidirect product `Λ := G ⋊[φ] A` with `φ := MulDistribMulAction.toMulAut A G`.
+There, `inl.range` is a normal copy of `G`, `inr.range` a copy of `A`, and a subgroup
+`K ≤ G` is `A`-invariant exactly when `inr.range` normalizes `K.map inl`; the Hall
+and Schur–Zassenhaus machinery then applies inside `Λ`.
+-/
+
+namespace SemidirectProduct
+
+open Subgroup
+
+section General
+
+variable {N G : Type*} [Group N] [Group G] {φ : G →* MulAut N}
+
+instance [Finite N] [Finite G] : Finite (N ⋊[φ] G) :=
+  Finite.of_equiv (N × G) equivProd.symm
+
+theorem natCard (N G : Type*) [Group N] [Group G] (φ : G →* MulAut N) :
+    Nat.card (N ⋊[φ] G) = Nat.card N * Nat.card G := by
+  rw [Nat.card_congr (equivProd (φ := φ)), Nat.card_prod]
+
+theorem mem_range_inl {x : N ⋊[φ] G} :
+    x ∈ (inl : N →* N ⋊[φ] G).range ↔ x.right = 1 := by
+  rw [range_inl_eq_ker_rightHom]
+  exact Iff.rfl
+
+theorem mem_range_inr {x : N ⋊[φ] G} :
+    x ∈ (inr : G →* N ⋊[φ] G).range ↔ x.left = 1 := by
+  constructor
+  · rintro ⟨g, rfl⟩
+    rfl
+  · intro h
+    exact ⟨x.right, by ext <;> simp [h]⟩
+
+instance : ((inl : N →* N ⋊[φ] G).range).Normal := by
+  rw [range_inl_eq_ker_rightHom]
+  infer_instance
+
+theorem natCard_range_inl :
+    Nat.card ((inl : N →* N ⋊[φ] G).range) = Nat.card N :=
+  (Nat.card_congr (MonoidHom.ofInjective inl_injective).toEquiv).symm
+
+theorem natCard_range_inr :
+    Nat.card ((inr : G →* N ⋊[φ] G).range) = Nat.card G :=
+  (Nat.card_congr (MonoidHom.ofInjective inr_injective).toEquiv).symm
+
+instance [IsSolvable N] : IsSolvable ((inl : N →* N ⋊[φ] G).range) :=
+  solvable_of_surjective (f := (MonoidHom.ofInjective inl_injective).toMonoidHom)
+    (MonoidHom.ofInjective inl_injective).surjective
+
+end General
+
+section MulDistrib
+
+variable {A G : Type*} [Group A] [Group G] [MulDistribMulAction A G]
+
+/-- In `G ⋊[toMulAut A G] A`, conjugation by `inr a` implements the action on the
+`G`-factor. -/
+theorem inl_smul_eq (a : A) (g : G) :
+    (inl (a • g) : G ⋊[MulDistribMulAction.toMulAut A G] A)
+      = inr a * inl g * (inr a)⁻¹ := by
+  simpa using inl_aut (φ := MulDistribMulAction.toMulAut A G) a g
+
+/-- The image in the semidirect product of an `A`-invariant normal subgroup of `G`
+is normal. -/
+theorem map_inl_normal (M : Subgroup G) [M.Normal] [M.SMulInvariant A] :
+    ((M.map (inl : G →* G ⋊[MulDistribMulAction.toMulAut A G] A))).Normal := by
+  constructor
+  intro n hn x
+  obtain ⟨m, hm, rfl⟩ := hn
+  rw [← inl_left_mul_inr_right x]
+  have key : (inl x.left * inr x.right)
+        * (inl m : G ⋊[MulDistribMulAction.toMulAut A G] A)
+        * (inl x.left * inr x.right)⁻¹
+      = inl (x.left * (x.right • m) * x.left⁻¹) := by
+    calc (inl x.left * inr x.right)
+          * (inl m : G ⋊[MulDistribMulAction.toMulAut A G] A)
+          * (inl x.left * inr x.right)⁻¹
+        = inl x.left * (inr x.right * inl m * (inr x.right)⁻¹) * (inl x.left)⁻¹ := by
+          group
+      _ = inl x.left * inl (x.right • m) * (inl x.left)⁻¹ := by rw [← inl_smul_eq]
+      _ = inl (x.left * (x.right • m) * x.left⁻¹) := by rw [← map_inv, ← map_mul, ← map_mul]
+  rw [key]
+  exact mem_map_of_mem _
+    (‹M.Normal›.conj_mem _ (SMulInvariant.smul_mem x.right hm) x.left)
+
+/-- The image in the semidirect product of an `A`-invariant subgroup of `G` is
+normalized by the `A`-factor. -/
+theorem range_inr_le_normalizer_map_inl (K : Subgroup G) [K.SMulInvariant A] :
+    ((inr : A →* G ⋊[MulDistribMulAction.toMulAut A G] A).range)
+      ≤ normalizer
+          ((K.map inl : Subgroup (G ⋊[MulDistribMulAction.toMulAut A G] A)) :
+            Set (G ⋊[MulDistribMulAction.toMulAut A G] A)) := by
+  rw [le_normalizer_iff]
+  rintro _ ⟨a, rfl⟩ y hy
+  obtain ⟨k, hk, rfl⟩ := hy
+  rw [← inl_smul_eq]
+  exact mem_map_of_mem _ (SMulInvariant.smul_mem a hk)
+
+/-- Conjugation by `inl g` commutes with `inl`-images: a conjugation in `G`
+transports to the semidirect product. -/
+theorem map_inl_conj (K : Subgroup G) (g : G) :
+    (K.map (inl : G →* G ⋊[MulDistribMulAction.toMulAut A G] A)).map
+        (MulAut.conj (inl g)).toMonoidHom
+      = (K.map (MulAut.conj g).toMonoidHom).map inl := by
+  have h : (MulAut.conj (inl g : G ⋊[MulDistribMulAction.toMulAut A G] A)).toMonoidHom.comp
+        inl = inl.comp (MulAut.conj g).toMonoidHom := by
+    ext x <;>
+      simp [MulAut.conj_apply, mul_assoc]
+  rw [map_map, map_map, h]
+
+/-- If the `A`-factor normalizes a subgroup `H₁` of the semidirect product, then the
+preimage of `H₁` in `G` is `A`-invariant. -/
+theorem smulInvariant_comap_inl_of_le_normalizer
+    {H₁ : Subgroup (G ⋊[MulDistribMulAction.toMulAut A G] A)}
+    (hnorm : ((inr : A →* G ⋊[MulDistribMulAction.toMulAut A G] A).range)
+      ≤ normalizer (H₁ : Set (G ⋊[MulDistribMulAction.toMulAut A G] A))) :
+    (H₁.comap (inl : G →* G ⋊[MulDistribMulAction.toMulAut A G] A)).SMulInvariant A := by
+  constructor
+  intro a g hg
+  rw [mem_comap] at hg ⊢
+  rw [inl_smul_eq]
+  exact (mem_normalizer_iff.mp (hnorm ⟨a, rfl⟩) (inl g)).mp hg
+
+end MulDistrib
+
+end SemidirectProduct
+
+/-!
 ### The coprime action suite
 -/
 
@@ -652,6 +784,297 @@ theorem coprime_abelian_cent_dprod [Finite A] [Finite G] [IsMulCommutative G]
   refine isComplement'_of_disjoint_and_mul_eq_univ hdisj ?_
   rw [← normal_mul, coprime_cent_prod hco, coe_top]
 
+/-!
+#### `A`-invariant Hall subgroups
+
+Existence follows the induction of `Subgroup.exists_isHall`, decorated with
+`A`-invariance: minimal normal subgroups are replaced by minimal `A`-invariant
+normal subgroups (which are still elementary abelian, since only solvability of the
+subgroup itself is needed), and in the complement case an `A`-invariant complement
+of the normal Hall π'-subgroup `M` is produced inside the semidirect product
+`Λ = G ⋊ A`: a Schur–Zassenhaus complement `D` of `M̃ = M.map inl` meets `G̃ =
+inl.range` in a complement `H₀` of `M̃` in `G̃` normalized by `D`; a complement `B`
+of `H₀` in `D` is a second complement of the solvable normal subgroup `G̃` in `Λ`,
+hence conjugate to `Ã = inr.range` by Schur–Zassenhaus conjugacy, and transporting
+`H₀` by the same conjugation makes it `Ã`-normalized, i.e. `A`-invariant.
+-/
+
+section HallInvariant
+
+universe u v
+
+/-- Every nontrivial finite group with an `A`-action has a minimal `A`-invariant
+normal subgroup. -/
+private theorem exists_min_normal_smulInvariant (A : Type v) (G : Type u) [Group A]
+    [Group G] [MulDistribMulAction A G] [Finite G] [Nontrivial G] :
+    ∃ M : Subgroup G, (M.Normal ∧ M.SMulInvariant A ∧ M ≠ ⊥)
+      ∧ ∀ M' : Subgroup G, M'.Normal → M'.SMulInvariant A → M' ≠ ⊥ → M' ≤ M →
+        M' = M := by
+  obtain ⟨M, ⟨hnorm, hinv, hbot⟩, hmin⟩ :=
+    exists_minimal_of_wellFoundedLT
+      (fun M : Subgroup G => M.Normal ∧ M.SMulInvariant A ∧ M ≠ ⊥)
+      ⟨⊤, inferInstance, inferInstance, top_ne_bot⟩
+  exact ⟨M, ⟨hnorm, hinv, hbot⟩,
+    fun M' h1 h2 h3 hle => le_antisymm hle (hmin ⟨h1, h2, h3⟩ hle)⟩
+
+/-- A minimal `A`-invariant normal subgroup that is itself solvable is elementary
+abelian (`Subgroup.IsMinNormal.isElementaryAbelian` decorated with invariance). -/
+private theorem isElementaryAbelian_of_min_smulInvariant {A G : Type*} [Group A]
+    [Group G] [MulDistribMulAction A G] [Finite G] {M : Subgroup G} [M.Normal]
+    [M.SMulInvariant A] [IsSolvable M] (hbot : M ≠ ⊥)
+    (hmin : ∀ M' : Subgroup G, M'.Normal → M'.SMulInvariant A → M' ≠ ⊥ → M' ≤ M →
+      M' = M) :
+    ∃ p, p.Prime ∧ IsElementaryAbelian p M := by
+  -- Step 1: `M` is abelian, since `⁅M, M⁆` is normal, invariant and proper.
+  have hcomm : ∀ a ∈ M, ∀ b ∈ M, a * b = b * a := by
+    have hlt : ⁅M, M⁆ < M := commutator_lt_of_isSolvable hbot
+    have hcb : ⁅M, M⁆ = ⊥ := by
+      by_contra h
+      exact hlt.ne (hmin _ inferInstance inferInstance h hlt.le)
+    intro a ha b hb
+    have h1 : ⁅a, b⁆ ∈ (⊥ : Subgroup G) := hcb ▸ commutator_mem_commutator ha hb
+    rwa [mem_bot, commutatorElement_eq_one_iff_mul_comm] at h1
+  -- Step 2: pick a prime `p` dividing the order of `M`.
+  obtain ⟨p, hp, hpdvd⟩ := Nat.exists_prime_and_dvd (M.one_lt_card_iff_ne_bot.mpr hbot).ne'
+  haveI : Fact p.Prime := ⟨hp⟩
+  -- Step 3: the `p`-torsion subgroup is normal, invariant and nontrivial, hence `M`.
+  let Ω : Subgroup G :=
+    { carrier := {g | g ∈ M ∧ g ^ p = 1}
+      one_mem' := ⟨M.one_mem, one_pow p⟩
+      mul_mem' := fun {a b} ha hb => ⟨M.mul_mem ha.1 hb.1, by
+        rw [Commute.mul_pow (hcomm a ha.1 b hb.1), ha.2, hb.2, one_mul]⟩
+      inv_mem' := fun {a} ha => ⟨M.inv_mem ha.1, by rw [inv_pow, ha.2, inv_one]⟩ }
+  have hΩnorm : Ω.Normal :=
+    ⟨fun a ha g => ⟨‹M.Normal›.conj_mem a ha.1 g, by
+      rw [conj_pow, ha.2, mul_one, mul_inv_cancel]⟩⟩
+  have hΩinv : Ω.SMulInvariant A :=
+    ⟨fun a g hg => ⟨SMulInvariant.smul_mem a hg.1, by rw [← smul_pow', hg.2, smul_one]⟩⟩
+  obtain ⟨x, hx⟩ := exists_prime_orderOf_dvd_card' (G := M) p hpdvd
+  have hxΩ : (x : G) ∈ Ω := ⟨x.2, by rw [← hx]; exact_mod_cast pow_orderOf_eq_one x⟩
+  have hΩbot : Ω ≠ ⊥ := by
+    intro hbot'
+    have hx1 : (x : G) = 1 := by rwa [hbot', mem_bot] at hxΩ
+    have hx1' : x = 1 := by exact_mod_cast hx1
+    rw [hx1', orderOf_one] at hx
+    exact hp.ne_one hx.symm
+  have hΩM : Ω = M := hmin Ω hΩnorm hΩinv hΩbot fun g hg => hg.1
+  refine ⟨p, hp, fun a b => Subtype.ext (hcomm a a.2 b b.2), fun g => ?_⟩
+  have hg : (g : G) ∈ Ω := hΩM.symm ▸ g.2
+  exact Subtype.ext (by push_cast; exact hg.2)
+
+open SemidirectProduct in
+/-- In the coprime, `G`-solvable setting, an `A`-invariant normal Hall
+π'-subgroup `M` (a `p`-group here) has an `A`-invariant complement: the semidirect
+Frattini argument described in the section docstring. -/
+private theorem exists_smulInvariant_isComplement' {A G : Type*} [Group A] [Group G]
+    [MulDistribMulAction A G] [Finite A] [Finite G] [IsSolvable G] {M : Subgroup G}
+    [M.Normal] [M.SMulInvariant A] (hco : (Nat.card A).Coprime (Nat.card G))
+    (hcoM : (Nat.card M).Coprime M.index) :
+    ∃ H : Subgroup G, IsComplement' M H ∧ H.SMulInvariant A := by
+  -- Work in the semidirect product `Λ`.
+  set φ := MulDistribMulAction.toMulAut A G with hφ
+  set Λ := G ⋊[φ] A with hΛ
+  set Gt : Subgroup Λ := (inl : G →* Λ).range with hGt
+  set At : Subgroup Λ := (inr : A →* Λ).range with hAt
+  set Mt : Subgroup Λ := M.map inl with hMt
+  haveI : Mt.Normal := map_inl_normal M
+  have hMtGt : Mt ≤ Gt := map_le_range inl M
+  have hcardΛ : Nat.card Λ = Nat.card G * Nat.card A := natCard G A φ
+  have hcardGt : Nat.card Gt = Nat.card G := natCard_range_inl
+  have hcardAt : Nat.card At = Nat.card A := natCard_range_inr
+  have hcardMt : Nat.card Mt = Nat.card M := card_map_of_injective inl_injective
+  -- `At` is a complement of the normal solvable subgroup `Gt`.
+  have hAtcomp : IsComplement' Gt At := by
+    refine isComplement'_of_coprime ?_ ?_
+    · rw [hcardGt, hcardAt, ← hcardΛ]
+    · rw [hcardGt, hcardAt]
+      exact hco.symm
+  -- Index bookkeeping for `Mt`.
+  have hMtindex : Mt.index = M.index * Nat.card A := by
+    have h1 : Nat.card Mt * Mt.index = Nat.card Λ := Mt.card_mul_index
+    have h2 : Nat.card M * (M.index * Nat.card A) = Nat.card Λ := by
+      rw [hcardΛ, ← mul_assoc, M.card_mul_index]
+    rw [hcardMt] at h1
+    exact Nat.eq_of_mul_eq_mul_left Nat.card_pos (h1.trans h2.symm)
+  have hcoMA : (Nat.card M).Coprime (Nat.card A) :=
+    (hco.coprime_dvd_right (card_dvd_of_le le_top |>.trans (by rw [card_top]))).symm
+  -- A Schur–Zassenhaus complement `D` of `Mt` in `Λ`.
+  have hcoMt : (Nat.card Mt).Coprime Mt.index := by
+    rw [hcardMt, hMtindex]
+    exact Nat.Coprime.mul_right hcoM hcoMA
+  obtain ⟨D, hD⟩ := exists_right_complement'_of_coprime hcoMt
+  have hcardD : Nat.card D = M.index * Nat.card A := by
+    have h1 : Nat.card Mt * Nat.card D = Nat.card Λ := hD.card_mul
+    have h2 : Nat.card Mt * (M.index * Nat.card A) = Nat.card Λ := by
+      rw [hcardMt, hcardΛ, ← mul_assoc, M.card_mul_index]
+    exact Nat.eq_of_mul_eq_mul_left Nat.card_pos (h1.trans h2.symm)
+  -- `H₀ := D ⊓ Gt` is a complement of `Mt` in `Gt`, normalized by `D`.
+  have hH₀comp := hD.inf_subgroupOf hMtGt
+  have hcardH₀ : Nat.card (D ⊓ Gt : Subgroup Λ) = M.index := by
+    have h1 : Nat.card (Mt.subgroupOf Gt) * Nat.card ((D ⊓ Gt).subgroupOf Gt)
+        = Nat.card Gt := hH₀comp.card_mul
+    rw [card_subgroupOf hMtGt, card_subgroupOf inf_le_right, hcardMt, hcardGt] at h1
+    have h2 : Nat.card M * M.index = Nat.card G := M.card_mul_index
+    exact Nat.eq_of_mul_eq_mul_left Nat.card_pos (h1.trans h2.symm)
+  have hDnorm : D ≤ normalizer ((D ⊓ Gt : Subgroup Λ) : Set Λ) := by
+    have : ((D ⊓ Gt).subgroupOf D).Normal := by
+      rw [inf_comm, inf_subgroupOf_right]
+      infer_instance
+    exact (normal_subgroupOf_iff_le_normalizer inf_le_left).mp this
+  -- A Schur–Zassenhaus complement `B` of `H₀` in `D`; its image `Bt` in `Λ` is a
+  -- complement of `Gt`.
+  haveI : ((D ⊓ Gt).subgroupOf D).Normal := by
+    rw [inf_comm, inf_subgroupOf_right]
+    infer_instance
+  have hMindexpos : 0 < M.index := Nat.pos_of_ne_zero index_ne_zero_of_finite
+  have hcoH₀ : (Nat.card ((D ⊓ Gt).subgroupOf D)).Coprime
+      ((D ⊓ Gt).subgroupOf D).index := by
+    have h1 : Nat.card ((D ⊓ Gt).subgroupOf D) * ((D ⊓ Gt).subgroupOf D).index
+        = Nat.card D := card_mul_index _
+    rw [card_subgroupOf inf_le_left, hcardH₀] at h1 ⊢
+    have h2 : ((D ⊓ Gt).subgroupOf D).index = Nat.card A :=
+      Nat.eq_of_mul_eq_mul_left hMindexpos (h1.trans hcardD)
+    rw [h2]
+    exact (hco.coprime_dvd_right M.index_dvd_card).symm
+  obtain ⟨B, hB⟩ := exists_right_complement'_of_coprime hcoH₀
+  have hcardB : Nat.card B = Nat.card A := by
+    have h1 : Nat.card ((D ⊓ Gt).subgroupOf D) * Nat.card B = Nat.card D := hB.card_mul
+    rw [card_subgroupOf inf_le_left, hcardH₀] at h1
+    exact Nat.eq_of_mul_eq_mul_left hMindexpos (h1.trans hcardD)
+  have hBtcomp : IsComplement' Gt (B.map D.subtype) := by
+    refine isComplement'_of_coprime ?_ ?_
+    · rw [hcardGt, card_subtype, hcardB, hcardΛ]
+    · rw [hcardGt, card_subtype, hcardB]
+      exact hco.symm
+  -- Schur–Zassenhaus conjugacy in `Λ` (solvable kernel `Gt`): `At = Bt ^ z`.
+  have hcoGt : (Nat.card Gt).Coprime Gt.index := by
+    rw [hAtcomp.symm.index_eq_card, hcardGt, hcardAt]
+    exact hco.symm
+  obtain ⟨z, hz⟩ := hBtcomp.exists_conj_of_coprime hcoGt hAtcomp
+  -- Transport `H₀` by `z`: it stays a complement of `Mt` inside `Gt` and becomes
+  -- normalized by `At`.
+  set H₁ : Subgroup Λ := (D ⊓ Gt).map (MulAut.conj z).toMonoidHom with hH₁
+  have hAtnorm : At ≤ normalizer (H₁ : Set Λ) := by
+    have h1 : B.map D.subtype ≤ normalizer ((D ⊓ Gt : Subgroup Λ) : Set Λ) :=
+      le_trans (map_subtype_le B) hDnorm
+    have h2 : At ≤ (normalizer ((D ⊓ Gt : Subgroup Λ) : Set Λ)).map
+        (MulAut.conj z).toMonoidHom := by
+      rw [hz]
+      exact map_mono h1
+    refine h2.trans ?_
+    rw [MulEquiv.toMonoidHom_eq_coe]
+    exact le_normalizer_map _
+  have hH₁Gt : H₁ ≤ Gt := by
+    have h1 : H₁ ≤ Gt.map (MulAut.conj z).toMonoidHom := map_mono inf_le_right
+    rwa [MulEquiv.toMonoidHom_eq_coe, Normal.map_conj_eq Gt z] at h1
+  have hcardH₁ : Nat.card H₁ = M.index := by
+    rw [hH₁, card_map_of_injective (MulAut.conj z).injective, hcardH₀]
+  -- Pull `H₁` back to `G`.
+  refine ⟨H₁.comap (inl : G →* Λ), ?_, smulInvariant_comap_inl_of_le_normalizer hAtnorm⟩
+  have hmapback : (H₁.comap (inl : G →* Λ)).map inl = H₁ :=
+    map_comap_eq_self (hH₁Gt.trans_eq hGt)
+  have hcardH₂ : Nat.card (H₁.comap (inl : G →* Λ)) = M.index := by
+    have h : Nat.card ((H₁.comap (inl : G →* Λ)).map inl)
+        = Nat.card (H₁.comap (inl : G →* Λ)) :=
+      card_map_of_injective (inl_injective (φ := φ))
+    rw [hmapback, hcardH₁] at h
+    exact h.symm
+  refine isComplement'_of_coprime ?_ ?_
+  · rw [hcardH₂, M.card_mul_index]
+  · rw [hcardH₂]
+    exact hcoM
+
+/-- Auxiliary strong induction on `Nat.card G` for `coprime_hall_exists`, with an
+explicit bound `n` so that the induction hypothesis applies to quotients and
+subgroups of `G`. -/
+private theorem coprime_hall_exists_aux (π : Set ℕ) (A : Type v) [Group A] [Finite A]
+    (n : ℕ) :
+    ∀ (G : Type u) [Group G] [Finite G] [MulDistribMulAction A G] [IsSolvable G],
+      Nat.card G ≤ n → (Nat.card A).Coprime (Nat.card G) →
+      ∃ H : Subgroup G, H.IsHall π ∧ H.SMulInvariant A := by
+  induction n with
+  | zero =>
+    intro G _ _ _ _ hG
+    exact absurd (Nat.le_zero.mp hG) Nat.card_pos.ne'
+  | succ n ih =>
+    intro G _ _ _ _ hG hco
+    rcases subsingleton_or_nontrivial G with hG₁ | hG₁
+    -- Trivial group: `⊤` is an invariant Hall π-subgroup.
+    · have h1 : Nat.card G = 1 := Nat.card_unique
+      exact ⟨⊤, isHall_top_iff.mpr (by rw [h1]; exact Nat.isPiNumber_one), inferInstance⟩
+    -- Take a minimal `A`-invariant normal subgroup `M`, elementary abelian of
+    -- order `p ^ k`.
+    obtain ⟨M, ⟨hMnorm, hMinv, hMbot⟩, hMmin⟩ := exists_min_normal_smulInvariant A G
+    haveI := hMnorm
+    haveI := hMinv
+    obtain ⟨p, hp, hpM⟩ := isElementaryAbelian_of_min_smulInvariant hMbot hMmin
+    haveI : Fact p.Prime := ⟨hp⟩
+    obtain ⟨k, hk⟩ := IsPGroup.iff_card.mp hpM.isPGroup
+    -- By induction, `G ⧸ M` has an `A`-invariant Hall π-subgroup `Hbar`; let `K` be
+    -- its preimage, which is `A`-invariant.
+    obtain ⟨Hbar, hHbar, hHbarInv⟩ := ih (G ⧸ M)
+      (Nat.le_of_lt_succ ((card_quotient_lt_card_of_ne_bot hMbot).trans_le hG))
+      (hco.coprime_dvd_right (card_quotient_dvd_card M))
+    haveI := hHbarInv
+    obtain ⟨K, hK⟩ : ∃ K, K = Hbar.comap (QuotientGroup.mk' M) := ⟨_, rfl⟩
+    haveI : K.SMulInvariant A := hK ▸ SMulInvariant.comap (QuotientGroup.mk' M)
+      fun a g => (MulAction.Quotient.smul_mk M a g).symm
+    have hKcard : Nat.card K = Nat.card M * Nat.card Hbar := by
+      rw [hK, card_comap_mk']
+    have hKindex : K.index = Hbar.index := by
+      rw [hK]
+      exact Hbar.index_comap_of_surjective (QuotientGroup.mk'_surjective M)
+    by_cases hpπ : p ∈ π
+    -- Case `p ∈ π`: `K` itself is an invariant Hall π-subgroup.
+    · refine ⟨K, ⟨?_, ?_⟩, inferInstance⟩
+      · show Nat.IsPiNumber π (Nat.card K)
+        rw [hKcard, hk]
+        exact ((hp.isPiNumber hpπ).pow k).mul hHbar.1
+      · intro q hq
+        rw [hKindex] at hq
+        exact hHbar.2 q hq
+    · by_cases hKtop : K = ⊤
+      -- Case `p ∉ π`, `K = ⊤`: `M` is an invariant normal Hall π'-subgroup; an
+      -- `A`-invariant complement (via the semidirect product) is an invariant Hall
+      -- π-subgroup.
+      · have hHtop : Hbar = ⊤ := by
+          rw [← map_comap_eq_self_of_surjective (QuotientGroup.mk'_surjective M) Hbar,
+            ← hK, hKtop, map_top_of_surjective _ (QuotientGroup.mk'_surjective M)]
+        have hMindex : Nat.IsPiNumber π M.index := by
+          rw [index_eq_card]
+          exact isHall_top_iff.mp (hHtop ▸ hHbar)
+        have hMcard : Nat.IsPiNumber πᶜ (Nat.card M) := by
+          rw [hk]
+          exact (hp.isPiNumber hpπ).pow k
+        have hcoM : (Nat.card M).Coprime M.index :=
+          (hMindex.coprime hMcard index_ne_zero_of_finite Nat.card_pos.ne').symm
+        obtain ⟨H, hHcomp, hHinv⟩ := exists_smulInvariant_isComplement' hco hcoM
+        refine ⟨H, ⟨?_, ?_⟩, hHinv⟩
+        · show Nat.IsPiNumber π (Nat.card H)
+          rw [← hHcomp.symm.index_eq_card]
+          exact hMindex
+        · intro q hq
+          rw [hHcomp.index_eq_card] at hq
+          exact hMcard q hq
+      -- Case `p ∉ π`, `K ≠ ⊤`: recurse inside the invariant subgroup `K`.
+      · have hKdvd : Nat.card K ∣ Nat.card G := by
+          have h := card_dvd_of_le (le_top : K ≤ ⊤)
+          rwa [card_top] at h
+        obtain ⟨H', hH', hH'inv⟩ := ih K
+          (Nat.le_of_lt_succ ((card_lt_card_of_ne_top hKtop).trans_le hG))
+          (hco.coprime_dvd_right hKdvd)
+        haveI := hH'inv
+        refine ⟨H'.map K.subtype, ⟨?_, ?_⟩, ?_⟩
+        · show Nat.IsPiNumber π (Nat.card (H'.map K.subtype))
+          rw [card_subtype]
+          exact hH'.1
+        · change Nat.IsPiNumber πᶜ (H'.map K.subtype).index
+          rw [index_map_subtype, hKindex]
+          exact Nat.IsPiNumber.mul (fun q hq => hH'.2 q hq) (fun q hq => hHbar.2 q hq)
+        · exact SMulInvariant.map K.subtype fun a x => rfl
+
+end HallInvariant
+
 /-- **Existence of `A`-invariant Hall subgroups** : if `A` acts coprimely on a finite
 solvable group `G`, then `G` has an `A`-invariant Hall π-subgroup for every `π`.
 
@@ -660,8 +1083,8 @@ instead of `G` solvable via the Feit–Thompson theorem; that alternative is not
 ported.) -/
 theorem coprime_hall_exists (π : Set ℕ) [Finite A] [Finite G] [IsSolvable G]
     (hco : (Nat.card A).Coprime (Nat.card G)) :
-    ∃ H : Subgroup G, H.IsHall π ∧ H.SMulInvariant A := by
-  sorry
+    ∃ H : Subgroup G, H.IsHall π ∧ H.SMulInvariant A :=
+  coprime_hall_exists_aux π A (Nat.card G) G le_rfl hco
 
 /-- **Conjugacy of `A`-invariant Hall subgroups**: if `A` acts coprimely on a finite
 solvable group `G`, then any two `A`-invariant Hall π-subgroups of `G` are conjugate
