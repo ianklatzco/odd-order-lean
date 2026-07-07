@@ -549,7 +549,27 @@ solvable). -/
 theorem coprime_cent_prod [Finite A] [Finite G] [IsSolvable G]
     (hco : (Nat.card A).Coprime (Nat.card G)) :
     actionCommutator A (⊤ : Subgroup G) ⊔ FixedPoints.subgroup A G = ⊤ := by
-  sorry
+  have hcoc : (Nat.card A).Coprime (Nat.card (actionCommutator A (⊤ : Subgroup G))) := by
+    refine hco.coprime_dvd_right ?_
+    have h := card_dvd_of_le (le_top : actionCommutator A (⊤ : Subgroup G) ≤ ⊤)
+    rwa [card_top] at h
+  rw [eq_top_iff]
+  rintro g -
+  -- The action on `G ⧸ [G, A]` is trivial, so the class of `g` is `A`-fixed.
+  have hfix : ((g : G) : G ⧸ actionCommutator A (⊤ : Subgroup G))
+      ∈ FixedPoints.subgroup A (G ⧸ actionCommutator A (⊤ : Subgroup G)) := by
+    intro a
+    rw [MulAction.Quotient.smul_mk]
+    exact (QuotientGroup.eq.mpr (inv_mul_smul_mem_actionCommutator a (mem_top g))).symm
+  -- Lift it to an `A`-fixed element `c` in the same `[G, A]`-coset as `g`.
+  obtain ⟨c, hc, hceq⟩ := coprime_fixedPoints_quotient_surjective hcoc hfix
+  have hmem : c⁻¹ * g ∈ actionCommutator A (⊤ : Subgroup G) := QuotientGroup.eq.mp hceq
+  rw [show g = c * (c⁻¹ * g) by group]
+  have h1 : FixedPoints.subgroup A G
+      ≤ actionCommutator A (⊤ : Subgroup G) ⊔ FixedPoints.subgroup A G := le_sup_right
+  have h2 : actionCommutator A (⊤ : Subgroup G)
+      ≤ actionCommutator A (⊤ : Subgroup G) ⊔ FixedPoints.subgroup A G := le_sup_left
+  exact mul_mem (h1 hc) (h2 hmem)
 
 /-- **Coprime actions are commutator-stable** (B&G 1.6(b)): if `A` acts coprimely on
 a finite solvable group `G`, then `[G, A, A] = [G, A]`.
@@ -563,6 +583,7 @@ theorem coprime_commutator_eq [Finite A] [Finite G] [IsSolvable G]
       = actionCommutator A (⊤ : Subgroup G) := by
   sorry
 
+open scoped IsMulCommutative in
 /-- **The coprime abelian direct-product decomposition** (B&G 1.6(d)): if `A` acts
 coprimely on a finite *abelian* group `G`, then `G = [G, A] × C_G(A)` as an internal
 direct product.  Stated as `IsComplement'`; both factors are normal since `G` is
