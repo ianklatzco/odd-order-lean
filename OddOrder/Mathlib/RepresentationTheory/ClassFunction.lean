@@ -325,3 +325,188 @@ theorem FDRep.classFunction_apply (V : FDRep ℂ G) (g : G) :
   rfl
 
 end Characters
+
+/-! ### `χ(g⁻¹) = conj (χ g)`
+
+The engine is `Module.End.trace_pow_pred_eq_star_trace`: if `f ^ n = 1` on a
+finite-dimensional complex space, then `trace (f ^ (n - 1)) = conj (trace f)`.  The proof
+diagonalizes `f` *implicitly*: for each `j < n`, the averaged operator
+`Q j = n⁻¹ • ∑ i < n, ζ⁻¹ ^ (i * j) • f ^ i` (with `ζ` a primitive `n`-th root of unity) is
+the projection onto the `ζ ^ j`-eigenspace of `f`.  The identities `∑ j, Q j = 1`,
+`f * Q j = ζ ^ j • Q j`, and `Q j * Q j = Q j` are pure algebra (geometric sums), and the
+trace of a projection is a natural number, hence conjugation-fixed.  This avoids both
+inner-product-space machinery (unitarizability) and charpoly-root multiset bookkeeping. -/
+
+section CharInv
+
+variable {V : Type*} [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
+
+/-- If `f ^ n = 1`, then the trace of `f ^ (n - 1) = f⁻¹` is the complex conjugate of the
+trace of `f`. -/
+theorem Module.End.trace_pow_pred_eq_star_trace {f : Module.End ℂ V} {n : ℕ} (hn : n ≠ 0)
+    (hf : f ^ n = 1) :
+    trace ℂ V (f ^ (n - 1)) = starRingEnd ℂ (trace ℂ V f) := by
+  have hn0 : (n : ℂ) ≠ 0 := Nat.cast_ne_zero.mpr hn
+  set ζ : ℂ := Complex.exp (2 * Real.pi * Complex.I / n) with hζdef
+  have hζ : IsPrimitiveRoot ζ n := Complex.isPrimitiveRoot_exp n hn
+  have hζn : ζ ^ n = 1 := hζ.pow_eq_one
+  have hζ0 : ζ ≠ 0 := by
+    intro h
+    rw [h, zero_pow hn] at hζn
+    exact zero_ne_one hζn
+  -- `Q j` is the projection onto the `ζ ^ j`-eigenspace of `f`.
+  set Q : ℕ → Module.End ℂ V := fun j => (n : ℂ)⁻¹ • ∑ i ∈ range n, ζ⁻¹ ^ (i * j) • f ^ i
+    with hQdef
+  -- The projections sum to the identity.
+  have hQsum : ∑ j ∈ range n, Q j = 1 := by
+    have key : ∀ i ∈ range n, (∑ j ∈ range n, ζ⁻¹ ^ (i * j)) • f ^ i
+        = if i = 0 then (n : ℂ) • 1 else 0 := by
+      intro i hi
+      rcases eq_or_ne i 0 with rfl | hi0
+      · simp
+      · have hne1 : ζ⁻¹ ^ i ≠ 1 :=
+          hζ.inv.pow_ne_one_of_pos_of_lt hi0 (mem_range.mp hi)
+        have hpow1 : (ζ⁻¹ ^ i) ^ n = 1 := by
+          rw [← pow_mul, mul_comm i n, pow_mul, inv_pow, hζn, inv_one, one_pow]
+        rw [if_neg hi0]
+        have : ∑ j ∈ range n, ζ⁻¹ ^ (i * j) = 0 := by
+          have := geom_sum_eq hne1 n
+          simp only [hpow1, sub_self, zero_div] at this
+          simpa only [pow_mul] using this
+        rw [this, zero_smul]
+    calc ∑ j ∈ range n, Q j
+        = (n : ℂ)⁻¹ • ∑ j ∈ range n, ∑ i ∈ range n, ζ⁻¹ ^ (i * j) • f ^ i := by
+          rw [Finset.smul_sum]
+      _ = (n : ℂ)⁻¹ • ∑ i ∈ range n, (∑ j ∈ range n, ζ⁻¹ ^ (i * j)) • f ^ i := by
+          rw [Finset.sum_comm]
+          congr 1
+          exact Finset.sum_congr rfl fun i _ => (Finset.sum_smul).symm
+      _ = (n : ℂ)⁻¹ • ((n : ℂ) • 1) := by
+          rw [Finset.sum_congr rfl key, Finset.sum_ite_eq' (range n) 0,
+            if_pos (mem_range.mpr (Nat.pos_of_ne_zero hn))]
+      _ = 1 := by rw [smul_smul, inv_mul_cancel₀ hn0, one_smul]
+  -- `Q j` projects onto the `ζ ^ j`-eigenspace: `f * Q j = ζ ^ j • Q j`.
+  have hfQ : ∀ j, f * Q j = ζ ^ j • Q j := by
+    intro j
+    have expand : f * Q j = (n : ℂ)⁻¹ • ∑ i ∈ range n, ζ⁻¹ ^ (i * j) • f ^ (i + 1) := by
+      rw [hQdef, mul_smul_comm, Finset.mul_sum]
+      congr 1
+      exact Finset.sum_congr rfl fun i _ => by rw [mul_smul_comm, ← pow_succ']
+    -- shift the summation index cyclically, using `f ^ n = 1`
+    set h : ℕ → Module.End ℂ V := fun i => (ζ ^ j * ζ⁻¹ ^ (i * j)) • f ^ i with hh
+    have hstep : ∀ i, ζ⁻¹ ^ (i * j) • f ^ (i + 1) = h (i + 1) := by
+      intro i
+      rw [hh]
+      congr 1
+      rw [add_mul, one_mul, pow_add, ← mul_assoc, mul_comm (ζ ^ j), mul_assoc, ← mul_pow,
+        mul_inv_cancel₀ hζ0, one_pow, mul_one]
+    have hshift : ∑ i ∈ range n, h (i + 1) = ∑ i ∈ range n, h i := by
+      have h1 : ∑ i ∈ range (n + 1), h i = ∑ i ∈ range n, h (i + 1) + h 0 :=
+        Finset.sum_range_succ' h n
+      have h2 : ∑ i ∈ range (n + 1), h i = ∑ i ∈ range n, h i + h n :=
+        Finset.sum_range_succ h n
+      have hn' : h n = h 0 := by
+        rw [hh]
+        simp only [Nat.zero_mul, pow_zero, mul_one]
+        rw [pow_mul, inv_pow, hζn, inv_one, one_pow, mul_one, hf]
+      have := h1.symm.trans h2
+      rw [hn'] at this
+      exact add_right_cancel this
+    calc f * Q j
+        = (n : ℂ)⁻¹ • ∑ i ∈ range n, h (i + 1) := by
+          rw [expand]
+          exact congrArg _ (Finset.sum_congr rfl fun i _ => hstep i)
+      _ = (n : ℂ)⁻¹ • ∑ i ∈ range n, h i := by rw [hshift]
+      _ = ζ ^ j • Q j := by
+          rw [hQdef]
+          simp only [hh, mul_smul, ← Finset.smul_sum]
+          rw [smul_comm]
+  -- hence `f ^ k * Q j = ζ ^ (j * k) • Q j` for every `k`
+  have hfpowQ : ∀ j k, f ^ k * Q j = (ζ ^ j) ^ k • Q j := by
+    intro j k
+    induction k with
+    | zero => simp
+    | succ k ih =>
+      rw [pow_succ, mul_assoc, hfQ j, mul_smul_comm, ih, smul_smul, pow_succ,
+        mul_comm (ζ ^ j)]
+  -- `Q j` is idempotent
+  have hQQ : ∀ j, Q j * Q j = Q j := by
+    intro j
+    have expand : Q j * Q j = (n : ℂ)⁻¹ • ∑ i ∈ range n, ζ⁻¹ ^ (i * j) • (f ^ i * Q j) := by
+      conv_lhs => rw [hQdef]
+      rw [smul_mul_assoc, Finset.sum_mul]
+      congr 1
+    rw [expand]
+    have : ∀ i ∈ range n, ζ⁻¹ ^ (i * j) • (f ^ i * Q j) = Q j := by
+      intro i _
+      rw [hfpowQ j i, smul_smul, ← pow_mul, mul_comm j i, ← mul_pow, inv_mul_cancel₀ hζ0,
+        one_pow, one_smul]
+    rw [Finset.sum_congr rfl this, Finset.sum_const, card_range, ← Nat.cast_smul_eq_nsmul ℂ,
+      smul_smul, inv_mul_cancel₀ hn0, one_smul]
+  -- traces of the projections are natural numbers, hence fixed by conjugation
+  have htrQ : ∀ j, starRingEnd ℂ (trace ℂ V (Q j)) = trace ℂ V (Q j) := by
+    intro j
+    have hproj : LinearMap.IsProj (LinearMap.range (Q j)) (Q j) := by
+      refine ⟨fun x => LinearMap.mem_range_self _ x, fun x hx => ?_⟩
+      obtain ⟨y, rfl⟩ := hx
+      have := congrArg (fun T : Module.End ℂ V => T y) (hQQ j)
+      simpa [Module.End.mul_apply] using this
+    rw [hproj.trace, map_natCast]
+  -- star of each eigenvalue is its inverse, realized as the `(n-1)`-st power
+  have hstar : ∀ j, (ζ ^ j) ^ (n - 1) = starRingEnd ℂ (ζ ^ j) := by
+    intro j
+    have hpow1 : (ζ ^ j) ^ n = 1 := by rw [← pow_mul, mul_comm j n, pow_mul, hζn, one_pow]
+    have hnorm : ‖ζ ^ j‖ = 1 := Complex.norm_eq_one_of_pow_eq_one hpow1 hn
+    have hmul : (ζ ^ j) ^ (n - 1) * ζ ^ j = 1 := by
+      rw [← pow_succ, Nat.sub_add_cancel (Nat.one_le_iff_ne_zero.mpr hn), hpow1]
+    rw [← Complex.inv_eq_conj hnorm]
+    exact (inv_eq_of_mul_eq_one_left hmul).symm
+  -- expand the two traces over the projections and compare termwise
+  have hexp : ∀ k, trace ℂ V (f ^ k) = ∑ j ∈ range n, (ζ ^ j) ^ k * trace ℂ V (Q j) := by
+    intro k
+    conv_lhs => rw [← mul_one (f ^ k), ← hQsum, Finset.mul_sum]
+    rw [map_sum]
+    exact Finset.sum_congr rfl fun j _ => by rw [hfpowQ j k, map_smul, smul_eq_mul]
+  calc trace ℂ V (f ^ (n - 1))
+      = ∑ j ∈ range n, (ζ ^ j) ^ (n - 1) * trace ℂ V (Q j) := hexp (n - 1)
+    _ = ∑ j ∈ range n, starRingEnd ℂ (ζ ^ j * trace ℂ V (Q j)) := by
+        refine Finset.sum_congr rfl fun j _ => ?_
+        rw [map_mul, htrQ j, hstar j]
+    _ = starRingEnd ℂ (∑ j ∈ range n, ζ ^ j * trace ℂ V (Q j)) := by rw [map_sum]
+    _ = starRingEnd ℂ (trace ℂ V f) := by
+        congr 1
+        have := hexp 1
+        simpa [pow_one] using this.symm
+
+variable {G : Type u} [Group G] [Finite G]
+
+/-- For a finite group `G` and `g : G`, the character of a finite-dimensional complex
+representation satisfies `χ(g⁻¹) = conj (χ g)`.  MathComp: `char_inv` (`character.v`). -/
+theorem Representation.char_inv (ρ : Representation ℂ G V) (g : G) :
+    ρ.character g⁻¹ = starRingEnd ℂ (ρ.character g) := by
+  have hn : orderOf g ≠ 0 := (orderOf_pos g).ne'
+  have hpow : ρ g ^ orderOf g = 1 := by rw [← map_pow, pow_orderOf_eq_one, map_one]
+  have hg : g⁻¹ = g ^ (orderOf g - 1) := by
+    refine inv_eq_of_mul_eq_one_left ?_
+    rw [← pow_succ, Nat.sub_add_cancel (Nat.one_le_iff_ne_zero.mpr hn), pow_orderOf_eq_one]
+  calc ρ.character g⁻¹
+      = trace ℂ V (ρ g ^ (orderOf g - 1)) := by rw [Representation.character, hg, map_pow]
+    _ = starRingEnd ℂ (trace ℂ V (ρ g)) := Module.End.trace_pow_pred_eq_star_trace hn hpow
+    _ = starRingEnd ℂ (ρ.character g) := rfl
+
+/-- For a finite group `G` and `g : G`, the character of `V : FDRep ℂ G` satisfies
+`χ(g⁻¹) = conj (χ g)`.  MathComp: `char_inv` (`character.v`). -/
+theorem FDRep.char_inv (W : FDRep ℂ G) (g : G) :
+    W.character g⁻¹ = starRingEnd ℂ (W.character g) := by
+  have hn : orderOf g ≠ 0 := (orderOf_pos g).ne'
+  have hpow : W.ρ g ^ orderOf g = 1 := by rw [← map_pow, pow_orderOf_eq_one, map_one]
+  have hg : g⁻¹ = g ^ (orderOf g - 1) := by
+    refine inv_eq_of_mul_eq_one_left ?_
+    rw [← pow_succ, Nat.sub_add_cancel (Nat.one_le_iff_ne_zero.mpr hn), pow_orderOf_eq_one]
+  calc W.character g⁻¹
+      = trace ℂ W (W.ρ g ^ (orderOf g - 1)) := by rw [FDRep.character, hg, map_pow]
+    _ = starRingEnd ℂ (trace ℂ W (W.ρ g)) := Module.End.trace_pow_pred_eq_star_trace hn hpow
+    _ = starRingEnd ℂ (W.character g) := rfl
+
+end CharInv
+
