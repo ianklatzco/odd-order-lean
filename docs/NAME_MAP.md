@@ -33,6 +33,15 @@ Lean/Mathlib ports, per `docs/superpowers/plans/2026-07-06-odd-order-port.md` §
 | `coprime_abelian_cent_dprod` | `coprime_abelian_cent_dprod` | `OddOrder/Mathlib/GroupTheory/CoprimeAction.lean` |
 | `coprime_Hall_exists` | `coprime_hall_exists` | `OddOrder/Mathlib/GroupTheory/CoprimeAction.lean` |
 | `coprime_Hall_trans` | `coprime_hall_trans` | `OddOrder/Mathlib/GroupTheory/CoprimeAction.lean` |
+| `p_natP` (`{p}`-number is a `p`-power) | `Nat.IsPiNumber.exists_eq_pow` | `OddOrder/Mathlib/GroupTheory/PiGroup.lean` |
+| `Fitting` (`'F(G)`) | `Fitting` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
+| `Fitting_max` | `Fitting.max` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
+| `Fitting_char` | `Fitting.characteristic` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
+| `Fitting_normal` | `Fitting.normal` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
+| `Fitting_nil` (Fitting's theorem) | `Fitting.isNilpotent` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
+| `FittingEgen` (join-of-`'O_p(G)` form) | `Fitting_eq_iSup_pcore` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
+| `cent_sub_Fitting` (B&G 1.3) | `Fitting.centralizer_le` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
+| `minnormal` existence below a normal subgroup (no single MathComp lemma) | `Subgroup.exists_isMinNormal_le` | `OddOrder/Mathlib/GroupTheory/ChiefFactor.lean` |
 
 Future work (not ported yet): `coprime_Hall_subset` and the Glauberman-lemma
 variants of the coprime-action suite (`glauberman_...`, `ext_coprime_quotient_cent`
