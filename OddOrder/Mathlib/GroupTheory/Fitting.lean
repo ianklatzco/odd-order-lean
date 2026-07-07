@@ -56,7 +56,8 @@ nilpotent (`Group.isNilpotent_of_finite_tfae`).
 
 `Fitting.centralizer_le` follows Hall's argument (Isaacs, *Finite Group
 Theory*, 3.10, adapted to avoid chief series): write `F = F(G)`,
-`C = C_G(F)` and `Z = C ⊓ F`, and note `Z` is abelian.  If `C ≰ F`, the
+`C = C_G(F)` and `Z = C ⊓ F`, which is normal in `G` (so `G ⧸ Z` makes sense)
+and contained in both `C` and `F`.  If `C ≰ F`, the
 image of `C` in `G ⧸ Z` is a nontrivial normal subgroup, so it contains a
 minimal normal subgroup `M/Z` of `G ⧸ Z` (`Subgroup.exists_isMinNormal_le`),
 which is abelian by solvability (`Subgroup.IsMinNormal.isElementaryAbelian`).
@@ -71,9 +72,8 @@ open scoped commutatorElement
 /-!
 ### Prerequisites missing from Mathlib
 
-Two general facts used below: a group whose commutator subgroup is central is
-nilpotent (of class at most two), and a characteristic subgroup of a normal
-subgroup is normal.
+One general fact used below: a group whose commutator subgroup is central is
+nilpotent (of class at most two).
 -/
 
 /-- A group whose commutator subgroup is contained in its center is nilpotent
@@ -85,17 +85,6 @@ theorem Group.isNilpotent_of_commutator_le_center {G : Type*} [Group G]
   intro y
   rw [Subgroup.upperCentralSeries_one]
   exact h (Subgroup.commutator_mem_commutator (Subgroup.mem_top g) (Subgroup.mem_top y))
-
-/-- A characteristic subgroup of a normal subgroup is normal (in the ambient
-group): conjugation restricts to an automorphism of the normal subgroup, which
-fixes each of its characteristic subgroups. -/
-theorem Subgroup.Characteristic.map_subtype_normal {G : Type*} [Group G] {N : Subgroup G}
-    [N.Normal] {H : Subgroup N} (h : H.Characteristic) : (H.map N.subtype).Normal := by
-  constructor
-  rintro x ⟨y, hy, rfl⟩ g
-  refine ⟨MulAut.conjNormal g y, ?_, by simp [MulAut.conjNormal_apply]⟩
-  rw [← Subgroup.characteristic_iff_map_eq.mp h (MulAut.conjNormal g)]
-  exact Subgroup.mem_map_of_mem _ hy
 
 /-- A finite group is the join of (any choice of) its Sylow subgroups: the
 join has order divisible by the full `p`-part of the group order for every
@@ -197,8 +186,8 @@ theorem Normal.le_iSup_pcore [Finite G] {N : Subgroup G} (hN : N.Normal)
   have hpG : p ∈ (Nat.card G).primeFactors :=
     Nat.primeFactors_mono (Subgroup.card_subgroup_dvd_card N) Nat.card_pos.ne' hp
   refine le_trans ?_ (le_biSup (fun q => Subgroup.pcore {q} G) hpG)
-  haveI : ((P p : Subgroup N).map N.subtype).Normal :=
-    (Sylow.characteristic_of_normal (P p) inferInstance).map_subtype_normal
+  haveI : (P p : Subgroup N).Characteristic := Sylow.characteristic_of_normal (P p) inferInstance
+  haveI : ((P p : Subgroup N).map N.subtype).Normal := inferInstance
   exact Subgroup.pcore_max ((P p).isPGroup'.map N.subtype).isPiGroup
 
 /-- The join of the `p`-cores of a finite group over the primes dividing its
@@ -301,7 +290,7 @@ theorem Fitting.centralizer_le {G : Type*} [Group G] [Finite G] [IsSolvable G] :
     Subgroup.centralizer (Fitting G) ≤ Fitting G := by
   set C : Subgroup G := Subgroup.centralizer (Fitting G)
   by_contra hCF
-  -- `Z = C ⊓ F(G)` is a normal (abelian) subgroup contained in `F(G)`
+  -- `Z = C ⊓ F(G)` is normal in `G` and contained in both `C` and `F(G)`
   set Z : Subgroup G := C ⊓ Fitting G
   -- the image of `C` in `G ⧸ Z` is a nontrivial normal subgroup
   set Cbar : Subgroup (G ⧸ Z) := C.map (QuotientGroup.mk' Z) with hCbar
