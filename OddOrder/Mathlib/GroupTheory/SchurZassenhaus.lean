@@ -191,6 +191,9 @@ private theorem exists_conj_of_coprime_of_isMulCommutative [Finite G] {N H K : S
     (hH : IsComplement' N H) (hK : IsComplement' N K) :
     ∃ g : G, K = H.map (MulAut.conj g).toMonoidHom := by
   -- The action of `G` on `N.QuotientDiff`, computed on the class of a transversal.
+  -- NB: this `rfl` relies on a defeq of Mathlib's `MulAction G H.QuotientDiff` instance
+  -- (`Quotient.map'` computing on `Quotient.mk''`); if a Mathlib bump breaks it,
+  -- re-prove via `Quotient.map'_mk''`.
   have hact : ∀ (c : G) (q : N.QuotientDiff) (β : N.LeftTransversal), q = Quotient.mk'' β →
       c • q = Quotient.mk'' (op c⁻¹ • β) := by
     rintro c q β rfl

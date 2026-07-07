@@ -6,6 +6,8 @@ Authors: Ian Klatzco
 import Mathlib.Algebra.Group.ConjFinite
 import Mathlib.Analysis.Complex.Polynomial.Basic
 import Mathlib.GroupTheory.GroupAction.ConjAct
+-- `Mathlib.GroupTheory.Rank` is needed for `Subgroup.nat_card_centralizer_nat_card_stabilizer`
+-- (used in `ConjClasses.nat_card_carrier_mul_card_centralizer`), which happens to live there.
 import Mathlib.GroupTheory.Rank
 import Mathlib.LinearAlgebra.FiniteDimensional.Lemmas
 import Mathlib.RepresentationTheory.Character
@@ -70,6 +72,9 @@ to MathComp's `classfun.v` and the orthogonality material of `character.v`.
 * **No `InnerProductSpace` instance.** `cfInner` is a plain definition with scoped notation.
   A full `InnerProductSpace` instance would drag in norms and topology that nothing in the
   port needs yet; it can be added later without changing this interface.
+* **Coercion.** `Irr G` coerces to `ClassFunction G` (via `Irr.toClassFunction`, mirroring
+  the `Sylow → Subgroup` coercion); new (M2+) statements should use the coercion `↑χ`,
+  while pre-existing statements keep the explicit `.toClassFunction` spelling.
 * **Irreducibility via the group algebra.** `Irr G` is defined through simple submodules of
   `MonoidAlgebra ℂ G` (every simple module is isomorphic to one, so this is no loss:
   `Representation.exists_irr_classFunction_eq` recovers arbitrary irreducible representations).
@@ -706,6 +711,13 @@ namespace Irr
 
 variable [Fintype G]
 
+attribute [coe] toClassFunction
+
+/-- Irreducible characters coerce to their underlying class functions, mirroring the
+`Sylow p G → Subgroup G` coercion. -/
+instance : CoeOut (Irr G) (ClassFunction G) :=
+  ⟨toClassFunction⟩
+
 instance : FunLike (Irr G) G ℂ where
   coe χ := χ.toClassFunction
   coe_injective χ ψ h := by
@@ -719,6 +731,13 @@ theorem ext {χ ψ : Irr G} (h : ∀ g, χ g = ψ g) : χ = ψ :=
 
 @[simp]
 theorem coe_toClassFunction (χ : Irr G) : ⇑χ.toClassFunction = ⇑χ :=
+  rfl
+
+/-- Applying the coercion `Irr G → ClassFunction G` agrees with applying
+`Irr.toClassFunction` (the coercion is definitionally `toClassFunction`, and the
+right-hand side is its simp-normal application form). -/
+@[simp]
+theorem coe_apply (χ : Irr G) (g : G) : (χ : ClassFunction G) g = χ g :=
   rfl
 
 theorem toClassFunction_injective :

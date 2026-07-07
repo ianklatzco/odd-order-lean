@@ -18,7 +18,12 @@ Lean/Mathlib ports, per `docs/superpowers/plans/2026-07-06-odd-order-port.md` §
 | `SchurZassenhaus_trans_sol` | `Subgroup.IsComplement'.exists_conj_of_coprime` | `OddOrder/Mathlib/GroupTheory/SchurZassenhaus.lean` |
 | `Hall_trans` | `Subgroup.isHall_conj` | `OddOrder/Mathlib/GroupTheory/Hall.lean` |
 | `Hall_superset` | `Subgroup.IsPiGroup.le_isHall_conj` | `OddOrder/Mathlib/GroupTheory/Hall.lean` |
-| `pgroupM` (for the product with a normal subgroup) | `Subgroup.Normal.isPiGroup_sup` | `OddOrder/Mathlib/GroupTheory/PiGroup.lean` |
+| `quotient_pHall` | `Subgroup.IsHall.map_mk'` | `OddOrder/Mathlib/GroupTheory/Hall.lean` |
+| `pHall_subl` (approximate) | `Subgroup.IsHall.subgroupOf` | `OddOrder/Mathlib/GroupTheory/Hall.lean` |
+| `sub_pHall` | `Subgroup.IsHall.eq_of_le` | `OddOrder/Mathlib/GroupTheory/Hall.lean` |
+| `pHall_Sylow` / `Sylow_Hall` (approximate) | `Sylow.isHall` | `OddOrder/Mathlib/GroupTheory/Hall.lean` |
+| `pHall_coprime` (approximate) | `Subgroup.IsHall.coprime` | `OddOrder/Mathlib/GroupTheory/Hall.lean` |
+| `pgroupM` (for the product with a normal subgroup; product form differs — MathComp states it for the product set `H * N`, Lean for the join `H ⊔ N`) | `Subgroup.Normal.isPiGroup_sup` | `OddOrder/Mathlib/GroupTheory/PiGroup.lean` |
 | `pcore` (`'O_pi(G)`) | `Subgroup.pcore` | `OddOrder/Mathlib/GroupTheory/PiGroup.lean` |
 | `pcore_pgroup` | `Subgroup.pcore_isPiGroup` | `OddOrder/Mathlib/GroupTheory/PiGroup.lean` |
 | `pcore_normal` | `Subgroup.pcore_normal` | `OddOrder/Mathlib/GroupTheory/PiGroup.lean` |
@@ -34,19 +39,19 @@ Lean/Mathlib ports, per `docs/superpowers/plans/2026-07-06-odd-order-port.md` §
 | `coprime_Hall_exists` | `coprime_hall_exists` | `OddOrder/Mathlib/GroupTheory/CoprimeAction.lean` |
 | `coprime_Hall_trans` | `coprime_hall_trans` | `OddOrder/Mathlib/GroupTheory/CoprimeAction.lean` |
 | `p_natP` (`{p}`-number is a `p`-power) | `Nat.IsPiNumber.exists_eq_pow` | `OddOrder/Mathlib/GroupTheory/PiGroup.lean` |
-| `Fitting` (`'F(G)`) | `Fitting` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
-| `Fitting_max` | `Fitting.max` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
-| `Fitting_char` | `Fitting.characteristic` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
-| `Fitting_normal` | `Fitting.normal` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
-| `Fitting_nil` (Fitting's theorem) | `Fitting.isNilpotent` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
-| `FittingEgen` (join-of-`'O_p(G)` form) | `Fitting_eq_iSup_pcore` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
-| `cent_sub_Fitting` (B&G 1.3) | `Fitting.centralizer_le` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
+| `Fitting` (`'F(G)`) | `fitting` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
+| `Fitting_max` | `fitting_max` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
+| `Fitting_char` | `fitting_characteristic` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
+| `Fitting_normal` | `fitting_normal` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
+| `Fitting_nil` (Fitting's theorem) | `fitting_isNilpotent` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
+| `FittingEgen` (join-of-`'O_p(G)` form) | `fitting_eq_iSup_pcore` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
+| `cent_sub_Fitting` (B&G 1.3) | `fitting_centralizer_le` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
 | `minnormal` existence below a normal subgroup (no single MathComp lemma) | `Subgroup.exists_isMinNormal_le` | `OddOrder/Mathlib/GroupTheory/ChiefFactor.lean` |
 | `classfun` / `'CF(G)` | `ClassFunction` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
 | `'CF(G, A)` | `ClassFunction.supportedOn` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
 | `cfdot` / `'[phi, psi]` | `ClassFunction.cfInner`, notation `⟪φ, ψ⟫_[G]` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
 | `cfdotC` (`'[phi, psi] = ('[psi, phi])^*`) | `ClassFunction.cfInner_conj_symm` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
-| `cfun1` / `cfuni` (class-function count: `\dim 'CF(G) = #|classes G|`) | `ClassFunction.finrank_classFunction` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
+| `dim_cfun` (`\dim 'CF(G) = #|classes G|`; approximate — the previously listed `cfun1`/`cfuni` are the constant-1 and indicator class functions, not this dimension count, and are not ported yet) | `ClassFunction.finrank_classFunction` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
 | `char_inv` (`chi g^-1 = (chi g)^*`) | `Representation.char_inv`, `FDRep.char_inv` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
 | `cfRepr` (character of a `G`-module) | `MonoidAlgebra.moduleCharacter` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
 | `irr G` | `Irr` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |

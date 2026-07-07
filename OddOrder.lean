@@ -1,3 +1,8 @@
+/-
+Copyright (c) 2026 Ian Klatzco. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Ian Klatzco
+-/
 import OddOrder.Basic
 import OddOrder.Mathlib.GroupTheory.ChiefFactor
 import OddOrder.Mathlib.GroupTheory.CoprimeAction

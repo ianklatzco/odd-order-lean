@@ -22,25 +22,25 @@ Fitting subgroup of a finite *solvable* group: `C_G(F(G)) ≤ F(G)`
 
 ## Main definitions
 
-* `Fitting G`: the join of all normal nilpotent subgroups of `G`.
+* `fitting G`: the join of all normal nilpotent subgroups of `G`.
 
 ## Main results
 
-* `Fitting.max`: every normal nilpotent subgroup is contained in `Fitting G`.
-* `Fitting.characteristic`, `Fitting.normal`: `Fitting G` is characteristic,
+* `fitting_max`: every normal nilpotent subgroup is contained in `fitting G`.
+* `fitting_characteristic`, `fitting_normal`: `fitting G` is characteristic,
   hence normal.
-* `Fitting_eq_iSup_pcore`: for a finite group,
-  `Fitting G = ⨆ p ∈ (Nat.card G).primeFactors, O_p(G)`.
-* `Fitting.isNilpotent` (**Fitting's theorem**): the Fitting subgroup of a
+* `fitting_eq_iSup_pcore`: for a finite group,
+  `fitting G = ⨆ p ∈ (Nat.card G).primeFactors, O_p(G)`.
+* `fitting_isNilpotent` (**Fitting's theorem**): the Fitting subgroup of a
   finite group is nilpotent.
-* `Fitting.centralizer_le` (**B&G 1.3**): in a finite solvable group,
+* `fitting_centralizer_le` (**B&G 1.3**): in a finite solvable group,
   `C_G(F(G)) ≤ F(G)`.
 
 These correspond to MathComp's `'F(G)` (`Fitting`), `Fitting_max`,
 `Fitting_char`/`Fitting_normal`, `Fitting_nil`, `FittingEgen` and
 `cent_sub_Fitting`.
 
-The internal-direct-product refinement of `Fitting_eq_iSup_pcore`
+The internal-direct-product refinement of `fitting_eq_iSup_pcore`
 (`F(G) = ∏_p O_p(G)` as an internal direct product) is not ported yet; the
 join form suffices for the odd-order development.
 
@@ -54,7 +54,7 @@ nilpotent because each `O_p(G)` is its unique — hence normal — Sylow
 `p`-subgroup, and a finite group all of whose Sylow subgroups are normal is
 nilpotent (`Group.isNilpotent_of_finite_tfae`).
 
-`Fitting.centralizer_le` follows Hall's argument (Isaacs, *Finite Group
+`fitting_centralizer_le` follows Hall's argument (Isaacs, *Finite Group
 Theory*, 3.10, adapted to avoid chief series): write `F = F(G)`,
 `C = C_G(F)` and `Z = C ⊓ F`, which is normal in `G` (so `G ⧸ Z` makes sense)
 and contained in both `C` and `F`.  If `C ≰ F`, the
@@ -107,47 +107,49 @@ theorem Sylow.biSup_eq_top (G : Type*) [Group G] [Finite G] (P : ∀ p : ℕ, Sy
 
 /-- The *Fitting subgroup* `F(G)`: the join of all normal nilpotent subgroups
 of `G`.  For a finite group this is the largest normal nilpotent subgroup: it
-is nilpotent by `Fitting.isNilpotent` and contains every normal nilpotent
-subgroup by `Fitting.max`.
+is nilpotent by `fitting_isNilpotent` and contains every normal nilpotent
+subgroup by `fitting_max`.
 
 This corresponds to MathComp's `'F(G)` (`Fitting`). -/
-def Fitting (G : Type*) [Group G] : Subgroup G :=
+def fitting (G : Type*) [Group G] : Subgroup G :=
   ⨆ (N : Subgroup G) (_ : N.Normal) (_ : Group.IsNilpotent N), N
 
-namespace Fitting
+section Fitting
 
 variable {G : Type*} [Group G]
 
 /-- Every normal nilpotent subgroup is contained in the Fitting subgroup.
 
 This corresponds to MathComp's `Fitting_max`. -/
-theorem max {N : Subgroup G} [hN : N.Normal] (h : Group.IsNilpotent N) : N ≤ Fitting G :=
+theorem fitting_max {N : Subgroup G} [hN : N.Normal] (h : Group.IsNilpotent N) :
+    N ≤ fitting G :=
   le_iSup_of_le N (le_iSup_of_le hN (le_iSup_of_le h le_rfl))
 
 /-- The Fitting subgroup is contained in every subgroup containing all normal
 nilpotent subgroups. -/
-theorem le {H : Subgroup G} (h : ∀ N : Subgroup G, N.Normal → Group.IsNilpotent N → N ≤ H) :
-    Fitting G ≤ H :=
+theorem fitting_le {H : Subgroup G}
+    (h : ∀ N : Subgroup G, N.Normal → Group.IsNilpotent N → N ≤ H) :
+    fitting G ≤ H :=
   iSup_le fun N => iSup_le fun hN => iSup_le fun hNnil => h N hN hNnil
 
 /-- The Fitting subgroup is characteristic: automorphisms permute the normal
 nilpotent subgroups, hence fix their join.
 
 This corresponds to MathComp's `Fitting_char`. -/
-instance characteristic : (Fitting G).Characteristic := by
+instance fitting_characteristic : (fitting G).Characteristic := by
   refine Subgroup.characteristic_iff_map_le.mpr fun φ => ?_
   rw [Subgroup.map_le_iff_le_comap]
-  refine Fitting.le fun N hN hNnil => ?_
+  refine fitting_le fun N hN hNnil => ?_
   rw [← Subgroup.map_le_iff_le_comap]
   haveI := hN.map φ.toMonoidHom φ.surjective
   haveI := hNnil
-  exact Fitting.max
+  exact fitting_max
     (Group.nilpotent_of_mulEquiv (Subgroup.equivMapOfInjective N φ.toMonoidHom φ.injective))
 
 /-- The Fitting subgroup is normal.
 
 This corresponds to MathComp's `Fitting_normal`. -/
-instance normal : (Fitting G).Normal := inferInstance
+instance fitting_normal : (fitting G).Normal := inferInstance
 
 end Fitting
 
@@ -261,22 +263,22 @@ over the primes dividing the group order.
 
 This corresponds to MathComp's `FittingEgen` (the internal-direct-product
 refinement `F(G) = ∏_p O_p(G)` is not ported). -/
-theorem Fitting_eq_iSup_pcore (G : Type*) [Group G] [Finite G] :
-    Fitting G = ⨆ p ∈ (Nat.card G).primeFactors, Subgroup.pcore {p} G := by
-  refine le_antisymm (Fitting.le fun N hN hnil => hN.le_iSup_pcore hnil) ?_
+theorem fitting_eq_iSup_pcore (G : Type*) [Group G] [Finite G] :
+    fitting G = ⨆ p ∈ (Nat.card G).primeFactors, Subgroup.pcore {p} G := by
+  refine le_antisymm (fitting_le fun N hN hnil => hN.le_iSup_pcore hnil) ?_
   refine iSup₂_le fun p hp => ?_
   haveI : Fact p.Prime := ⟨Nat.prime_of_mem_primeFactors hp⟩
-  exact Fitting.max Subgroup.pcore_isPGroup.isNilpotent
+  exact fitting_max Subgroup.pcore_isPGroup.isNilpotent
 
 /-- **Fitting's theorem**: the Fitting subgroup of a finite group is
-nilpotent — hence, together with `Fitting.normal` and `Fitting.max`, the
+nilpotent — hence, together with `fitting_normal` and `fitting_max`, the
 largest normal nilpotent subgroup.
 
 This corresponds to MathComp's `Fitting_nil`. -/
-theorem Fitting.isNilpotent {G : Type*} [Group G] [Finite G] :
-    Group.IsNilpotent (Fitting G) := by
+theorem fitting_isNilpotent {G : Type*} [Group G] [Finite G] :
+    Group.IsNilpotent (fitting G) := by
   have h := Subgroup.isNilpotent_iSup_pcore G
-  rwa [← Fitting_eq_iSup_pcore] at h
+  rwa [← fitting_eq_iSup_pcore] at h
 
 /-!
 ### The Fitting subgroup of a solvable group contains its centralizer
@@ -286,12 +288,12 @@ theorem Fitting.isNilpotent {G : Type*} [Group G] [Finite G] :
 contained in the Fitting subgroup** (Bender–Glauberman 1.3).
 
 This corresponds to MathComp's `cent_sub_Fitting`. -/
-theorem Fitting.centralizer_le {G : Type*} [Group G] [Finite G] [IsSolvable G] :
-    Subgroup.centralizer (Fitting G) ≤ Fitting G := by
-  set C : Subgroup G := Subgroup.centralizer (Fitting G)
+theorem fitting_centralizer_le {G : Type*} [Group G] [Finite G] [IsSolvable G] :
+    Subgroup.centralizer (fitting G) ≤ fitting G := by
+  set C : Subgroup G := Subgroup.centralizer (fitting G)
   by_contra hCF
   -- `Z = C ⊓ F(G)` is normal in `G` and contained in both `C` and `F(G)`
-  set Z : Subgroup G := C ⊓ Fitting G
+  set Z : Subgroup G := C ⊓ fitting G
   -- the image of `C` in `G ⧸ Z` is a nontrivial normal subgroup
   set Cbar : Subgroup (G ⧸ Z) := C.map (QuotientGroup.mk' Z) with hCbar
   haveI : Cbar.Normal := Subgroup.Normal.map inferInstance _ (QuotientGroup.mk'_surjective Z)
@@ -328,11 +330,11 @@ theorem Fitting.centralizer_le {G : Type*} [Group G] [Finite G] [IsSolvable G] :
   have hcenter : commutator ↥M ≤ Subgroup.center ↥M := by
     intro x hx
     refine Subgroup.mem_center_iff.mpr fun m => ?_
-    have hxF : (x : G) ∈ Fitting G :=
+    have hxF : (x : G) ∈ fitting G :=
       (Subgroup.mem_inf.mp (hcomm_le (Subgroup.mem_map_of_mem _ hx))).2
     exact Subtype.ext (Subgroup.mem_centralizer_iff.mp (hMC m.2) x hxF).symm
   -- hence `M` is nilpotent and normal, so `M ≤ F(G)`, contradicting `Mbar ≠ ⊥`
-  have hMF : M ≤ Fitting G := Fitting.max (Group.isNilpotent_of_commutator_le_center hcenter)
+  have hMF : M ≤ fitting G := fitting_max (Group.isNilpotent_of_commutator_le_center hcenter)
   refine hMbar_min.ne_bot ?_
   rw [← hmapM, Subgroup.map_eq_bot_iff, QuotientGroup.ker_mk']
   exact le_inf hMC hMF

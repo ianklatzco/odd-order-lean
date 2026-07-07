@@ -35,6 +35,21 @@ noncomputable `Fintype`), first orthogonality (`Irr.cfInner_eq`), completeness
   membership facts should be stated as `∃ χ : Irr G, χ.toClassFunction = …` (pattern:
   `Representation.exists_irr_classFunction_eq`).
 
+**Fintype/Nat.card seam policy:** sums over group elements use `[Fintype G]` and
+`∑ g : G` (following `Mathlib.RepresentationTheory.Character`), while all *exported*
+counting statements are `Nat.card`-phrased (instance-free; convert at the seam with
+`Nat.card_eq_fintype_card`). Subgroup/quotient character statements (restriction,
+induction, Clifford) will need `Fintype ↥H` alongside `[Finite G]`, since their defining
+formulas sum over `H` (or over coset representatives) and `[Finite G]` alone does not
+provide the `Fintype ↥H` instance a `∑ h : H` requires — take it as a hypothesis rather
+than manufacturing it with `Fintype.ofFinite` inside statements.
+
+**Coercion convention:** `Irr G` now coerces to `ClassFunction G` (via
+`Irr.toClassFunction`, with simp lemma `Irr.coe_apply`); new M2 statements should use the
+coercion (`↑χ`, e.g. `⟪φ, (χ : ClassFunction G)⟫_[G]`) instead of spelling out
+`χ.toClassFunction`. Existing Task-9 statements keep the explicit `.toClassFunction`
+form.
+
 **Files:** continue in `OddOrder/Mathlib/RepresentationTheory/` — new files
 `CharacterArith.lean` (Tasks 1, 3, 4), `Induced.lean` (Task 2), `Burnside.lean` (Task 5),
 `VirtualChar.lean` (Task 6), `CFAut.lean` (Task 7). Split further if any exceeds ~1200

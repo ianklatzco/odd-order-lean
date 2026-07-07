@@ -253,4 +253,13 @@ theorem pcore_isPiGroup [Finite G] : (pcore π G).IsPiGroup π := by
 theorem pcore_isPGroup [Finite G] {p : ℕ} [Fact p.Prime] : IsPGroup p (pcore {p} G) :=
   pcore_isPiGroup.isPGroup
 
+/-- `𝑶_[π] G` is notation for the π-core `Subgroup.pcore π G` (MathComp: `'O_π(G)`).
+
+It is *scoped* to the `Subgroup` namespace (open with `open scoped Subgroup`) so that the
+nonstandard glyph `𝑶` does not leak into every downstream file: the statements of this
+staging file stay notation-free, and the notation exists for the Bender–Glauberman and
+Peterfalvi layers, where `'O_π(G)`-heavy formulas benefit from the compact form.  The
+argument precedences allow `𝑶_[{p}] G` and `𝑶_[π] G` without extra parentheses. -/
+scoped notation "𝑶_[" π "] " G:max => Subgroup.pcore π G
+
 end Subgroup
