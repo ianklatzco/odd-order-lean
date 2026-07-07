@@ -15,3 +15,6 @@ Lean/Mathlib ports, per `docs/superpowers/plans/2026-07-06-odd-order-port.md` §
 | `abelem_pgroup` | `IsElementaryAbelian.isPGroup` | `OddOrder/Mathlib/GroupTheory/ChiefFactor.lean` |
 | `pnat_coprime` | `Nat.IsPiNumber.coprime` | `OddOrder/Mathlib/GroupTheory/PiGroup.lean` |
 | `Hall_exists` | `Subgroup.exists_isHall` | `OddOrder/Mathlib/GroupTheory/Hall.lean` |
+| `SchurZassenhaus_trans_sol` | `Subgroup.IsComplement'.exists_conj_of_coprime` | `OddOrder/Mathlib/GroupTheory/SchurZassenhaus.lean` |
+| `Hall_trans` | `Subgroup.isHall_conj` | `OddOrder/Mathlib/GroupTheory/Hall.lean` |
+| `Hall_superset` | `Subgroup.IsPiGroup.le_isHall_conj` | `OddOrder/Mathlib/GroupTheory/Hall.lean` |

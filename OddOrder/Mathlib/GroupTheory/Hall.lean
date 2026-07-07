@@ -3,9 +3,9 @@ Copyright (c) 2026 Ian Klatzco. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Ian Klatzco
 -/
-import Mathlib.GroupTheory.SchurZassenhaus
 import OddOrder.Mathlib.GroupTheory.ChiefFactor
 import OddOrder.Mathlib.GroupTheory.PiGroup
+import OddOrder.Mathlib.GroupTheory.SchurZassenhaus
 
 /-!
 # Hall π-subgroups
@@ -28,9 +28,14 @@ coprime with `H` a π-group; Sylow p-subgroups are exactly the Hall
   in particular by conjugation (`Subgroup.IsHall.conj`).
 * `Subgroup.exists_isHall`: **P. Hall's existence theorem** (1928): a finite
   solvable group has a Hall π-subgroup for every set of primes `π`.
+* `Subgroup.isHall_conj`: **P. Hall's conjugacy theorem**: two Hall π-subgroups
+  of a finite solvable group are conjugate.
+* `Subgroup.IsPiGroup.le_isHall_conj`: **P. Hall's covering theorem**: in a
+  finite solvable group, every π-subgroup is contained in a conjugate of any
+  Hall π-subgroup.
 
 This corresponds to MathComp's `pHall` (`π.-Hall(G) H`) with `G := ⊤` and
-`Hall_exists`.
+`Hall_exists`, `Hall_trans`, `Hall_superset`.
 -/
 
 namespace Subgroup
@@ -99,30 +104,6 @@ normal Hall π'-subgroup and a Schur–Zassenhaus complement of `N` works.
 -/
 
 namespace Subgroup
-
-section Card
-
-variable {G : Type*} [Group G]
-
-/-- A proper subgroup of a finite group has strictly smaller order. -/
-theorem card_lt_card_of_ne_top [Finite G] {K : Subgroup G} (hK : K ≠ ⊤) :
-    Nat.card K < Nat.card G := by
-  conv_rhs => rw [← K.card_mul_index]
-  exact (lt_mul_iff_one_lt_right Nat.card_pos).mpr (one_lt_index_of_ne_top hK)
-
-/-- The quotient of a finite group by a nontrivial subgroup is strictly smaller. -/
-theorem card_quotient_lt_card_of_ne_bot [Finite G] {N : Subgroup G} (hN : N ≠ ⊥) :
-    Nat.card (G ⧸ N) < Nat.card G := by
-  conv_rhs => rw [card_eq_card_quotient_mul_card_subgroup N]
-  exact (lt_mul_iff_one_lt_right Nat.card_pos).mpr (N.one_lt_card_iff_ne_bot.mpr hN)
-
-/-- The preimage under `QuotientGroup.mk'` of a subgroup `H ≤ G ⧸ N` has order
-`Nat.card N * Nat.card H`. -/
-theorem card_comap_mk' (N : Subgroup G) [N.Normal] (H : Subgroup (G ⧸ N)) :
-    Nat.card (H.comap (QuotientGroup.mk' N)) = Nat.card N * Nat.card H :=
-  (Nat.card_congr (QuotientGroup.preimageMkEquivSubgroupProdSet N H)).trans (Nat.card_prod _ _)
-
-end Card
 
 universe u
 
@@ -210,5 +191,267 @@ This corresponds to MathComp's `Hall_exists`. -/
 theorem exists_isHall (π : Set ℕ) (G : Type*) [Group G] [Finite G] [IsSolvable G] :
     ∃ H : Subgroup G, H.IsHall π :=
   exists_isHall_aux π (Nat.card G) G le_rfl
+
+/-!
+### P. Hall's conjugacy and covering theorems
+
+Same bounded induction on `Nat.card G` as for existence (Gorenstein 6.4.1): pick a
+minimal normal subgroup `N`, an elementary abelian `p`-group; conjugate the images in
+`G ⧸ N` by induction, so that after replacing `H` by a conjugate the two subgroups have
+the same image; let `M` be the preimage of the common image.  If `p ∈ π` then `M` is a
+π-group and both Hall π-subgroups equal `M` by maximality (`IsHall.eq_of_le`).  If
+`p ∉ π` and `M` is proper, induct inside `M`.  If `p ∉ π` and `M = G`, both subgroups
+are complements of `N` (order and disjointness), and Schur–Zassenhaus conjugacy
+(`IsComplement'.exists_conj_of_coprime`) applies.
+-/
+
+section Conjugacy
+
+variable {G : Type*} [Group G] {π : Set ℕ}
+
+/-- The image of a Hall π-subgroup in a quotient is a Hall π-subgroup of the quotient. -/
+theorem IsHall.map_mk' [Finite G] {H : Subgroup G} (h : H.IsHall π) (N : Subgroup G)
+    [N.Normal] : (H.map (QuotientGroup.mk' N)).IsHall π := by
+  have h2 : Nat.IsPiNumber πᶜ H.index := h.2
+  constructor
+  · show Nat.IsPiNumber π (Nat.card (H.map (QuotientGroup.mk' N)))
+    exact h.1.of_dvd (H.card_map_dvd (QuotientGroup.mk' N)) Nat.card_pos.ne'
+  · change Nat.IsPiNumber πᶜ (H.map (QuotientGroup.mk' N)).index
+    exact h2.of_dvd (H.index_map_dvd (QuotientGroup.mk'_surjective N)) index_ne_zero_of_finite
+
+/-- A Hall π-subgroup of `G` contained in a subgroup `M` is a Hall π-subgroup of `M`. -/
+theorem IsHall.subgroupOf [Finite G] {H M : Subgroup G} (h : H.IsHall π) (hle : H ≤ M) :
+    (H.subgroupOf M).IsHall π := by
+  have h2 : Nat.IsPiNumber πᶜ H.index := h.2
+  constructor
+  · show Nat.IsPiNumber π (Nat.card (H.subgroupOf M))
+    rw [card_subgroupOf hle]
+    exact h.1
+  · change Nat.IsPiNumber πᶜ (H.subgroupOf M).index
+    exact h2.of_dvd (relIndex_dvd_index_of_le hle) index_ne_zero_of_finite
+
+/-- Hall π-subgroups are maximal π-subgroups: a Hall π-subgroup contained in a π-subgroup
+`M` equals `M`. -/
+theorem IsHall.eq_of_le [Finite G] {H M : Subgroup G} (h : H.IsHall π) (hle : H ≤ M)
+    (hM : M.IsPiGroup π) : H = M := by
+  have hsub := h.subgroupOf hle
+  have h2 : Nat.IsPiNumber πᶜ (H.subgroupOf M).index := hsub.2
+  have hdvd : (H.subgroupOf M).index ∣ Nat.card M :=
+    ⟨Nat.card (H.subgroupOf M), ((H.subgroupOf M).index_mul_card).symm⟩
+  have hπ : Nat.IsPiNumber π (H.subgroupOf M).index :=
+    Nat.IsPiNumber.of_dvd hM hdvd Nat.card_pos.ne'
+  -- The relative index is both a π-number and a π'-number, hence `1`.
+  have hgcd : Nat.gcd (H.subgroupOf M).index (H.subgroupOf M).index = 1 :=
+    hπ.coprime h2 index_ne_zero_of_finite index_ne_zero_of_finite
+  rw [Nat.gcd_self] at hgcd
+  exact le_antisymm hle (subgroupOf_eq_top.mp (index_eq_one.mp hgcd))
+
+/-- Auxiliary induction for `Subgroup.isHall_conj`: strong induction on `Nat.card G`,
+phrased with an explicit bound `n` so that the induction hypothesis can be applied to the
+quotients and subgroups (which live in different types) arising in the proof. -/
+private theorem isHall_conj_aux (π : Set ℕ) (n : ℕ) :
+    ∀ (G : Type u) [Group G] [Finite G] [IsSolvable G],
+      Nat.card G ≤ n → ∀ {H K : Subgroup G}, H.IsHall π → K.IsHall π →
+      ∃ g : G, K = H.map (MulAut.conj g).toMonoidHom := by
+  induction n with
+  | zero =>
+    intro G _ _ _ hG
+    exact absurd (Nat.le_zero.mp hG) Nat.card_pos.ne'
+  | succ n ih =>
+    intro G _ _ _ hG H K hH hK
+    rcases subsingleton_or_nontrivial G with hGs | hGn
+    -- Trivial group: all subgroups are equal.
+    · haveI : Subsingleton (Subgroup G) := subsingleton_iff.mpr hGs
+      exact ⟨1, Subsingleton.elim K _⟩
+    -- Take a minimal normal subgroup `N`, an elementary abelian `p`-group.
+    obtain ⟨N, hN⟩ := exists_isMinNormal G
+    haveI := hN.normal
+    obtain ⟨p, hp, hpN⟩ := hN.isElementaryAbelian
+    haveI : Fact p.Prime := ⟨hp⟩
+    obtain ⟨k, hk⟩ := IsPGroup.iff_card.mp hpN.isPGroup
+    -- Conjugate the images in `G ⧸ N` by induction, and lift the conjugating element.
+    obtain ⟨gbar, hgbar⟩ := ih (G ⧸ N)
+      (Nat.le_of_lt_succ ((card_quotient_lt_card_of_ne_bot hN.ne_bot).trans_le hG))
+      (hH.map_mk' N) (hK.map_mk' N)
+    obtain ⟨g₁, rfl⟩ := QuotientGroup.mk'_surjective N gbar
+    have hH₁ : (H.map (MulAut.conj g₁).toMonoidHom).IsHall π := hH.conj g₁
+    have hH₁bar : (H.map (MulAut.conj g₁).toMonoidHom).map (QuotientGroup.mk' N)
+        = K.map (QuotientGroup.mk' N) :=
+      (map_conj_map_mk' N H g₁).trans hgbar.symm
+    -- `M` := the common preimage of the images of `H₁ := H.map (conj g₁)` and `K`.
+    set M := (K.map (QuotientGroup.mk' N)).comap (QuotientGroup.mk' N) with hMdef
+    have hKM : K ≤ M := by rw [hMdef]; exact le_comap_map _ K
+    have hH₁M : H.map (MulAut.conj g₁).toMonoidHom ≤ M := by
+      rw [hMdef, ← hH₁bar]; exact le_comap_map _ _
+    have hMcard : Nat.card M = Nat.card N * Nat.card (K.map (QuotientGroup.mk' N)) := by
+      rw [hMdef, card_comap_mk']
+    by_cases hpπ : p ∈ π
+    -- Case `p ∈ π`: `M` is a π-group, so both Hall π-subgroups equal `M` by maximality.
+    · have hMπ : M.IsPiGroup π := by
+        change Nat.IsPiNumber π (Nat.card M)
+        rw [hMcard, hk]
+        exact ((hp.isPiNumber hpπ).pow k).mul
+          (hK.1.of_dvd (K.card_map_dvd (QuotientGroup.mk' N)) Nat.card_pos.ne')
+      exact ⟨g₁, (hK.eq_of_le hKM hMπ).trans (hH₁.eq_of_le hH₁M hMπ).symm⟩
+    · have hNπ' : Nat.IsPiNumber πᶜ (Nat.card N) := by
+        rw [hk]; exact (hp.isPiNumber hpπ).pow k
+      by_cases hMtop : M = ⊤
+      -- Case `p ∉ π` and `M = ⊤`: `H₁` and `K` are complements of `N`, and
+      -- Schur–Zassenhaus conjugacy applies.
+      · have hcomp : ∀ {C : Subgroup G}, C.IsHall π →
+            C.map (QuotientGroup.mk' N) = K.map (QuotientGroup.mk' N) →
+            IsComplement' N C := by
+          intro C hC hCbar
+          have hdisj : Disjoint N C := disjoint_of_coprime_natCard
+            (hC.1.coprime hNπ' Nat.card_pos.ne' Nat.card_pos.ne').symm
+          have hdker : Disjoint (QuotientGroup.mk' N).ker C := by
+            rw [QuotientGroup.ker_mk']; exact hdisj
+          refine isComplement'_of_card_mul_and_disjoint ?_ hdisj
+          have hMG : Nat.card M = Nat.card G := by rw [hMtop, card_top]
+          rw [← hMG, hMcard, ← hCbar, card_map_of_disjoint_ker hdker]
+        have hKcomp : IsComplement' N K := hcomp hK rfl
+        have hH₁comp : IsComplement' N (H.map (MulAut.conj g₁).toMonoidHom) :=
+          hcomp hH₁ hH₁bar
+        have hco : (Nat.card N).Coprime N.index := by
+          rw [hKcomp.symm.index_eq_card]
+          exact (hK.1.coprime hNπ' Nat.card_pos.ne' Nat.card_pos.ne').symm
+        obtain ⟨g₂, hg₂⟩ := hH₁comp.exists_conj_of_coprime hco hKcomp
+        exact ⟨g₂ * g₁, hg₂.trans (map_conj_map_conj H g₁ g₂)⟩
+      -- Case `p ∉ π` and `M ≠ ⊤`: both are Hall π-subgroups of `M`; induct inside `M`.
+      · obtain ⟨m, hm⟩ := ih M
+          (Nat.le_of_lt_succ ((card_lt_card_of_ne_top hMtop).trans_le hG))
+          (hH₁.subgroupOf hH₁M) (hK.subgroupOf hKM)
+        refine ⟨(m : G) * g₁, ?_⟩
+        rw [← map_conj_map_conj H g₁ (m : G)]
+        exact eq_map_conj_of_subgroupOf_eq_map_conj hH₁M hKM hm
+
+/-- **P. Hall's conjugacy theorem** (1928): two Hall π-subgroups of a finite solvable
+group are conjugate.
+
+This corresponds to MathComp's `Hall_trans`. -/
+theorem isHall_conj [Finite G] [IsSolvable G] {H K : Subgroup G}
+    (hH : H.IsHall π) (hK : K.IsHall π) :
+    ∃ g : G, K = H.map (MulAut.conj g).toMonoidHom :=
+  isHall_conj_aux π (Nat.card G) G le_rfl hH hK
+
+/-- Auxiliary induction for `Subgroup.IsPiGroup.le_isHall_conj`, with the same shape as
+`Subgroup.isHall_conj_aux`. -/
+private theorem le_isHall_conj_aux (π : Set ℕ) (n : ℕ) :
+    ∀ (G : Type u) [Group G] [Finite G] [IsSolvable G],
+      Nat.card G ≤ n → ∀ {H K : Subgroup G}, H.IsPiGroup π → K.IsHall π →
+      ∃ g : G, H ≤ K.map (MulAut.conj g).toMonoidHom := by
+  induction n with
+  | zero =>
+    intro G _ _ _ hG
+    exact absurd (Nat.le_zero.mp hG) Nat.card_pos.ne'
+  | succ n ih =>
+    intro G _ _ _ hG H K hH hK
+    rcases subsingleton_or_nontrivial G with hGs | hGn
+    · haveI : Subsingleton (Subgroup G) := subsingleton_iff.mpr hGs
+      exact ⟨1, (Subsingleton.elim H _).le⟩
+    obtain ⟨N, hN⟩ := exists_isMinNormal G
+    haveI := hN.normal
+    obtain ⟨p, hp, hpN⟩ := hN.isElementaryAbelian
+    haveI : Fact p.Prime := ⟨hp⟩
+    obtain ⟨k, hk⟩ := IsPGroup.iff_card.mp hpN.isPGroup
+    -- Push into `G ⧸ N` and conjugate there by induction.
+    have hHbar : (H.map (QuotientGroup.mk' N)).IsPiGroup π :=
+      Nat.IsPiNumber.of_dvd hH (H.card_map_dvd (QuotientGroup.mk' N)) Nat.card_pos.ne'
+    obtain ⟨gbar, hgbar⟩ := ih (G ⧸ N)
+      (Nat.le_of_lt_succ ((card_quotient_lt_card_of_ne_bot hN.ne_bot).trans_le hG))
+      hHbar (hK.map_mk' N)
+    obtain ⟨g₁, rfl⟩ := QuotientGroup.mk'_surjective N gbar
+    have hK₁ : (K.map (MulAut.conj g₁).toMonoidHom).IsHall π := hK.conj g₁
+    have hHbar_le : H.map (QuotientGroup.mk' N)
+        ≤ (K.map (MulAut.conj g₁).toMonoidHom).map (QuotientGroup.mk' N) := by
+      rw [map_conj_map_mk' N K g₁]
+      exact hgbar
+    -- `M` := the preimage of the image of `K₁ := K.map (conj g₁)`; it contains `H`.
+    set M := ((K.map (MulAut.conj g₁).toMonoidHom).map (QuotientGroup.mk' N)).comap
+      (QuotientGroup.mk' N) with hMdef
+    have hK₁M : K.map (MulAut.conj g₁).toMonoidHom ≤ M := by
+      rw [hMdef]; exact le_comap_map _ _
+    have hHM : H ≤ M := by
+      rw [hMdef]
+      exact (le_comap_map _ H).trans (comap_mono hHbar_le)
+    have hMcard : Nat.card M = Nat.card N
+        * Nat.card ((K.map (MulAut.conj g₁).toMonoidHom).map (QuotientGroup.mk' N)) := by
+      rw [hMdef, card_comap_mk']
+    by_cases hpπ : p ∈ π
+    -- Case `p ∈ π`: `M` is a π-group, so `K₁ = M ⊇ H` by maximality.
+    · have hMπ : M.IsPiGroup π := by
+        change Nat.IsPiNumber π (Nat.card M)
+        rw [hMcard, hk]
+        exact ((hp.isPiNumber hpπ).pow k).mul (hK₁.1.of_dvd
+          ((K.map (MulAut.conj g₁).toMonoidHom).card_map_dvd (QuotientGroup.mk' N))
+          Nat.card_pos.ne')
+      refine ⟨g₁, ?_⟩
+      rw [hK₁.eq_of_le hK₁M hMπ]
+      exact hHM
+    · have hNπ' : Nat.IsPiNumber πᶜ (Nat.card N) := by
+        rw [hk]; exact (hp.isPiNumber hpπ).pow k
+      by_cases hMtop : M = ⊤
+      -- Case `p ∉ π` and `M = ⊤`: `K₁` is a complement of `N` in `G`, and `H` is a
+      -- complement of `N` in `L := HN`; `K₁ ⊓ L` is another complement of `N` in `L`,
+      -- so `H` and `K₁ ⊓ L` are conjugate in `L` by Schur–Zassenhaus.
+      · have hK₁disj : Disjoint N (K.map (MulAut.conj g₁).toMonoidHom) :=
+          disjoint_of_coprime_natCard
+            (hK₁.1.coprime hNπ' Nat.card_pos.ne' Nat.card_pos.ne').symm
+        have hK₁dker : Disjoint (QuotientGroup.mk' N).ker
+            (K.map (MulAut.conj g₁).toMonoidHom) := by
+          rw [QuotientGroup.ker_mk']; exact hK₁disj
+        have hK₁comp : IsComplement' N (K.map (MulAut.conj g₁).toMonoidHom) := by
+          refine isComplement'_of_card_mul_and_disjoint ?_ hK₁disj
+          have hMG : Nat.card M = Nat.card G := by rw [hMtop, card_top]
+          rw [← hMG, hMcard, card_map_of_disjoint_ker hK₁dker]
+        have hHdisj : Disjoint N H := disjoint_of_coprime_natCard
+          (Nat.IsPiNumber.coprime hH hNπ' Nat.card_pos.ne' Nat.card_pos.ne').symm
+        have hHdker : Disjoint (QuotientGroup.mk' N).ker H := by
+          rw [QuotientGroup.ker_mk']; exact hHdisj
+        set L := (H.map (QuotientGroup.mk' N)).comap (QuotientGroup.mk' N) with hLdef
+        have hHL : H ≤ L := by rw [hLdef]; exact le_comap_map _ H
+        have hNL : N ≤ L := by
+          rw [hLdef]
+          exact (QuotientGroup.ker_mk' N).symm.trans_le (ker_le_comap _ _)
+        have hLcard : Nat.card L = Nat.card N * Nat.card H := by
+          rw [hLdef, card_comap_mk', card_map_of_disjoint_ker hHdker]
+        have hHcompL : IsComplement' (N.subgroupOf L) (H.subgroupOf L) := by
+          refine isComplement'_of_coprime ?_ ?_
+          · rw [card_subgroupOf hNL, card_subgroupOf hHL, hLcard]
+          · rw [card_subgroupOf hNL, card_subgroupOf hHL]
+            exact (Nat.IsPiNumber.coprime hH hNπ' Nat.card_pos.ne' Nat.card_pos.ne').symm
+        have hK₂compL := hK₁comp.inf_subgroupOf hNL
+        have hcoL : (Nat.card (N.subgroupOf L)).Coprime (N.subgroupOf L).index := by
+          rw [hHcompL.symm.index_eq_card, card_subgroupOf hNL, card_subgroupOf hHL]
+          exact (Nat.IsPiNumber.coprime hH hNπ' Nat.card_pos.ne' Nat.card_pos.ne').symm
+        obtain ⟨l, hl⟩ := hK₂compL.exists_conj_of_coprime hcoL hHcompL
+        have hHeq : H = ((K.map (MulAut.conj g₁).toMonoidHom) ⊓ L).map
+            (MulAut.conj (l : G)).toMonoidHom :=
+          eq_map_conj_of_subgroupOf_eq_map_conj inf_le_right hHL hl
+        refine ⟨(l : G) * g₁, ?_⟩
+        rw [hHeq, ← map_conj_map_conj K g₁ (l : G)]
+        exact map_mono inf_le_left
+      -- Case `p ∉ π` and `M ≠ ⊤`: induct inside `M`.
+      · have hH' : (H.subgroupOf M).IsPiGroup π := by
+          change Nat.IsPiNumber π (Nat.card (H.subgroupOf M))
+          rw [card_subgroupOf hHM]
+          exact hH
+        obtain ⟨m, hm⟩ := ih M
+          (Nat.le_of_lt_succ ((card_lt_card_of_ne_top hMtop).trans_le hG))
+          hH' (hK₁.subgroupOf hK₁M)
+        refine ⟨(m : G) * g₁, ?_⟩
+        rw [← map_conj_map_conj K g₁ (m : G)]
+        exact le_map_conj_of_subgroupOf_le_map_conj hK₁M hHM hm
+
+/-- **P. Hall's covering theorem**: in a finite solvable group, every π-subgroup is
+contained in a conjugate of any Hall π-subgroup.
+
+This corresponds to MathComp's `Hall_superset`. -/
+theorem IsPiGroup.le_isHall_conj [Finite G] [IsSolvable G] {H K : Subgroup G}
+    (hH : H.IsPiGroup π) (hK : K.IsHall π) :
+    ∃ g : G, H ≤ K.map (MulAut.conj g).toMonoidHom :=
+  le_isHall_conj_aux π (Nat.card G) G le_rfl hH hK
+
+end Conjugacy
 
 end Subgroup
