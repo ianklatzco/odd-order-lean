@@ -866,3 +866,184 @@ theorem Representation.exists_irr_classFunction_eq [Fintype G] {V : Type*} [AddC
 
 end Irr
 
+/-! ### Completeness: `#Irr G = #ConjClasses G`
+
+If a class function `f` pairs to zero with every irreducible character, then the central
+element `z = ∑ g, f g⁻¹ • single g 1` of the group algebra acts as a trace-zero scalar
+(Schur's lemma) — hence as zero — on every simple submodule of the regular module; by
+semisimplicity (Maschke) these span, so `z = z * 1 = 0` and `f = 0`.  This injectivity
+gives `#ConjClasses G ≤ #Irr G`; linear independence of the irreducible characters gives
+the reverse inequality. -/
+
+section Completeness
+
+variable {G : Type u} [Group G] [Fintype G]
+
+open scoped ClassFunction
+
+namespace Irr
+
+private def centralOfClassFunction (f : ClassFunction G) : MonoidAlgebra ℂ G :=
+  Finsupp.equivFunOnFinite.symm fun g => f g⁻¹
+
+private theorem centralOfClassFunction_apply (f : ClassFunction G) (h : G) :
+    centralOfClassFunction f h = f h⁻¹ :=
+  rfl
+
+private theorem centralOfClassFunction_eq_sum (f : ClassFunction G) :
+    centralOfClassFunction f = ∑ g : G, f g⁻¹ • MonoidAlgebra.single g (1 : ℂ) :=
+  (Finsupp.univ_sum_single (centralOfClassFunction f)).symm.trans
+    (Finset.sum_congr rfl fun g _ => by
+      rw [centralOfClassFunction_apply, MonoidAlgebra.smul_single', mul_one])
+
+private theorem centralOfClassFunction_mem_center (f : ClassFunction G) :
+    centralOfClassFunction f ∈ Subalgebra.center ℂ (MonoidAlgebra ℂ G) := by
+  rw [MonoidAlgebra.mem_center_iff]
+  intro g h
+  rw [centralOfClassFunction_apply, centralOfClassFunction_apply,
+    show (h * g * h⁻¹)⁻¹ = h * g⁻¹ * h⁻¹ by group, ClassFunction.conj_apply]
+
+private def pairing : ClassFunction G →ₗ[ℂ] (Irr G → ℂ) where
+  toFun f χ := ∑ g : G, χ g * f g⁻¹
+  map_add' f₁ f₂ := by
+    funext χ
+    simp only [ClassFunction.add_apply, mul_add, Finset.sum_add_distrib, Pi.add_apply]
+  map_smul' c f := by
+    funext χ
+    simp only [ClassFunction.smul_apply, smul_eq_mul, RingHom.id_apply, Pi.smul_apply,
+      Finset.mul_sum]
+    exact Finset.sum_congr rfl fun g _ => by ring
+
+private theorem eq_zero_of_pairing_eq_zero (f : ClassFunction G) (hf : pairing f = 0) :
+    f = 0 := by
+  classical
+  haveI : NeZero (Nat.card G : ℂ) := ⟨Nat.cast_ne_zero.mpr Nat.card_pos.ne'⟩
+  set z := centralOfClassFunction f with hzdef
+  have hzc : ∀ a : MonoidAlgebra ℂ G, a * z = z * a := fun a =>
+    Subalgebra.mem_center_iff.mp (centralOfClassFunction_mem_center f) a
+  -- multiplication by `z` is `ℂ[G]`-linear (as `z` is central)
+  set Lz : MonoidAlgebra ℂ G →ₗ[MonoidAlgebra ℂ G] MonoidAlgebra ℂ G :=
+    { toFun := fun x => z * x
+      map_add' := mul_add z
+      map_smul' := fun a x => by
+        simp only [smul_eq_mul, RingHom.id_apply]
+        rw [← mul_assoc, ← hzc a, mul_assoc] } with hLzdef
+  have hLz_apply : ∀ x, Lz x = z * x := fun x => rfl
+  -- `z` annihilates every simple submodule of the regular module
+  have hann : ∀ N : Submodule (MonoidAlgebra ℂ G) (MonoidAlgebra ℂ G),
+      IsSimpleModule (MonoidAlgebra ℂ G) N → ∀ x ∈ N, z * x = 0 := by
+    intro N hN x hx
+    haveI := hN
+    haveI : Nontrivial N := IsSimpleModule.nontrivial (MonoidAlgebra ℂ G) N
+    have hmaps : ∀ y ∈ N, Lz y ∈ N := fun y hy => by
+      rw [hLz_apply, ← smul_eq_mul]
+      exact N.smul_mem z hy
+    set L : N →ₗ[MonoidAlgebra ℂ G] N := Lz.restrict hmaps with hLdef
+    -- Schur: `L` is scalar
+    obtain ⟨c, hc⟩ := (IsSimpleModule.algebraMap_end_bijective_of_isAlgClosed
+      (k := ℂ) (A := MonoidAlgebra ℂ G) (V := N)).2 L
+    -- its trace is the pairing of `f` with the character of `N`, which vanishes
+    have hL_restrict : LinearMap.restrictScalars ℂ L
+        = ∑ g : G, f g⁻¹ • MonoidAlgebra.actionEnd (↥N) g := by
+      refine LinearMap.ext fun y => Subtype.ext ?_
+      have hcoeL : ((LinearMap.restrictScalars ℂ L) y : MonoidAlgebra ℂ G) = z * y := by
+        rw [LinearMap.restrictScalars_apply, hLdef, LinearMap.restrict_apply]
+        rfl
+      rw [hcoeL, hzdef, centralOfClassFunction_eq_sum, Finset.sum_mul]
+      have hcoeR : (((∑ g : G, f g⁻¹ • MonoidAlgebra.actionEnd (↥N) g) y : N)
+          : MonoidAlgebra ℂ G) = ∑ g : G, f g⁻¹ • (MonoidAlgebra.single g (1 : ℂ) * y) := by
+        rw [LinearMap.sum_apply, AddSubmonoidClass.coe_finsetSum]
+        exact Finset.sum_congr rfl fun g _ => by
+          rw [LinearMap.smul_apply, Submodule.coe_smul_of_tower, MonoidAlgebra.actionEnd_apply,
+            Submodule.coe_smul, smul_eq_mul]
+      rw [hcoeR]
+      exact Finset.sum_congr rfl fun g _ => by rw [smul_mul_assoc]
+    have htrace1 : trace ℂ N (LinearMap.restrictScalars ℂ L)
+        = ∑ g : G, f g⁻¹ * MonoidAlgebra.moduleCharacter G N g := by
+      rw [hL_restrict, map_sum]
+      exact Finset.sum_congr rfl fun g _ => by
+        rw [map_smul, smul_eq_mul, MonoidAlgebra.moduleCharacter_apply]
+    have htrace2 : trace ℂ N (LinearMap.restrictScalars ℂ L)
+        = c * Module.finrank ℂ N := by
+      have hLc : LinearMap.restrictScalars ℂ L = c • LinearMap.id := by
+        refine LinearMap.ext fun y => ?_
+        rw [LinearMap.restrictScalars_apply, ← hc, Algebra.algebraMap_eq_smul_one,
+          LinearMap.smul_apply, Module.End.one_apply, LinearMap.smul_apply, LinearMap.id_apply]
+      rw [hLc, map_smul, LinearMap.trace_id, smul_eq_mul]
+    have hpair0 : ∑ g : G, f g⁻¹ * MonoidAlgebra.moduleCharacter G N g = 0 := by
+      have h0 := congrFun hf ⟨MonoidAlgebra.moduleCharacter G N, ⟨N, hN, rfl⟩⟩
+      rw [Pi.zero_apply] at h0
+      rw [← h0]
+      exact Finset.sum_congr rfl fun g _ => mul_comm _ _
+    have hc0 : c = 0 := by
+      have hfr : (Module.finrank ℂ N : ℂ) ≠ 0 :=
+        Nat.cast_ne_zero.mpr Module.finrank_pos.ne'
+      have := htrace2.symm.trans (htrace1.trans hpair0)
+      exact (mul_eq_zero.mp this).resolve_right hfr
+    have hL0 : L ⟨x, hx⟩ = 0 := by
+      rw [← hc, hc0, map_zero, LinearMap.zero_apply]
+    have := congrArg (Subtype.val : N → MonoidAlgebra ℂ G) hL0
+    rwa [hLdef, LinearMap.restrict_apply] at this
+  -- semisimplicity: the simple submodules span, so `z = z * 1 = 0`
+  have hz0 : z = 0 := by
+    have htop := IsSemisimpleModule.sSup_simples_eq_top (MonoidAlgebra ℂ G) (MonoidAlgebra ℂ G)
+    have hle : (⊤ : Submodule (MonoidAlgebra ℂ G) (MonoidAlgebra ℂ G))
+        ≤ LinearMap.ker Lz := by
+      rw [← htop]
+      exact sSup_le fun N hN => fun x hx => LinearMap.mem_ker.mpr (hann N hN x hx)
+    have h1 : Lz 1 = 0 := LinearMap.mem_ker.mp (hle Submodule.mem_top)
+    rwa [hLz_apply, mul_one] at h1
+  refine ClassFunction.ext fun g => ?_
+  have hg := congrArg (fun w : MonoidAlgebra ℂ G => w g⁻¹) hz0
+  simp only [hzdef, centralOfClassFunction_apply, inv_inv] at hg
+  exact hg
+
+/-- **Completeness of irreducible characters**: the number of irreducible characters of a
+finite group equals its number of conjugacy classes.  MathComp: `NirrE`/`card_irr`. -/
+theorem card_eq_card_conjClasses : Nat.card (Irr G) = Nat.card (ConjClasses G) := by
+  refine le_antisymm ?_ ?_
+  · rw [Nat.card_eq_fintype_card]
+    exact card_le_card_conjClasses
+  · have hinj : Function.Injective (pairing (G := G)) := by
+      rw [← LinearMap.ker_eq_bot]
+      exact (Submodule.eq_bot_iff _).mpr fun f hf =>
+        eq_zero_of_pairing_eq_zero f (LinearMap.mem_ker.mp hf)
+    have hle := LinearMap.finrank_le_finrank_of_injective hinj
+    rwa [ClassFunction.finrank_classFunction, Module.finrank_pi,
+      ← Nat.card_eq_fintype_card] at hle
+
+variable (G) in
+/-- The irreducible characters form a basis of the space of class functions.
+MathComp: `irr_basis`. -/
+noncomputable def basis : Basis (Irr G) ℂ (ClassFunction G) :=
+  basisOfLinearIndependentOfCardEqFinrank' _ Irr.linearIndependent (by
+    rw [ClassFunction.finrank_classFunction, ← Nat.card_eq_fintype_card,
+      card_eq_card_conjClasses])
+
+@[simp]
+theorem coe_basis : ⇑(basis G) = (toClassFunction : Irr G → ClassFunction G) :=
+  coe_basisOfLinearIndependentOfCardEqFinrank' _ _ _
+
+theorem basis_apply (χ : Irr G) : basis G χ = χ.toClassFunction :=
+  congrFun coe_basis χ
+
+end Irr
+
+/-- Expansion of a class function in the basis of irreducible characters.
+MathComp: `cfun_sum_cfdot`. -/
+theorem ClassFunction.eq_sum_cfInner_smul (f : ClassFunction G) :
+    f = ∑ χ : Irr G, ⟪f, χ.toClassFunction⟫_[G] • χ.toClassFunction := by
+  classical
+  have hcoef : ∀ ψ : Irr G, ⟪f, ψ.toClassFunction⟫_[G] = (Irr.basis G).repr f ψ := by
+    intro ψ
+    conv_lhs => rw [← (Irr.basis G).sum_repr f]
+    rw [ClassFunction.cfInner_sum_left, Finset.sum_congr rfl fun χ _ => by
+      rw [Irr.basis_apply, ClassFunction.cfInner_smul_left, Irr.cfInner_eq, mul_ite, mul_one,
+        mul_zero]]
+    rw [Finset.sum_ite_eq' Finset.univ ψ, if_pos (Finset.mem_univ ψ)]
+  rw [Finset.sum_congr rfl fun χ _ => by rw [hcoef χ]]
+  conv_lhs => rw [← (Irr.basis G).sum_repr f]
+  exact Finset.sum_congr rfl fun χ _ => by rw [Irr.basis_apply]
+
+end Completeness
+
