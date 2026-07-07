@@ -1,0 +1,210 @@
+# M2 — Arithmetic Character Theory Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
+> (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps
+> use checkbox (`- [ ]`) syntax for tracking. TDD analogue throughout: *state theorem with
+> `sorry` → `lake build` (expect sorry warning) → prove → `lake build` clean → commit*.
+
+**Goal:** the arithmetic character theory layer (master plan M2): induced characters +
+Frobenius reciprocity, algebraic integrality, **Burnside's p^a q^b theorem** (acceptance
+test, standalone Mathlib-first value), virtual characters `'Z[S, A]`, and the `cfAut`
+action — everything PF1–7 and the BG character references need that is not
+representation-*construction* theory.
+
+**Foundation (Task 9, done):** `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean`
+provides `ClassFunction G` (ℂ-valued, bundled, `⟪φ, ψ⟫_[G]` linear in the first argument),
+`Irr G` (structure over an existential on simple `ℂ[G]`-submodules, `FunLike`,
+noncomputable `Fintype`), first orthogonality (`Irr.cfInner_eq`), completeness
+(`Irr.card_eq_card_conjClasses`), `Irr.basis` + expansion
+(`ClassFunction.eq_sum_cfInner_smul`), `Representation.char_inv`/`FDRep.char_inv`,
+`MonoidAlgebra.mem_center_iff`/`centerEquivClassFunction`, and
+`Irr.second_orthogonality`.
+
+**Interface lessons from Task 9 (binding for M2):**
+
+- Work at the `Representation`/`MonoidAlgebra`-module level, **not** `FDRep`, whenever
+  semisimplicity or Schur is needed: Mathlib's `Representation.IsIrreducible` ↔
+  `IsSimpleModule ℂ[G]` bridge is complete and category-free. `FDRep` is for *restating*
+  results, not proving them.
+- Avoid `Representation.ofModule`/`RestrictScalars` in statements: typeclass resolution on
+  the synonym is broken in this snapshot (see task-9-report §D9.3). Use
+  `Representation.ofModule'` (`MonoidAlgebra.moduleCharacter` is definitionally its
+  character).
+- Counting statements use `Nat.card`; summation statements use `[Fintype G]` + `∑ g : G`.
+- `Irr G` elements are consumed via `FunLike` (`χ g`) and `χ.toClassFunction`; new
+  membership facts should be stated as `∃ χ : Irr G, χ.toClassFunction = …` (pattern:
+  `Representation.exists_irr_classFunction_eq`).
+
+**Files:** continue in `OddOrder/Mathlib/RepresentationTheory/` — new files
+`CharacterArith.lean` (Tasks 1, 3, 4), `Induced.lean` (Task 2), `Burnside.lean` (Task 5),
+`VirtualChar.lean` (Task 6), `CFAut.lean` (Task 7). Split further if any exceeds ~1200
+lines. All imported from `OddOrder.lean`; NAME_MAP rows per task.
+
+---
+
+### Task 1: character predicate, degrees, and the ring of class functions
+
+**Interfaces:** `ClassFunction.IsChar φ` (MathComp `character`): `φ` is an ℕ-combination
+of `Irr G` — define as `∃ c : Irr G → ℕ, φ = ∑ χ, (c χ : ℂ) • χ.toClassFunction` and prove
+equivalent to "character of some finite-dimensional `ℂ[G]`-module" (via semisimple
+decomposition of modules, `IsSemisimpleModule` + isotypic machinery already in Mathlib).
+Degrees; the trivial character; pointwise ring structure.
+
+- [ ] `CommRing (ClassFunction G)` + `Algebra ℂ (ClassFunction G)` (pointwise mul, one);
+      `mul_apply`, `one_apply` simp lemmas. (MathComp: `cfun_ring`.)
+- [ ] `Irr.one : Irr G` — the trivial character (witness: the submodule
+      `span ℂ[G] {∑ g, single g 1}`… or via `Representation.exists_irr_classFunction_eq`
+      applied to the trivial representation; check `Representation.trivial` +
+      `IsIrreducible` instance in Mathlib first). `Irr.one_apply : Irr.one g = 1`.
+- [ ] `ClassFunction.IsChar`, closure under `+`, `*` (tensor — via module tensor product;
+      *defer `*` if painful*, PF needs `+` and `Ind` first), `IsChar.cfInner_mem_nat`:
+      `⟪φ, χ.toClassFunction⟫_[G] ∈ ℕ` for `IsChar φ`, `χ : Irr G`.
+- [ ] Degree: `Irr.degree χ := χ 1` with `Irr.degree_eq_finrank` (trace of identity),
+      `0 < χ 1` as a real/rational cast statement, and `χ 1 ∈ ℕ` in the form
+      `∃ d : ℕ, 0 < d ∧ χ 1 = d`. (MathComp `irr1_deg`, `irr1_gt0`.)
+- [ ] Sum-of-squares of degrees = |G| (evaluate second orthogonality at `g = h = 1`) —
+      cheap, good sanity theorem. (MathComp `sum_irr1_sq`? — check name at port time.)
+- [ ] Optional bridge if PF planning wants it: `Simple (FDRep ℂ G) → IsChar V.classFunction`
+      and `V.classFunction ∈ Irr` (needs FDRep-simple → module-simple; assess cost, skip if
+      > 100 lines).
+
+### Task 2: restriction, induction, Frobenius reciprocity
+
+**Interfaces:** `ClassFunction.res` (MathComp `cfRes`, `'Res[H] φ`),
+`ClassFunction.ind` (MathComp `cfInd`, `'Ind[G] φ`) for `H : Subgroup G` — both by
+*formula*, no induced-representation construction (MathComp does the same):
+`ind φ g = (Nat.card H : ℂ)⁻¹ * ∑ x : G, φ' (x⁻¹ * g * x)` where `φ'` extends `φ` by zero.
+
+- [ ] `ClassFunction.res (H : Subgroup G) : ClassFunction G →ₗ[ℂ] ClassFunction H`
+      (restriction of a class function on `G` is a class function on `H`: conjugation in
+      `H` is conjugation in `G`). `res_apply` simp.
+- [ ] `ClassFunction.ind (H : Subgroup G) : ClassFunction H →ₗ[ℂ] ClassFunction G` —
+      well-definedness: the formula is conjugation-invariant in `g` (reindex `x ↦ …`);
+      `ind_apply`; `ind_apply_one : ind φ 1 = (H.index : ℂ) * φ 1`.
+- [ ] **Frobenius reciprocity** `⟪ind H φ, ψ⟫_[G] = ⟪φ, res H ψ⟫_[H]` (MathComp
+      `cfdot_ind` / `Frobenius_reciprocity`) — double-sum interchange; the Task 9
+      `cfInnerₗ` + reindexing lemmas carry it.
+- [ ] `IsChar.ind : IsChar φ → IsChar (ind H φ)` — **via reciprocity, not representations**:
+      expand `ind φ` in `Irr.basis`; coefficients `⟪ind φ, χ⟫ = ⟪φ, res χ⟫ ∈ ℕ` since
+      `res χ` is a character of `H` (needs `IsChar.res`, which *does* need "restriction of
+      a character is a character": restrict the module along `MonoidAlgebra.mapDomainAlgHom`
+      of `H.subtype` — check Mathlib for `MonoidAlgebra` functoriality; fallback: restrict
+      the `Representation` and use `moduleCharacter` on the asModule).
+- [ ] `res` and `ind` interaction with `supportedOn` (`'CF(G, A)` calculus): minimal now —
+      only `ind_supportedOn : φ ∈ supportedOn H A → ind H φ ∈ supportedOn G (⋃ x, x • A • x⁻¹-ish)`
+      shaped lemma *when PF1 planning fixes the exact form*; do not gold-plate.
+
+### Task 3: class sums and the center, explicitly
+
+**Interfaces:** the explicit class-sum elements deferred from Task 9(d); needed for the
+central-character integrality argument.
+
+- [ ] `MonoidAlgebra.classSum (c : ConjClasses G) : MonoidAlgebra ℂ G`
+      (`∑ x ∈ carrier, single x 1`; use `Finsupp.equivFunOnFinite`-style indicator like
+      Task 9's `centralOfClassFunction` to dodge Finsupp-sum-application pain).
+- [ ] `classSum_mem_center`; `classSum` is the `centerEquivClassFunction`-preimage of the
+      indicator; the class sums are a **basis** of the center (transport `Irr.basis`-style
+      argument through `centerEquivClassFunction`).
+- [ ] Structure constants: `classSum c * classSum d = ∑ e, (a c d e : ℕ) • classSum e`
+      with **natural-number** coefficients (count solutions `x * y = z`) — this is the
+      integrality workhorse. (MathComp: `gring` structure constants.)
+
+### Task 4: algebraic integrality
+
+**Interfaces:** all statements with `IsIntegral ℤ`; Mathlib's cyclotomic/`IsIntegral` API
+is strong (verified in audit).
+
+- [ ] `Irr.isIntegral_apply : IsIntegral ℤ (χ g)` — χ(g) is a sum of `orderOf g`-th roots
+      of unity. Route: reuse Task 9's eigenprojection decomposition
+      (`trace f = ∑ j, ζ^j * trace (Q j)` with `trace (Q j) ∈ ℕ`) — the identity is
+      already proved inside `Module.End.trace_pow_pred_eq_star_trace`; **refactor it out**
+      as `Module.End.trace_eq_sum_zeta_pow_mul_natCast` (statement:
+      `f ^ n = 1 → ∃ m : ℕ → ℕ, trace ℂ V f = ∑ j < n, ζ^j * m j`) rather than reproving.
+- [ ] Central character `Irr.omega χ (c : ConjClasses G) := |carrier c| * χ (rep) / χ 1`
+      — stated via `classSum` action: `z_c` acts on the simple module of `χ` by the scalar
+      `ω_χ(c)` (Schur, same pattern as Task 9 completeness); `IsIntegral ℤ (ω_χ c)` from
+      Task 3 structure constants (`ω_χ` spans a finitely generated ℤ-module).
+- [ ] `Irr.degree_dvd_card : (χ 1 : ℂ) ∣ (Nat.card G : ℂ)`-form — actual statement
+      `∃ d : ℕ, χ 1 = d ∧ d ∣ Nat.card G` (from `|G|/χ(1) = ∑_c ω_χ(c) * conj (χ c)`
+      integral + rational ⇒ integer). (MathComp `dvd_irr1_cardG`.)
+
+### Task 5: Burnside p^a q^b (acceptance test)
+
+- [ ] Nonvanishing dichotomy: if `IsCoprime (Nat.card (carrier c)) d` (χ-degree `d`) then
+      `χ g = 0 ∨ ‖χ g‖ = χ 1`-form (`Complex.abs`; uses `ω_χ` integrality + the
+      "average of roots of unity with |·| < 1 that is an algebraic integer is 0" lemma —
+      check Mathlib for `IsIntegral` + norm lemmas; this is the one genuinely analytic
+      ingredient).
+- [ ] If `G` has a conjugacy class of size `p ^ k` (`k > 0`, `p` prime) then `G` is not
+      simple (nonabelian): second orthogonality at `(g, 1)` + the dichotomy produce a
+      normal subgroup as a character kernel — needs `Irr.ker`-lite: define
+      `ClassFunction.ker χ := {g | χ g = χ 1}` as a `Subgroup` (normality from class-ness;
+      subgroup axioms need `‖χ g‖ ≤ χ 1` triangle-inequality facts — small kit).
+- [ ] **`theorem burnside_solvable (p q : ℕ) [Fact p.Prime] [Fact q.Prime] {G} [Group G]
+      [Finite G] (h : Nat.card G = p ^ a * q ^ b) : IsSolvable G`** — induction on order
+      via the class-size lemma + Sylow-center pigeonhole (M1 tools). NAME_MAP:
+      MathComp `Burnside_normal_complement`? no — the p^aq^b solvability is
+      `pgroup.p_group_sol`-adjacent; record actual Coq name at port time.
+
+### Task 6: virtual characters `'Z[S, A]`
+
+**Interfaces:** MathComp `'Z[S, A]` = ℤ-combinations of a family `S` of characters,
+supported on `A`. This is the vocabulary of PF2–7 (Dade isometry, coherence); get the
+*definitions and norm lemmas* right, defer the isometry-extension constructors to the PF1
+task plan (they need the PF context to state well).
+
+- [ ] `VirtualChar S A : AddSubgroup (ClassFunction G)` (ℤ-span of `S` intersected with
+      `supportedOn A`); notation scoped `'Z[S, A]`, `'Z[S] := 'Z[S, univ]`; membership
+      lemmas; `Irr`-indexed special case with coefficient extraction
+      `⟪φ, χ⟫_[G] ∈ ℤ`-form (`∃ n : ℤ, …`).
+- [ ] Norm lemmas: `vchar_norm1` (φ ∈ 'Z[Irr G], ⟪φ,φ⟫ = 1 → φ = ±χ for some χ ∈ Irr) and
+      `vchar_norm2` (norm 2, orthogonal to 1 → χ₁ - χ₂ form) — pure `Finsupp`-support
+      arithmetic over the orthonormal basis; the Task 9 `cfInnerₗ`/`Irr.basis` API is
+      exactly what these need.
+- [ ] `IsChar`/`VirtualChar` interaction: a virtual character with `⟪φ, χ⟫ ≥ 0` for all χ
+      is a character; difference presentation `φ = φ⁺ - φ⁻`.
+
+### Task 7: `cfAut` (Galois action on class functions)
+
+- [ ] `ClassFunction.cfAut (σ : ℂ ≃+* ℂ)`-shaped action — MathComp uses ring
+      automorphisms of the *algebraics*; decision: act by `σ : ℂ →+* ℂ` with the
+      restriction that it fixes… **resolve at task start**: PF usage is `φ^*` (complex
+      conjugation) and `(φ^u)` for cyclotomic Galois elements. Minimal honest version:
+      (i) conjugation `ClassFunction.conj` (uses `char_inv` to show it permutes Irr), and
+      (ii) the `ZMod`-power twist `φ^(u) g := φ (g ^ u)` for `u` coprime to the exponent,
+      with "permutes Irr" via integrality (Task 4). State only what PF1 consumes.
+- [ ] `Irr.conj : Irr G ≃ Irr G` (the permutation) + fixed-point lemma
+      (`χ = χ.conj ↔ ∀ g, χ g ∈ ℝ`-form).
+
+---
+
+## Risks
+
+1. **Integrality analytics (Task 5 dichotomy)** — the "algebraic integer of absolute value
+   < 1 with all conjugates ≤ 1 is 0" argument needs conjugate-norm machinery
+   (`Polynomial.roots`, `IsIntegral` minimal polynomial): audit Mathlib for
+   `IsAlgebraic`/house-of-algebraic-number lemmas *before* starting Task 5; if absent this
+   is the single biggest sub-proof (~300 lines). Mitigation: it is also upstream-valuable.
+2. **`IsChar.res` module restriction** — `MonoidAlgebra` functoriality along subgroup
+   inclusion needs checking (`MonoidAlgebra.mapDomainRingHom`?); fallback via
+   `Representation.res`-style composition with `Subgroup.subtype` is always available.
+3. **Scope creep in Tasks 6–7** — the PF-facing API (coherence, isometry extension) must
+   be co-designed with PF1; this plan deliberately stops at norm lemmas + `cfAut` basics
+   and defers the rest to the PF1 task plan (master-plan risk 2: API lock-in).
+4. **Task 9 deferred items** — `Irr`'s structural `[Fintype G]`; the `RestrictScalars`
+   instance bug (report upstream); `FDRep`-simple bridge — all tracked in
+   task-9-report.md self-review, none block M2 Tasks 1–7.
+
+## Self-review
+
+- Spec coverage vs master plan M2 line: class functions + inner product ✓ (Task 9), second
+  orthogonality ✓ (Task 9), induced characters + Frobenius reciprocity → Task 2,
+  integrality triple (χ(g), ω_χ, χ(1) ∣ |G|) → Task 4, Burnside → Task 5, virtual
+  characters + norm lemmas → Task 6, isometry-extension constructors → deferred to PF1
+  plan (documented), Clifford/inertia → deferred to PF1 plan (documented — PF-facing form
+  unknown until PF1 survey), cfAut → Task 7.
+- Dependencies: Task 1 ← Task 9; Task 2 ← Task 1; Task 3 independent of 1–2; Task 4 ← 1,3;
+  Task 5 ← 2(light),4; Task 6 ← 1; Task 7 ← 4 (for the twist), conj-part ← 1 only.
+  Parallelizable pairs: (2,3), (6,7-conj).
+- Placeholder scan: two deliberate deferrals (isometry constructors, Clifford/inertia) are
+  named with their destination plan; no silent gaps.

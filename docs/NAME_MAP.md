@@ -42,6 +42,22 @@ Lean/Mathlib ports, per `docs/superpowers/plans/2026-07-06-odd-order-port.md` §
 | `FittingEgen` (join-of-`'O_p(G)` form) | `Fitting_eq_iSup_pcore` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
 | `cent_sub_Fitting` (B&G 1.3) | `Fitting.centralizer_le` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
 | `minnormal` existence below a normal subgroup (no single MathComp lemma) | `Subgroup.exists_isMinNormal_le` | `OddOrder/Mathlib/GroupTheory/ChiefFactor.lean` |
+| `classfun` / `'CF(G)` | `ClassFunction` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
+| `'CF(G, A)` | `ClassFunction.supportedOn` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
+| `cfdot` / `'[phi, psi]` | `ClassFunction.cfInner`, notation `⟪φ, ψ⟫_[G]` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
+| `cfdotC` (`'[phi, psi] = ('[psi, phi])^*`) | `ClassFunction.cfInner_conj_symm` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
+| `cfun1` / `cfuni` (class-function count: `\dim 'CF(G) = #|classes G|`) | `ClassFunction.finrank_classFunction` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
+| `char_inv` (`chi g^-1 = (chi g)^*`) | `Representation.char_inv`, `FDRep.char_inv` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
+| `cfRepr` (character of a `G`-module) | `MonoidAlgebra.moduleCharacter` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
+| `irr G` | `Irr` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
+| `cfdot_irr` (first orthogonality, `'[chi_i, chi_j] = (i == j)%:R`) | `Irr.cfInner_eq` (also `MonoidAlgebra.cfInner_moduleCharacter`, `FDRep.cfInner_classFunction`) | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
+| `free_irr` (irreducible characters are linearly independent) | `Irr.linearIndependent` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
+| `NirrE` / `card_irr` (`#|irr G| = #|classes G|`) | `Irr.card_eq_card_conjClasses` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
+| `irr_basis` (irreducible characters are a basis of `'CF(G)`) | `Irr.basis` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
+| `cfun_sum_cfdot` (`phi = \sum_i '[phi, 'chi_i] *: 'chi_i`) | `ClassFunction.eq_sum_cfInner_smul` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
+| `second_orthogonality_relation` | `Irr.second_orthogonality` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
+| `class_formula` (single class: `#|g ^: G| * #|'C_G[g]| = #|G|`) | `ConjClasses.nat_card_carrier_mul_card_centralizer` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
+| (center of group algebra ↔ class functions; MathComp `gring` material) | `MonoidAlgebra.mem_center_iff`, `MonoidAlgebra.centerEquivClassFunction`, `MonoidAlgebra.finrank_center` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
 
 Future work (not ported yet): `coprime_Hall_subset` and the Glauberman-lemma
 variants of the coprime-action suite (`glauberman_...`, `ext_coprime_quotient_cent`
