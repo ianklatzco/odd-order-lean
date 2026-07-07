@@ -72,13 +72,13 @@ to MathComp's `classfun.v` and the orthogonality material of `character.v`.
   port needs yet; it can be added later without changing this interface.
 * **Irreducibility via the group algebra.** `Irr G` is defined through simple submodules of
   `MonoidAlgebra ℂ G` (every simple module is isomorphic to one, so this is no loss:
-  `Representation.classFunction_mem_irr` recovers arbitrary irreducible representations).
+  `Representation.exists_irr_classFunction_eq` recovers arbitrary irreducible representations).
   This keeps the completeness proof self-contained: it needs Schur's lemma
   (`IsSimpleModule.algebraMap_end_bijective_of_isAlgClosed`), Maschke's theorem
   (`IsSemisimpleModule (MonoidAlgebra ℂ G) _`), and the center of the group algebra —
   but *not* the Wedderburn pi-of-matrix-algebras decomposition nor any categorical
   transport of `CategoryTheory.Simple` between `FDRep` and module categories.
-  The bridge to `Representation.IsIrreducible` is `Representation.isIrreducible_ofModule`
+  The bridge to `Representation.IsIrreducible` is `MonoidAlgebra.isIrreducible_ofModule'`
   (Mathlib's `isSimpleModule_iff_irreducible_ofModule`), and Mathlib's
   `Representation.char_orthonormal` supplies orthonormality.
 * **Completeness route.** `#Irr ≤ #classes` is linear independence (orthonormality).
@@ -292,6 +292,26 @@ theorem cfInner_conj_symm (φ ψ : ClassFunction G) :
     ⟪ψ, φ⟫_[G] = starRingEnd ℂ ⟪φ, ψ⟫_[G] := by
   simp only [cfInner, map_mul, map_inv₀, map_natCast, map_sum, Complex.conj_conj]
   exact congrArg _ (Finset.sum_congr rfl fun g _ => mul_comm _ _)
+
+theorem cfInner_zero_left (ψ : ClassFunction G) : ⟪(0 : ClassFunction G), ψ⟫_[G] = 0 :=
+  map_zero (cfInnerₗ ψ)
+
+theorem cfInner_zero_right (φ : ClassFunction G) : ⟪φ, (0 : ClassFunction G)⟫_[G] = 0 := by
+  rw [cfInner_conj_symm, cfInner_zero_left, map_zero]
+
+theorem cfInner_add_right (φ ψ₁ ψ₂ : ClassFunction G) :
+    ⟪φ, ψ₁ + ψ₂⟫_[G] = ⟪φ, ψ₁⟫_[G] + ⟪φ, ψ₂⟫_[G] := by
+  rw [cfInner_conj_symm, cfInner_add_left, map_add, ← cfInner_conj_symm ψ₁ φ,
+    ← cfInner_conj_symm ψ₂ φ]
+
+theorem cfInner_smul_right (c : ℂ) (φ ψ : ClassFunction G) :
+    ⟪φ, c • ψ⟫_[G] = starRingEnd ℂ c * ⟪φ, ψ⟫_[G] := by
+  rw [cfInner_conj_symm, cfInner_smul_left, map_mul, ← cfInner_conj_symm ψ φ]
+
+theorem cfInner_sum_right {ι : Type*} (s : Finset ι) (φ : ClassFunction G)
+    (ψ : ι → ClassFunction G) : ⟪φ, ∑ i ∈ s, ψ i⟫_[G] = ∑ i ∈ s, ⟪φ, ψ i⟫_[G] := by
+  rw [cfInner_conj_symm, cfInner_sum_left, map_sum]
+  exact Finset.sum_congr rfl fun i _ => (cfInner_conj_symm (ψ i) φ).symm
 
 end CfInner
 
