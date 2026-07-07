@@ -27,6 +27,8 @@ group is elementary abelian for some prime `p`.
 
 * `Subgroup.exists_isMinNormal`: every nontrivial finite group has a minimal
   normal subgroup.
+* `Subgroup.exists_isMinNormal_le`: every nontrivial normal subgroup of a
+  finite group contains a minimal normal subgroup of the ambient group.
 * `Subgroup.IsMinNormal.isElementaryAbelian`: every minimal normal subgroup of
   a finite solvable group is elementary abelian for some prime `p`.
 
@@ -89,6 +91,18 @@ theorem exists_isMinNormal (G : Type*) [Group G] [Finite G] [Nontrivial G] :
     exists_minimal_of_wellFoundedLT (fun N : Subgroup G ↦ N.Normal ∧ N ≠ ⊥)
       ⟨⊤, inferInstance, top_ne_bot⟩
   exact ⟨N, hnorm, hbot, fun M hM hle hbot' ↦ le_antisymm hle (hmin ⟨hM, hbot'⟩ hle)⟩
+
+/-- Every nontrivial normal subgroup `H` of a finite group contains a minimal
+normal subgroup of the ambient group: a normal subgroup that is minimal among
+all nontrivial normal subgroups below `H` is in fact minimal among all
+nontrivial normal subgroups. -/
+theorem exists_isMinNormal_le [Finite G] {H : Subgroup G} (hH : H.Normal) (hne : H ≠ ⊥) :
+    ∃ N : Subgroup G, N.IsMinNormal ∧ N ≤ H := by
+  obtain ⟨N, ⟨⟨hnorm, hbot⟩, hle⟩, hmin⟩ :=
+    exists_minimal_of_wellFoundedLT (fun N : Subgroup G ↦ (N.Normal ∧ N ≠ ⊥) ∧ N ≤ H)
+      ⟨H, ⟨hH, hne⟩, le_rfl⟩
+  exact ⟨N, ⟨hnorm, hbot,
+    fun M hM hleM hbotM ↦ le_antisymm hleM (hmin ⟨⟨hM, hbotM⟩, hleM.trans hle⟩ hleM)⟩, hle⟩
 
 /-- **Minimal normal subgroups of finite solvable groups are elementary
 abelian**: if `N` is a minimal normal subgroup of a finite solvable group `G`,

@@ -85,6 +85,16 @@ protected theorem IsPiNumber.coprime (hm : IsPiNumber π m) (hn : IsPiNumber π�
   (disjoint_primeFactors hm₀ hn₀).mp <|
     Finset.disjoint_left.mpr fun p hpm hpn => hn p hpn (hm p hpm)
 
+/-- A nonzero `{p}`-number is a power of `p`. -/
+protected theorem IsPiNumber.exists_eq_pow (h : IsPiNumber {p} n) (hn : n ≠ 0) :
+    ∃ k, n = p ^ k := by
+  rcases Finset.subset_singleton_iff.mp
+      (fun q hq => Finset.mem_singleton.mpr (h q hq)) with hpf | hpf
+  · exact ⟨0, by simpa [pow_zero] using (Nat.primeFactors_eq_empty.mp hpf).resolve_left hn⟩
+  · refine ⟨n.factorization p, ?_⟩
+    conv_lhs => rw [← Nat.prod_factorization_pow_eq_self hn]
+    rw [Finsupp.prod, Nat.support_factorization, hpf, Finset.prod_singleton]
+
 end Nat
 
 namespace Subgroup
@@ -127,6 +137,34 @@ theorem Normal.isPiGroup_sup {H N : Subgroup G} [Finite H] [Finite N] (hN : N.No
   haveI := hN
   Nat.IsPiNumber.of_dvd (Nat.IsPiNumber.mul hHπ hNπ) (card_sup_dvd_card_mul_card H N)
     (Nat.mul_ne_zero Nat.card_pos.ne' Nat.card_pos.ne')
+
+/-- The order of a finite join of normal subgroups divides the product of their
+orders.  Iterated form of `Subgroup.card_sup_dvd_card_mul_card`. -/
+theorem card_biSup_dvd_prod_card {ι : Type*} (s : Finset ι) (f : ι → Subgroup G)
+    (h : ∀ i, (f i).Normal) :
+    Nat.card ↥(⨆ i ∈ s, f i) ∣ ∏ i ∈ s, Nat.card (f i) := by
+  classical
+  induction s using Finset.induction_on with
+  | empty => simp
+  | insert a s ha ih =>
+    rw [Finset.iSup_insert, Finset.prod_insert ha]
+    haveI : ∀ i : ι, (⨆ (_ : i ∈ s), f i).Normal := fun i => by
+      haveI : ∀ _hi : i ∈ s, (f i).Normal := fun _ => h i
+      exact Subgroup.iSup_normal _
+    haveI : (⨆ i ∈ s, f i).Normal := Subgroup.iSup_normal _
+    exact (card_sup_dvd_card_mul_card (f a) _).trans (mul_dvd_mul_left _ ih)
+
+/-- A finite `{p}`-group is a `p`-group in the sense of `IsPGroup`. -/
+theorem IsPiGroup.isPGroup {p : ℕ} [Fact p.Prime] {H : Subgroup G} [Finite H]
+    (h : H.IsPiGroup {p}) : IsPGroup p H :=
+  IsPGroup.iff_card.mpr (h.exists_eq_pow Nat.card_pos.ne')
+
+/-- A finite `p`-subgroup is a `{p}`-group in the sense of `IsPiGroup`. -/
+theorem _root_.IsPGroup.isPiGroup {p : ℕ} [Fact p.Prime] {H : Subgroup G} [Finite H]
+    (h : IsPGroup p H) : H.IsPiGroup {p} := by
+  obtain ⟨n, hn⟩ := IsPGroup.iff_card.mp h
+  rw [IsPiGroup, hn]
+  exact ((Fact.out (p := p.Prime)).isPiNumber (Set.mem_singleton p)).pow n
 
 end Subgroup
 
@@ -210,5 +248,9 @@ theorem pcore_isPiGroup [Finite G] : (pcore π G).IsPiGroup π := by
     exact le_sup_right.trans (hMmax ⟨inferInstance, hN.isPiGroup_sup hMπ hNπ⟩ le_sup_left)
   rw [hcore]
   exact hMπ
+
+/-- For a finite group, the `{p}`-core is a `p`-group in the sense of `IsPGroup`. -/
+theorem pcore_isPGroup [Finite G] {p : ℕ} [Fact p.Prime] : IsPGroup p (pcore {p} G) :=
+  pcore_isPiGroup.isPGroup
 
 end Subgroup
