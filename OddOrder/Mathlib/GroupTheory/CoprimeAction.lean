@@ -337,10 +337,6 @@ variable {N G : Type*} [Group N] [Group G] {φ : G →* MulAut N}
 instance [Finite N] [Finite G] : Finite (N ⋊[φ] G) :=
   Finite.of_equiv (N × G) equivProd.symm
 
-theorem natCard (N G : Type*) [Group N] [Group G] (φ : G →* MulAut N) :
-    Nat.card (N ⋊[φ] G) = Nat.card N * Nat.card G := by
-  rw [Nat.card_congr (equivProd (φ := φ)), Nat.card_prod]
-
 theorem mem_range_inl {x : N ⋊[φ] G} :
     x ∈ (inl : N →* N ⋊[φ] G).range ↔ x.right = 1 := by
   rw [range_inl_eq_ker_rightHom]
@@ -879,7 +875,7 @@ private theorem exists_smulInvariant_isComplement' {A G : Type*} [Group A] [Grou
   set Mt : Subgroup Λ := M.map inl with hMt
   haveI : Mt.Normal := map_inl_normal M
   have hMtGt : Mt ≤ Gt := map_le_range inl M
-  have hcardΛ : Nat.card Λ = Nat.card G * Nat.card A := natCard G A φ
+  have hcardΛ : Nat.card Λ = Nat.card G * Nat.card A := SemidirectProduct.card
   have hcardGt : Nat.card Gt = Nat.card G := natCard_range_inl
   have hcardAt : Nat.card At = Nat.card A := natCard_range_inr
   have hcardMt : Nat.card Mt = Nat.card M := card_map_of_injective inl_injective
