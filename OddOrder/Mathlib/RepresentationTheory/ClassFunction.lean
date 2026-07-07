@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Ian Klatzco
 -/
 import Mathlib.Algebra.Group.ConjFinite
+import Mathlib.Analysis.Complex.Polynomial.Basic
 import Mathlib.GroupTheory.GroupAction.ConjAct
 import Mathlib.GroupTheory.Rank
 import Mathlib.LinearAlgebra.FiniteDimensional.Lemmas
@@ -567,4 +568,301 @@ theorem MonoidAlgebra.finrank_center [Fintype G] :
     ClassFunction.finrank_classFunction]
 
 end Center
+
+/-! ### Characters of modules over the group algebra -/
+
+section ModuleCharacter
+
+variable {G : Type u} [Group G]
+
+instance MonoidAlgebra.instModuleFiniteOfFinite [Finite G] :
+    Module.Finite ℂ (MonoidAlgebra ℂ G) :=
+  Module.Finite.equiv (Finsupp.linearEquivFunOnFinite ℂ ℂ G).symm
+
+instance (N : Submodule (MonoidAlgebra ℂ G) (MonoidAlgebra ℂ G)) [Finite G] :
+    FiniteDimensional ℂ N :=
+  FiniteDimensional.of_injective ((Submodule.subtype N).restrictScalars ℂ) N.injective_subtype
+
+variable (M : Type*) [AddCommGroup M] [Module ℂ M] [Module (MonoidAlgebra ℂ G) M]
+  [IsScalarTower ℂ (MonoidAlgebra ℂ G) M]
+
+namespace MonoidAlgebra
+
+/-- The ℂ-linear endomorphism of a `ℂ[G]`-module given by the action of `g : G`. -/
+def actionEnd (g : G) : M →ₗ[ℂ] M where
+  toFun x := MonoidAlgebra.single g (1 : ℂ) • x
+  map_add' := smul_add _
+  map_smul' c x := smul_comm _ c x
+
+@[simp]
+theorem actionEnd_apply (g : G) (x : M) :
+    actionEnd M g x = MonoidAlgebra.single g (1 : ℂ) • x :=
+  rfl
+
+theorem actionEnd_mul (g h : G) :
+    actionEnd M (g * h) = actionEnd M g ∘ₗ actionEnd M h := by
+  refine LinearMap.ext fun x => ?_
+  simp only [actionEnd_apply, LinearMap.comp_apply, ← mul_smul,
+    MonoidAlgebra.single_mul_single, one_mul]
+
+theorem ofModule'_eq_actionEnd (g : G) :
+    Representation.ofModule' (k := ℂ) (G := G) M g = actionEnd M g :=
+  rfl
+
+theorem ofModule'_asAlgebraHom_apply (r : MonoidAlgebra ℂ G) (x : M) :
+    (Representation.ofModule' (k := ℂ) (G := G) M).asAlgebraHom r x = r • x := by
+  induction r using MonoidAlgebra.induction_on with
+  | hM g =>
+    rw [MonoidAlgebra.of_apply, Representation.asAlgebraHom_single, one_smul,
+      ofModule'_eq_actionEnd, actionEnd_apply]
+  | hadd a b ha hb => rw [map_add, LinearMap.add_apply, ha, hb, add_smul]
+  | hsmul c r hr => rw [map_smul, LinearMap.smul_apply, hr, smul_assoc]
+
+/-- The identity map, as a `ℂ[G]`-linear equivalence between the auxiliary module
+`(ofModule' M).asModule` and `M` itself. -/
+def ofModule'AsModuleEquiv :
+    (Representation.ofModule' (k := ℂ) (G := G) M).asModule ≃ₗ[MonoidAlgebra ℂ G] M where
+  toFun := (Representation.ofModule' (k := ℂ) (G := G) M).asModuleEquiv
+  invFun := (Representation.ofModule' (k := ℂ) (G := G) M).asModuleEquiv.symm
+  left_inv x := by simp
+  right_inv x := by simp
+  map_add' := map_add _
+  map_smul' r x := by
+    rw [RingHom.id_apply, Representation.asModuleEquiv_map_smul,
+      ofModule'_asAlgebraHom_apply]
+
+theorem isIrreducible_ofModule' (h : IsSimpleModule (MonoidAlgebra ℂ G) M) :
+    (Representation.ofModule' (k := ℂ) (G := G) M).IsIrreducible := by
+  rw [Representation.irreducible_iff_isSimpleModule_asModule]
+  haveI := h
+  exact IsSimpleModule.congr (ofModule'AsModuleEquiv M)
+
+variable [FiniteDimensional ℂ M]
+
+variable (G) in
+/-- The character of a finite-dimensional `ℂ[G]`-module, as a class function on `G`: the
+trace of the action of `g`.  For simple modules these are the irreducible characters
+(`Irr`). -/
+def moduleCharacter : ClassFunction G where
+  toFun g := trace ℂ M (actionEnd M g)
+  conj_invariant' g h := by
+    rw [actionEnd_mul, trace_comp_comm', ← actionEnd_mul, inv_mul_cancel_left]
+
+theorem moduleCharacter_apply (g : G) :
+    moduleCharacter G M g = trace ℂ M (actionEnd M g) :=
+  rfl
+
+/-- The class function `moduleCharacter` is the character of the representation
+`Representation.ofModule'` associated to the module. -/
+theorem moduleCharacter_eq_ofModule'_character (g : G) :
+    moduleCharacter G M g = (Representation.ofModule' (k := ℂ) (G := G) M).character g :=
+  rfl
+
+end MonoidAlgebra
+
+end ModuleCharacter
+
+/-! ### Irreducible characters -/
+
+section Irr
+
+variable {G : Type u} [Group G]
+
+variable (G) in
+/-- The irreducible characters of a finite group `G` over `ℂ` (MathComp: `irr G`): class
+functions that arise as the character of some simple module over the group algebra
+`ℂ[G]` — equivalently (see `Representation.exists_irr_classFunction_eq`) of some
+irreducible finite-dimensional representation.  The witness is an existential over
+submodules of the regular module, which every simple module embeds into. -/
+structure Irr [Fintype G] where
+  /-- The underlying class function (the character). -/
+  toClassFunction : ClassFunction G
+  /-- The character comes from a simple submodule of the regular module. -/
+  exists_simple' : ∃ N : Submodule (MonoidAlgebra ℂ G) (MonoidAlgebra ℂ G),
+    IsSimpleModule (MonoidAlgebra ℂ G) N ∧
+      toClassFunction = MonoidAlgebra.moduleCharacter G N
+
+namespace Irr
+
+variable [Fintype G]
+
+instance : FunLike (Irr G) G ℂ where
+  coe χ := χ.toClassFunction
+  coe_injective χ ψ h := by
+    cases χ; cases ψ
+    congr 1
+    exact DFunLike.coe_injective h
+
+@[ext]
+theorem ext {χ ψ : Irr G} (h : ∀ g, χ g = ψ g) : χ = ψ :=
+  DFunLike.ext _ _ h
+
+@[simp]
+theorem coe_toClassFunction (χ : Irr G) : ⇑χ.toClassFunction = ⇑χ :=
+  rfl
+
+theorem toClassFunction_injective :
+    Function.Injective (toClassFunction : Irr G → ClassFunction G) := by
+  intro χ ψ h
+  exact DFunLike.coe_injective (congrArg (⇑· : ClassFunction G → G → ℂ) h)
+
+theorem toClassFunction_inj {χ ψ : Irr G} :
+    χ.toClassFunction = ψ.toClassFunction ↔ χ = ψ :=
+  toClassFunction_injective.eq_iff
+
+end Irr
+
+open scoped ClassFunction
+
+open scoped Classical in
+/-- **First orthogonality relation** for characters of simple `ℂ[G]`-modules, in
+inner-product form. -/
+theorem MonoidAlgebra.cfInner_moduleCharacter [Fintype G]
+    {N N' : Submodule (MonoidAlgebra ℂ G) (MonoidAlgebra ℂ G)}
+    (hN : IsSimpleModule (MonoidAlgebra ℂ G) N) (hN' : IsSimpleModule (MonoidAlgebra ℂ G) N') :
+    ⟪moduleCharacter G N, moduleCharacter G N'⟫_[G] =
+      if moduleCharacter G N = moduleCharacter G N' then 1 else 0 := by
+  classical
+  haveI : Invertible (Nat.card G : ℂ) :=
+    invertibleOfNonzero (Nat.cast_ne_zero.mpr Nat.card_pos.ne')
+  have key : ∀ P P' : Submodule (MonoidAlgebra ℂ G) (MonoidAlgebra ℂ G),
+      IsSimpleModule (MonoidAlgebra ℂ G) P → IsSimpleModule (MonoidAlgebra ℂ G) P' →
+      ⟪moduleCharacter G P, moduleCharacter G P'⟫_[G] =
+        if Nonempty ((Representation.ofModule' (k := ℂ) (G := G) P').Equiv
+            (Representation.ofModule' (k := ℂ) (G := G) P)) then 1 else 0 := by
+    intro P P' hP hP'
+    haveI := isIrreducible_ofModule' P hP
+    haveI := isIrreducible_ofModule' P' hP'
+    rw [ClassFunction.cfInner_def]
+    have hterm : ∀ g : G,
+        moduleCharacter G P g * starRingEnd ℂ (moduleCharacter G P' g) =
+          (Representation.ofModule' (k := ℂ) (G := G) P).character g *
+            (Representation.ofModule' (k := ℂ) (G := G) P').character g⁻¹ := by
+      intro g
+      rw [moduleCharacter_eq_ofModule'_character, moduleCharacter_eq_ofModule'_character,
+        Representation.char_inv]
+    rw [Finset.sum_congr rfl fun g _ => hterm g, Fintype.card_eq_nat_card]
+    exact Representation.char_orthonormal _ _
+  rcases eq_or_ne (moduleCharacter G N) (moduleCharacter G N') with heq | hne
+  · rw [if_pos heq, heq, key N' N' hN' hN', if_pos ⟨Representation.Equiv.refl _⟩]
+  · rw [if_neg hne, key N N' hN hN']
+    refine if_neg ?_
+    rintro ⟨e⟩
+    refine hne (ClassFunction.ext fun g => ?_)
+    rw [moduleCharacter_eq_ofModule'_character, moduleCharacter_eq_ofModule'_character,
+      Representation.char_iso e]
+
+namespace Irr
+
+variable [Fintype G]
+
+open scoped Classical in
+/-- **First orthogonality relation**: the irreducible characters are orthonormal.
+MathComp: `cfdot_irr`. -/
+theorem cfInner_eq (χ ψ : Irr G) :
+    ⟪χ.toClassFunction, ψ.toClassFunction⟫_[G] = if χ = ψ then 1 else 0 := by
+  classical
+  obtain ⟨N, hN, hχ⟩ := χ.exists_simple'
+  obtain ⟨N', hN', hψ⟩ := ψ.exists_simple'
+  rw [hχ, hψ, MonoidAlgebra.cfInner_moduleCharacter hN hN']
+  exact if_congr (by rw [← hχ, ← hψ, toClassFunction_inj]) rfl rfl
+
+theorem linearIndependent :
+    LinearIndependent ℂ (toClassFunction : Irr G → ClassFunction G) := by
+  classical
+  rw [linearIndependent_iff]
+  intro l hl
+  refine Finsupp.ext fun ψ => ?_
+  have h0 : ClassFunction.cfInnerₗ ψ.toClassFunction
+      (Finsupp.linearCombination ℂ toClassFunction l) = 0 := by
+    rw [hl, map_zero]
+  rw [Finsupp.linearCombination_apply, map_finsuppSum] at h0
+  have hterm : ∀ χ ∈ l.support,
+      ClassFunction.cfInnerₗ ψ.toClassFunction (l χ • χ.toClassFunction) =
+        if χ = ψ then l χ else 0 := by
+    intro χ _
+    rw [map_smul, smul_eq_mul, ClassFunction.cfInnerₗ_apply, cfInner_eq, mul_ite, mul_one,
+      mul_zero]
+  rw [Finsupp.sum_congr (g2 := fun χ a => if χ = ψ then a else 0) hterm,
+    Finsupp.sum_ite_eq' l ψ fun _ a => a] at h0
+  rw [Finsupp.zero_apply]
+  by_cases hmem : ψ ∈ l.support
+  · rwa [if_pos hmem] at h0
+  · rwa [Finsupp.notMem_support_iff] at hmem
+
+instance : Finite (Irr G) := by
+  by_contra hinf
+  rw [not_finite_iff_infinite] at hinf
+  have h0 := (linearIndependent (G := G)).finrank_eq_zero_of_infinite
+  rw [ClassFunction.finrank_classFunction] at h0
+  have : Nonempty (ConjClasses G) := ⟨ConjClasses.mk 1⟩
+  exact Nat.card_pos.ne' h0
+
+noncomputable instance : Fintype (Irr G) :=
+  Fintype.ofFinite _
+
+theorem card_le_card_conjClasses : Fintype.card (Irr G) ≤ Nat.card (ConjClasses G) := by
+  have h := (linearIndependent (G := G)).fintype_card_le_finrank
+  rwa [ClassFunction.finrank_classFunction] at h
+
+end Irr
+
+open scoped Classical in
+/-- The restatement of `FDRep.char_orthonormal` in the language of class functions and the
+hermitian inner product. -/
+theorem FDRep.cfInner_classFunction [Fintype G] (V W : FDRep ℂ G)
+    [CategoryTheory.Simple V] [CategoryTheory.Simple W] :
+    ⟪V.classFunction, W.classFunction⟫_[G] = if Nonempty (V ≅ W) then 1 else 0 := by
+  classical
+  haveI : Invertible (Fintype.card G : ℂ) :=
+    invertibleOfNonzero (Nat.cast_ne_zero.mpr Fintype.card_ne_zero)
+  have horth := FDRep.char_orthonormal V W
+  rw [ClassFunction.cfInner_def]
+  have hterm : ∀ g : G,
+      V.classFunction g * starRingEnd ℂ (W.classFunction g) =
+        V.character g * W.character g⁻¹ := by
+    intro g
+    rw [FDRep.classFunction_apply, FDRep.classFunction_apply, FDRep.char_inv]
+  rw [Finset.sum_congr rfl fun g _ => hterm g, ← invOf_eq_inv, ← smul_eq_mul]
+  exact horth
+
+/-- Every finite-dimensional irreducible representation contributes its character to
+`Irr G`: the enumeration by simple submodules of the regular module is exhaustive. -/
+theorem Representation.exists_irr_classFunction_eq [Fintype G] {V : Type*} [AddCommGroup V]
+    [Module ℂ V] [FiniteDimensional ℂ V] (ρ : Representation ℂ G V) [ρ.IsIrreducible] :
+    ∃ χ : Irr G, χ.toClassFunction = ρ.classFunction := by
+  classical
+  haveI : NeZero (Nat.card G : ℂ) := ⟨Nat.cast_ne_zero.mpr Nat.card_pos.ne'⟩
+  -- the simple module attached to `ρ` embeds in the (semisimple) regular module
+  haveI : Nontrivial ρ.asModule := IsSimpleModule.nontrivial (MonoidAlgebra ℂ G) ρ.asModule
+  obtain ⟨m, hm⟩ := exists_ne (0 : ρ.asModule)
+  have hf : LinearMap.toSpanSingleton (MonoidAlgebra ℂ G) ρ.asModule m ≠ 0 := by
+    intro hzero
+    apply hm
+    have := congrArg (fun f : MonoidAlgebra ℂ G →ₗ[MonoidAlgebra ℂ G] ρ.asModule => f 1) hzero
+    simpa [LinearMap.toSpanSingleton_apply] using this
+  obtain ⟨S, ⟨e⟩⟩ := LinearMap.linearEquiv_of_ne_zero hf
+  haveI hS : IsSimpleModule (MonoidAlgebra ℂ G) S := IsSimpleModule.congr e.symm
+  refine ⟨⟨MonoidAlgebra.moduleCharacter G S, ⟨S, hS, rfl⟩⟩, ClassFunction.ext fun g => ?_⟩
+  -- transfer the trace along `S ≃ ρ.asModule ≃ V`
+  have h1 : (e.restrictScalars ℂ).conj (MonoidAlgebra.actionEnd ρ.asModule g) =
+      MonoidAlgebra.actionEnd S g := by
+    refine LinearMap.ext fun x => ?_
+    have hsymm : (e.restrictScalars ℂ).symm x = e.symm x := rfl
+    simp only [LinearEquiv.conj_apply, LinearMap.comp_apply, LinearEquiv.coe_coe,
+      LinearEquiv.restrictScalars_apply, MonoidAlgebra.actionEnd_apply, hsymm, map_smul,
+      LinearEquiv.apply_symm_apply]
+  have h2 : ρ.asModuleEquiv.conj (MonoidAlgebra.actionEnd ρ.asModule g) = ρ g := by
+    refine LinearMap.ext fun v => ?_
+    show ρ.asModuleEquiv (MonoidAlgebra.single g (1 : ℂ) • ρ.asModuleEquiv.symm v) = ρ g v
+    rw [Representation.single_smul, one_smul, LinearEquiv.apply_symm_apply]
+    rfl
+  calc MonoidAlgebra.moduleCharacter G S g
+      = trace ℂ S (MonoidAlgebra.actionEnd S g) := rfl
+    _ = trace ℂ ρ.asModule (MonoidAlgebra.actionEnd ρ.asModule g) := by
+        rw [← h1, LinearMap.trace_conj']
+    _ = trace ℂ V (ρ g) := by rw [← h2, LinearMap.trace_conj']
+    _ = ρ.classFunction g := rfl
+
+end Irr
 
