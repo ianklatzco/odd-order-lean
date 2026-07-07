@@ -550,7 +550,7 @@ theorem MonoidAlgebra.mem_center_iff {x : MonoidAlgebra ℂ G} :
 variable (G) in
 /-- For a finite group, the center of the group algebra is linearly equivalent to the space
 of class functions. -/
-def MonoidAlgebra.centerEquivClassFunction [Fintype G] :
+def MonoidAlgebra.centerEquivClassFunction [Finite G] :
     Subalgebra.center ℂ (MonoidAlgebra ℂ G) ≃ₗ[ℂ] ClassFunction G where
   toFun x := ⟨fun g => (x : MonoidAlgebra ℂ G) g, MonoidAlgebra.mem_center_iff.mp x.2⟩
   invFun φ :=
@@ -562,7 +562,7 @@ def MonoidAlgebra.centerEquivClassFunction [Fintype G] :
   left_inv x := Subtype.ext (Finsupp.equivFunOnFinite_symm_coe _)
   right_inv φ := rfl
 
-theorem MonoidAlgebra.finrank_center [Fintype G] :
+theorem MonoidAlgebra.finrank_center [Finite G] :
     Module.finrank ℂ (Subalgebra.center ℂ (MonoidAlgebra ℂ G)) = Nat.card (ConjClasses G) := by
   rw [(MonoidAlgebra.centerEquivClassFunction G).finrank_eq,
     ClassFunction.finrank_classFunction]
@@ -854,7 +854,7 @@ theorem Representation.exists_irr_classFunction_eq [Fintype G] {V : Type*} [AddC
       LinearEquiv.apply_symm_apply]
   have h2 : ρ.asModuleEquiv.conj (MonoidAlgebra.actionEnd ρ.asModule g) = ρ g := by
     refine LinearMap.ext fun v => ?_
-    show ρ.asModuleEquiv (MonoidAlgebra.single g (1 : ℂ) • ρ.asModuleEquiv.symm v) = ρ g v
+    change ρ.asModuleEquiv (MonoidAlgebra.single g (1 : ℂ) • ρ.asModuleEquiv.symm v) = ρ g v
     rw [Representation.single_smul, one_smul, LinearEquiv.apply_symm_apply]
     rfl
   calc MonoidAlgebra.moduleCharacter G S g
@@ -1046,4 +1046,112 @@ theorem ClassFunction.eq_sum_cfInner_smul (f : ClassFunction G) :
   exact Finset.sum_congr rfl fun χ _ => by rw [Irr.basis_apply]
 
 end Completeness
+
+/-! ### The second orthogonality relation -/
+
+section SecondOrthogonality
+
+variable {G : Type u} [Group G]
+
+/-- The class equation for a single conjugacy class:
+`|class of g| * |centralizer of g| = |G|`. -/
+theorem ConjClasses.nat_card_carrier_mul_card_centralizer [Finite G] (g : G) :
+    Nat.card (ConjClasses.mk g).carrier
+      * Nat.card (Subgroup.centralizer ({g} : Set G)) = Nat.card G := by
+  rw [Subgroup.nat_card_centralizer_nat_card_stabilizer, ← ConjAct.orbit_eq_carrier_conjClasses,
+    Nat.card_congr (MulAction.orbitEquivQuotientStabilizer (ConjAct G) g),
+    ← Subgroup.index_eq_card, Subgroup.index_mul_card]
+  exact Nat.card_congr ConjAct.ofConjAct.toEquiv
+
+/-- Conjugate elements have centralizers of the same cardinality. -/
+theorem Subgroup.card_centralizer_eq_of_isConj [Finite G] {g h : G} (hc : IsConj g h) :
+    Nat.card (Subgroup.centralizer ({g} : Set G))
+      = Nat.card (Subgroup.centralizer ({h} : Set G)) := by
+  have h1 := ConjClasses.nat_card_carrier_mul_card_centralizer g
+  have h2 := ConjClasses.nat_card_carrier_mul_card_centralizer h
+  rw [show ConjClasses.mk g = ConjClasses.mk h from ConjClasses.mk_eq_mk_iff_isConj.mpr hc]
+    at h1
+  haveI : Nonempty (ConjClasses.mk h).carrier := ⟨⟨h, ConjClasses.mem_carrier_mk⟩⟩
+  exact Nat.eq_of_mul_eq_mul_left Nat.card_pos (h1.trans h2.symm)
+
+open scoped ClassFunction in
+open scoped Classical in
+/-- **Second orthogonality relation** (column orthogonality of the character table):
+`∑ χ ∈ Irr G, χ g * conj (χ h)` equals the order of the centralizer of `g` if `g` and `h`
+are conjugate, and `0` otherwise.  MathComp: `second_orthogonality_relation`. -/
+theorem Irr.second_orthogonality [Fintype G] (g h : G) :
+    ∑ χ : Irr G, χ g * starRingEnd ℂ (χ h) =
+      if IsConj g h then (Nat.card (Subgroup.centralizer ({g} : Set G)) : ℂ) else 0 := by
+  classical
+  -- the indicator class function of the conjugacy class of `h`
+  obtain ⟨δ, hδ⟩ : ∃ δ : ClassFunction G,
+      ∀ x, δ x = if ConjClasses.mk x = ConjClasses.mk h then 1 else 0 :=
+    ⟨⟨fun x => if ConjClasses.mk x = ConjClasses.mk h then 1 else 0, fun x k => by
+      rw [show ConjClasses.mk (k * x * k⁻¹) = ConjClasses.mk x from
+        ConjClasses.mk_eq_mk_iff_isConj.mpr (IsConj.symm (isConj_iff.mpr ⟨k, rfl⟩))]⟩,
+      fun x => rfl⟩
+  -- its coefficients in the basis of irreducible characters
+  have hδcoef : ∀ χ : Irr G, ⟪δ, χ.toClassFunction⟫_[G]
+      = (Nat.card (ConjClasses.mk h).carrier : ℂ) * (Fintype.card G : ℂ)⁻¹
+          * starRingEnd ℂ (χ h) := by
+    intro χ
+    rw [ClassFunction.cfInner_def]
+    have h1 : ∀ x : G, δ x * starRingEnd ℂ (χ.toClassFunction x)
+        = if ConjClasses.mk x = ConjClasses.mk h then starRingEnd ℂ (χ x) else 0 := by
+      intro x
+      rw [hδ x, Irr.coe_toClassFunction]
+      by_cases hx : ConjClasses.mk x = ConjClasses.mk h
+      · rw [if_pos hx, if_pos hx, one_mul]
+      · rw [if_neg hx, if_neg hx, zero_mul]
+    have h2 : ∀ x ∈ Finset.univ.filter fun x => ConjClasses.mk x = ConjClasses.mk h,
+        starRingEnd ℂ (χ x) = starRingEnd ℂ (χ h) := by
+      intro x hx
+      rw [Finset.mem_filter] at hx
+      have := χ.toClassFunction.apply_eq_of_isConj (ConjClasses.mk_eq_mk_iff_isConj.mp hx.2)
+      rw [Irr.coe_toClassFunction] at this
+      rw [this]
+    have hcard : Nat.card (ConjClasses.mk h).carrier
+        = (Finset.univ.filter fun x => ConjClasses.mk x = ConjClasses.mk h).card := by
+      rw [Nat.card_eq_fintype_card,
+        Fintype.card_congr (Equiv.subtypeEquivRight fun x =>
+          ConjClasses.mem_carrier_iff_mk_eq),
+        Fintype.card_subtype]
+    rw [Finset.sum_congr rfl fun x _ => h1 x, ← Finset.sum_filter,
+      Finset.sum_congr rfl h2, Finset.sum_const, nsmul_eq_mul, ← hcard]
+    ring
+  -- expand the indicator in the basis and evaluate at `g`
+  have heval := congrArg (fun F : ClassFunction G => F g) (ClassFunction.eq_sum_cfInner_smul δ)
+  simp only [ClassFunction.sum_apply, ClassFunction.smul_apply, smul_eq_mul,
+    Irr.coe_toClassFunction] at heval
+  rw [Finset.sum_congr rfl fun χ _ => by rw [hδcoef χ]] at heval
+  have hS : δ g = (Nat.card (ConjClasses.mk h).carrier : ℂ) * (Fintype.card G : ℂ)⁻¹
+      * ∑ χ : Irr G, χ g * starRingEnd ℂ (χ h) := by
+    rw [heval, Finset.mul_sum]
+    exact Finset.sum_congr rfl fun χ _ => by ring
+  haveI : Nonempty (ConjClasses.mk h).carrier := ⟨⟨h, ConjClasses.mem_carrier_mk⟩⟩
+  have hcar0 : (Nat.card (ConjClasses.mk h).carrier : ℂ) ≠ 0 :=
+    Nat.cast_ne_zero.mpr Nat.card_pos.ne'
+  have hG0 : (Fintype.card G : ℂ) ≠ 0 := Nat.cast_ne_zero.mpr Fintype.card_ne_zero
+  by_cases hgh : IsConj g h
+  · rw [if_pos hgh, Subgroup.card_centralizer_eq_of_isConj hgh]
+    have hδg : δ g = 1 := by
+      rw [hδ g, if_pos (ConjClasses.mk_eq_mk_iff_isConj.mpr hgh)]
+    rw [hδg] at hS
+    have hmulC : (Nat.card (ConjClasses.mk h).carrier : ℂ)
+        * (Nat.card (Subgroup.centralizer ({h} : Set G)) : ℂ) = (Fintype.card G : ℂ) := by
+      rw [← Nat.cast_mul, ConjClasses.nat_card_carrier_mul_card_centralizer h,
+        Nat.card_eq_fintype_card]
+    field_simp at hS
+    -- `hS : |G| = |class| * ∑ ...`; combine with `|class| * |centralizer| = |G|`
+    have := hmulC.trans hS
+    exact (mul_left_cancel₀ hcar0 this).symm
+  · rw [if_neg hgh]
+    have hδg : δ g = 0 := by
+      rw [hδ g, if_neg fun hc => hgh (ConjClasses.mk_eq_mk_iff_isConj.mp hc)]
+    rw [hδg] at hS
+    have hc' : (Nat.card (ConjClasses.mk h).carrier : ℂ) * (Fintype.card G : ℂ)⁻¹ ≠ 0 :=
+      mul_ne_zero hcar0 (inv_ne_zero hG0)
+    exact (mul_eq_zero.mp hS.symm).resolve_left hc'
+
+end SecondOrthogonality
 
