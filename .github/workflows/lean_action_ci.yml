@@ -17,5 +17,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+      - name: Check sorry budget
+        run: |
+          count=$(bash scripts/count_sorries.sh)
+          budget=$(cat .sorry-budget)
+          echo "sorry count: $count (budget: $budget)"
+          if [ "$count" -gt "$budget" ]; then
+            echo "::error::sorry count ($count) exceeds budget ($budget) — see .sorry-budget"
+            exit 1
+          fi
       - uses: leanprover/lean-action@v1
       - uses: leanprover-community/docgen-action@v1
