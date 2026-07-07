@@ -12,3 +12,6 @@ Lean/Mathlib ports, per `docs/superpowers/plans/2026-07-06-odd-order-port.md` §
 | `minnormal` (with ambient group `G`) | `Subgroup.IsMinNormal` | `OddOrder/Mathlib/GroupTheory/ChiefFactor.lean` |
 | `abelem` (`p.-abelem A`) | `IsElementaryAbelian` | `OddOrder/Mathlib/GroupTheory/ChiefFactor.lean` |
 | `minnormal_solvable` / `minnormal_solvable_abelem` | `Subgroup.IsMinNormal.isElementaryAbelian` | `OddOrder/Mathlib/GroupTheory/ChiefFactor.lean` |
+| `abelem_pgroup` | `IsElementaryAbelian.isPGroup` | `OddOrder/Mathlib/GroupTheory/ChiefFactor.lean` |
+| `pnat_coprime` | `Nat.IsPiNumber.coprime` | `OddOrder/Mathlib/GroupTheory/PiGroup.lean` |
+| `Hall_exists` | `Subgroup.exists_isHall` | `OddOrder/Mathlib/GroupTheory/Hall.lean` |

@@ -46,6 +46,14 @@ This corresponds to MathComp's `p.-abelem`. -/
 def IsElementaryAbelian (p : ℕ) (G : Type*) [Group G] : Prop :=
   (∀ a b : G, a * b = b * a) ∧ ∀ g : G, g ^ p = 1
 
+/-- An elementary abelian `p`-group is a `p`-group: every element is killed by
+`p = p ^ 1`.
+
+This corresponds to MathComp's `abelem_pgroup`. -/
+theorem IsElementaryAbelian.isPGroup {p : ℕ} {G : Type*} [Group G]
+    (h : IsElementaryAbelian p G) : IsPGroup p G :=
+  fun g => ⟨1, by rw [pow_one p]; exact h.2 g⟩
+
 open scoped commutatorElement
 
 namespace Subgroup

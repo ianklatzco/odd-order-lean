@@ -25,7 +25,7 @@ and `1` are π-numbers for every `π`, since they have no prime factors.
 
 namespace Nat
 
-variable {π : Set ℕ} {m n : ℕ}
+variable {π : Set ℕ} {m n p : ℕ}
 
 /-- A natural number `n` is a *π-number* if all of its prime factors belong to `π`. -/
 def IsPiNumber (π : Set ℕ) (n : ℕ) : Prop := ∀ p ∈ n.primeFactors, p ∈ π
@@ -42,6 +42,37 @@ theorem isPiNumber_one : IsPiNumber π 1 := by
 protected theorem IsPiNumber.of_dvd (hn : IsPiNumber π n) (hmn : m ∣ n) (hn₀ : n ≠ 0) :
     IsPiNumber π m :=
   fun p hp => hn p (primeFactors_mono hmn hn₀ hp)
+
+/-- A prime belonging to `π` is a π-number. -/
+protected theorem Prime.isPiNumber (hp : p.Prime) (hpπ : p ∈ π) : IsPiNumber π p := by
+  intro q hq
+  rw [hp.primeFactors, Finset.mem_singleton] at hq
+  exact hq ▸ hpπ
+
+/-- The product of two π-numbers is a π-number. -/
+protected theorem IsPiNumber.mul (hm : IsPiNumber π m) (hn : IsPiNumber π n) :
+    IsPiNumber π (m * n) := by
+  rcases eq_or_ne m 0 with rfl | hm₀
+  · simp
+  rcases eq_or_ne n 0 with rfl | hn₀
+  · simp
+  intro p hp
+  rw [primeFactors_mul hm₀ hn₀, Finset.mem_union] at hp
+  exact hp.elim (hm p) (hn p)
+
+/-- Powers of π-numbers are π-numbers. -/
+protected theorem IsPiNumber.pow (hn : IsPiNumber π n) (k : ℕ) : IsPiNumber π (n ^ k) := by
+  cases k with
+  | zero => simp
+  | succ k => exact fun p hp => hn p (by rwa [primeFactors_pow_succ] at hp)
+
+/-- A π-number and a π'-number are coprime.
+
+This corresponds to MathComp's `pnat_coprime`. -/
+protected theorem IsPiNumber.coprime (hm : IsPiNumber π m) (hn : IsPiNumber πᶜ n)
+    (hm₀ : m ≠ 0) (hn₀ : n ≠ 0) : m.Coprime n :=
+  (disjoint_primeFactors hm₀ hn₀).mp <|
+    Finset.disjoint_left.mpr fun p hpm hpn => hn p hpn (hm p hpm)
 
 end Nat
 
