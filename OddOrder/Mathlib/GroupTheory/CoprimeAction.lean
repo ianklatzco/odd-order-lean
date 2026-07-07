@@ -581,7 +581,25 @@ theorem coprime_commutator_eq [Finite A] [Finite G] [IsSolvable G]
     (hco : (Nat.card A).Coprime (Nat.card G)) :
     actionCommutator A (actionCommutator A (⊤ : Subgroup G))
       = actionCommutator A (⊤ : Subgroup G) := by
-  sorry
+  refine le_antisymm (actionCommutator_le_self _) ?_
+  rw [actionCommutator_le]
+  rintro a g -
+  -- Split `g = h * c` with `h ∈ [G, A]` and `c ∈ C_G(A)`, using `coprime_cent_prod`.
+  have hg : g ∈ actionCommutator A (⊤ : Subgroup G) ⊔ FixedPoints.subgroup A G := by
+    rw [coprime_cent_prod hco]
+    exact mem_top g
+  rw [← SetLike.mem_coe, normal_mul] at hg
+  obtain ⟨h, hh, c, hc, rfl⟩ := hg
+  -- Then `(h * c)⁻¹ * a • (h * c)` is the generator of `[[G, A], A]` at `c⁻¹ * h * c`.
+  have hca : a • c = c := hc a
+  have hkey : (h * c)⁻¹ * a • (h * c)
+      = (c⁻¹ * h * c)⁻¹ * a • (c⁻¹ * h * c) := by
+    simp only [smul_mul', smul_inv', hca]
+    group
+  rw [hkey]
+  refine inv_mul_smul_mem_actionCommutator a ?_
+  have hconj := actionCommutator_normal.conj_mem h hh c⁻¹
+  rwa [inv_inv] at hconj
 
 open scoped IsMulCommutative in
 /-- **The coprime abelian direct-product decomposition** (B&G 1.6(d)): if `A` acts
