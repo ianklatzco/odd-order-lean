@@ -1086,6 +1086,7 @@ theorem coprime_hall_exists (π : Set ℕ) [Finite A] [Finite G] [IsSolvable G]
     ∃ H : Subgroup G, H.IsHall π ∧ H.SMulInvariant A :=
   coprime_hall_exists_aux π A (Nat.card G) G le_rfl hco
 
+open SemidirectProduct in
 /-- **Conjugacy of `A`-invariant Hall subgroups**: if `A` acts coprimely on a finite
 solvable group `G`, then any two `A`-invariant Hall π-subgroups of `G` are conjugate
 by an `A`-fixed element.
@@ -1096,6 +1097,137 @@ theorem coprime_hall_trans {π : Set ℕ} [Finite A] [Finite G] [IsSolvable G]
     (hH : H.IsHall π) (hHinv : H.SMulInvariant A)
     (hK : K.IsHall π) (hKinv : K.SMulInvariant A) :
     ∃ g ∈ FixedPoints.subgroup A G, K = H.map (MulAut.conj g).toMonoidHom := by
-  sorry
+  haveI := hHinv
+  haveI := hKinv
+  -- P. Hall's conjugacy theorem in `G` itself.
+  obtain ⟨x, hx⟩ := isHall_conj hH hK
+  -- Transport everything to the semidirect product `Λ`.
+  set φ := MulDistribMulAction.toMulAut A G with hφ
+  set Λ := G ⋊[φ] A with hΛ
+  set Gt : Subgroup Λ := (inl : G →* Λ).range with hGt
+  set At : Subgroup Λ := (inr : A →* Λ).range with hAt
+  set Ht : Subgroup Λ := H.map inl with hHt
+  set Kt : Subgroup Λ := K.map inl with hKt
+  have hcardGt : Nat.card Gt = Nat.card G := natCard_range_inl
+  have hcardAt : Nat.card At = Nat.card A := natCard_range_inr
+  have map_conj_eq : ∀ (X : Subgroup Λ) (u : Λ), u ∈ normalizer (X : Set Λ) →
+      X.map (MulAut.conj u).toMonoidHom = X := by
+    intro X u hu
+    rw [MulEquiv.toMonoidHom_eq_coe]
+    exact mem_normalizer_iff_map_conj_eq.mp hu
+  have hKtconj : Kt = Ht.map (MulAut.conj (inl x)).toMonoidHom := by
+    rw [hKt, hx, ← map_inl_conj]
+  -- `Nz`, the normalizer of `Kt`, contains both `At` (invariance of `K`) and the
+  -- transported copy `C₂ := At ^ (inl x)` (invariance of `H`).
+  set Nz : Subgroup Λ := normalizer (Kt : Set Λ) with hNz
+  have hAtN : At ≤ Nz := by
+    rw [hNz, hKt]
+    exact range_inr_le_normalizer_map_inl K
+  set C₂ : Subgroup Λ := At.map (MulAut.conj (inl x)).toMonoidHom with hC₂
+  have hC₂N : C₂ ≤ Nz := by
+    have h1 : At ≤ normalizer (Ht : Set Λ) := by
+      rw [hHt]
+      exact range_inr_le_normalizer_map_inl H
+    have h2 : C₂ ≤ (normalizer (Ht : Set Λ)).map (MulAut.conj (inl x)).toMonoidHom :=
+      map_mono h1
+    refine h2.trans ?_
+    rw [hNz, hKtconj, MulEquiv.toMonoidHom_eq_coe]
+    exact le_normalizer_map _
+  -- Count: `Nz` is the product of `L := Gt ⊓ Nz` and a copy of `A`.
+  set ρ : ↥Nz →* A := (rightHom : Λ →* A).restrict Nz with hρ
+  have hρker : ρ.ker = Gt.subgroupOf Nz := by
+    rw [hρ, MonoidHom.ker_restrict, ← range_inl_eq_ker_rightHom]
+  have hρsurj : Function.Surjective ρ := fun a => ⟨⟨inr a, hAtN ⟨a, rfl⟩⟩, rfl⟩
+  have hcardNz : Nat.card Nz = Nat.card (Gt.subgroupOf Nz) * Nat.card A := by
+    have h1 := card_eq_card_quotient_mul_card_subgroup ρ.ker
+    have h2 : Nat.card (↥Nz ⧸ ρ.ker) = Nat.card A :=
+      Nat.card_congr (QuotientGroup.quotientKerEquivOfSurjective ρ hρsurj).toEquiv
+    rw [h1, h2, hρker, mul_comm]
+  have hLdvd : Nat.card (Gt.subgroupOf Nz) ∣ Nat.card G := by
+    rw [← inf_subgroupOf_right Gt Nz,
+      card_subgroupOf (inf_le_right : Gt ⊓ Nz ≤ Nz), ← hcardGt]
+    exact card_dvd_of_le inf_le_left
+  -- Both `At` and `C₂` are complements of `L` in `Nz`.
+  have hAt'comp : IsComplement' (Gt.subgroupOf Nz) (At.subgroupOf Nz) := by
+    refine isComplement'_of_coprime ?_ ?_
+    · rw [card_subgroupOf hAtN, hcardAt, hcardNz]
+    · rw [card_subgroupOf hAtN, hcardAt]
+      exact (hco.coprime_dvd_right hLdvd).symm
+  have hcardC₂ : Nat.card C₂ = Nat.card A := by
+    rw [hC₂, card_map_of_injective (MulAut.conj (inl x : Λ)).injective, hcardAt]
+  have hC₂'comp : IsComplement' (Gt.subgroupOf Nz) (C₂.subgroupOf Nz) := by
+    refine isComplement'_of_coprime ?_ ?_
+    · rw [card_subgroupOf hC₂N, hcardC₂, hcardNz]
+    · rw [card_subgroupOf hC₂N, hcardC₂]
+      exact (hco.coprime_dvd_right hLdvd).symm
+  -- Schur–Zassenhaus conjugacy inside `Nz` (solvable kernel `L ≤ Gt ≅ G`).
+  haveI : IsSolvable (Gt.subgroupOf Nz) := by
+    rw [← inf_subgroupOf_right Gt Nz]
+    haveI : IsSolvable (Gt ⊓ Nz : Subgroup Λ) := isSolvable_of_le inferInstance inf_le_left
+    exact solvable_of_surjective
+      (f := (subgroupOfEquivOfLe (inf_le_right : Gt ⊓ Nz ≤ Nz)).symm.toMonoidHom)
+      (subgroupOfEquivOfLe (inf_le_right : Gt ⊓ Nz ≤ Nz)).symm.surjective
+  have hcoL : (Nat.card (Gt.subgroupOf Nz)).Coprime (Gt.subgroupOf Nz).index := by
+    rw [hAt'comp.symm.index_eq_card, card_subgroupOf hAtN, hcardAt]
+    exact (hco.coprime_dvd_right hLdvd).symm
+  obtain ⟨y, hy⟩ := hC₂'comp.exists_conj_of_coprime hcoL hAt'comp
+  have hAtC₂ : At = C₂.map (MulAut.conj (y : Λ)).toMonoidHom :=
+    eq_map_conj_of_subgroupOf_eq_map_conj hC₂N hAtN hy
+  -- The element `z := y * inl x` conjugates `Ht` to `Kt` and normalizes `At`.
+  set z : Λ := (y : Λ) * inl x with hz
+  have hAtz : At.map (MulAut.conj z).toMonoidHom = At := by
+    rw [hz, ← map_conj_map_conj, ← hC₂]
+    exact hAtC₂.symm
+  have hHtz : Ht.map (MulAut.conj z).toMonoidHom = Kt := by
+    rw [hz, ← map_conj_map_conj, ← hKtconj]
+    exact map_conj_eq Kt (y : Λ) y.2
+  -- Split off the `A`-component of `z`: conjugation by `inr z.right` fixes both
+  -- `At` and `Ht`, so conjugation by `inl z.left` alone does the job.
+  have hzdecomp : z = inl z.left * inr z.right := (inl_left_mul_inr_right z).symm
+  have hAtinr : At.map (MulAut.conj (inr z.right : Λ)).toMonoidHom = At :=
+    map_conj_eq At _ (le_normalizer ⟨z.right, rfl⟩)
+  have hHtinr : Ht.map (MulAut.conj (inr z.right : Λ)).toMonoidHom = Ht := by
+    refine map_conj_eq Ht _ ?_
+    rw [hHt]
+    exact range_inr_le_normalizer_map_inl H ⟨z.right, rfl⟩
+  have hAtinl : At.map (MulAut.conj (inl z.left : Λ)).toMonoidHom = At := by
+    calc At.map (MulAut.conj (inl z.left : Λ)).toMonoidHom
+        = (At.map (MulAut.conj (inr z.right : Λ)).toMonoidHom).map
+            (MulAut.conj (inl z.left : Λ)).toMonoidHom := by rw [hAtinr]
+      _ = At.map (MulAut.conj (inl z.left * inr z.right : Λ)).toMonoidHom :=
+          map_conj_map_conj At _ _
+      _ = At := by rw [← hzdecomp]; exact hAtz
+  have hKtinl : Ht.map (MulAut.conj (inl z.left : Λ)).toMonoidHom = Kt := by
+    calc Ht.map (MulAut.conj (inl z.left : Λ)).toMonoidHom
+        = (Ht.map (MulAut.conj (inr z.right : Λ)).toMonoidHom).map
+            (MulAut.conj (inl z.left : Λ)).toMonoidHom := by rw [hHtinr]
+      _ = Ht.map (MulAut.conj (inl z.left * inr z.right : Λ)).toMonoidHom :=
+          map_conj_map_conj Ht _ _
+      _ = Kt := by rw [← hzdecomp]; exact hHtz
+  -- Conjugation by `inl z.left` fixing `At` forces `z.left` to be `A`-fixed.
+  have hgfix : z.left ∈ FixedPoints.subgroup A G := by
+    have hinv : ∀ α : A, α • z.left⁻¹ = z.left⁻¹ := by
+      intro α
+      have h1 : (inl z.left : Λ) * inr α * (inl z.left)⁻¹ ∈ At := by
+        rw [← hAtinl]
+        exact ⟨inr α, ⟨α, rfl⟩, by simp [MulAut.conj_apply]⟩
+      have hcompute : (inl z.left : Λ) * inr α * (inl z.left)⁻¹
+          = inl (z.left * (α • z.left⁻¹)) * inr α := by
+        rw [map_mul, inl_smul_eq α z.left⁻¹, ← map_inv]
+        group
+      rw [hcompute] at h1
+      have h3 : (inl (z.left * (α • z.left⁻¹)) : Λ) ∈ At := by
+        have h4 : (inr α : Λ) ∈ At := ⟨α, rfl⟩
+        have h5 := mul_mem h1 (inv_mem h4)
+        rwa [mul_inv_cancel_right] at h5
+      rw [hAt, mem_range_inr, left_inl] at h3
+      exact eq_inv_of_mul_eq_one_right h3
+    intro α
+    have h5 := hinv α
+    rw [smul_inv'] at h5
+    exact inv_injective h5
+  -- Push the conjugation back down to `G` through the injective `inl`.
+  refine ⟨z.left, hgfix, map_injective (inl_injective (φ := φ)) ?_⟩
+  rw [← map_inl_conj, ← hKt, ← hKtinl, hHt]
 
 end CoprimeAction
