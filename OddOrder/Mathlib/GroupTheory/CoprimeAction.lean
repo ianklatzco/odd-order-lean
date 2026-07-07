@@ -148,6 +148,30 @@ theorem SMulInvariant.comap {G' : Type*} [Group G'] [SMul A G'] {H : Subgroup G'
     rw [mem_comap, hf a g]
     exact SMulInvariant.smul_mem a hg
 
+open scoped commutatorElement in
+/-- The commutator of two invariant subgroups is invariant:
+`a • ⁅g, h⁆ = ⁅a • g, a • h⁆`. -/
+instance commutator_smulInvariant (H K : Subgroup G) [H.SMulInvariant A]
+    [K.SMulInvariant A] : (⁅H, K⁆ : Subgroup G).SMulInvariant A := by
+  constructor
+  intro a n hn
+  rw [commutator_def] at hn ⊢
+  induction hn using closure_induction with
+  | mem x hx =>
+    obtain ⟨p, hp, q, hq, rfl⟩ := hx
+    have key : a • ⁅p, q⁆ = ⁅a • p, a • q⁆ :=
+      map_commutatorElement (MulDistribMulAction.toMonoidHom G a) p q
+    rw [key]
+    exact subset_closure
+      ⟨a • p, SMulInvariant.smul_mem a hp, a • q, SMulInvariant.smul_mem a hq, rfl⟩
+  | one => simp
+  | mul x y _ _ hx hy =>
+    rw [smul_mul']
+    exact mul_mem hx hy
+  | inv x _ hx =>
+    rw [smul_inv']
+    exact inv_mem hx
+
 end SMulInvariant
 
 /-!
@@ -302,6 +326,175 @@ section CoprimeAction
 
 variable {A G : Type*} [Group A] [Group G] [MulDistribMulAction A G]
 
+/-!
+#### Fixed-point lifting
+
+The crux of the suite: an `A`-fixed coset `gN` of an invariant subgroup `N` contains
+an `A`-fixed element, provided the action is coprime and `N` is solvable.  The
+abelian case is the classical averaging argument, phrased multiplicatively: the map
+`ν a := g⁻¹ * (a • g)` is a cocycle `A → N`; its "average" `σ := ∏ a, ν a` satisfies
+`b • σ = (ν b)⁻¹ ^ |A| * σ`, so the `|A|`-th root `τ` of `σ` (which exists and is
+unique by coprimality, `powCoprime`) satisfies `b • τ = (ν b)⁻¹ * τ`, making `g * τ`
+a fixed point of the coset.  The solvable case follows by induction on `Nat.card N`
+along the derived series.
+-/
+
+open scoped commutatorElement
+
+section FixedPointLifting
+
+open scoped IsMulCommutative in
+/-- Abelian case of fixed-point lifting, in coset form: if the coset `g * N` of a
+finite abelian invariant subgroup `N` is `A`-stable (i.e. `g⁻¹ * (a • g) ∈ N` for
+all `a`) and the action is coprime, then the coset contains an `A`-fixed point. -/
+private theorem exists_mul_mem_fixedPoints_of_isMulCommutative [Finite A]
+    {N : Subgroup G} [N.SMulInvariant A] [Finite N] [IsMulCommutative N]
+    (hco : (Nat.card A).Coprime (Nat.card N)) {g : G}
+    (hg : ∀ a : A, g⁻¹ * (a • g) ∈ N) :
+    ∃ x ∈ N, g * x ∈ FixedPoints.subgroup A G := by
+  have := Fintype.ofFinite A
+  -- The cocycle of the `A`-stable coset `g * N`.
+  set ν : A → N := fun a => ⟨g⁻¹ * (a • g), hg a⟩ with hν
+  have hcocycle : ∀ a b : A, ν (a * b) = ν a * a • ν b := by
+    intro a b
+    refine Subtype.ext ?_
+    change g⁻¹ * ((a * b) • g) = (g⁻¹ * (a • g)) * (a • (g⁻¹ * (b • g)))
+    rw [smul_mul', smul_inv', mul_smul]
+    group
+  -- The average of the cocycle.
+  set σ : N := ∏ a : A, ν a with hσ
+  have hσsmul : ∀ b : A, b • σ = (ν b)⁻¹ ^ Nat.card A * σ := by
+    intro b
+    have h1 : b • σ = ∏ a : A, b • ν a :=
+      map_prod (MulDistribMulAction.toMonoidHom N b) ν Finset.univ
+    have h2 : ∀ a : A, b • ν a = (ν b)⁻¹ * ν (b * a) := fun a => by
+      rw [hcocycle b a, inv_mul_cancel_left]
+    calc b • σ = ∏ a : A, ((ν b)⁻¹ * ν (b * a)) := by
+          rw [h1]; exact Finset.prod_congr rfl fun a _ => h2 a
+      _ = (∏ _a : A, (ν b)⁻¹) * ∏ a : A, ν (b * a) := Finset.prod_mul_distrib
+      _ = (ν b)⁻¹ ^ Nat.card A * σ := by
+          rw [Finset.prod_const, Finset.card_univ, Nat.card_eq_fintype_card, hσ]
+          congr 1
+          simpa using Equiv.prod_comp (Equiv.mulLeft b) ν
+  -- The `|A|`-th root `τ` of `σ` translates `g` into the fixed points.
+  set τ : N := (powCoprime hco.symm).symm σ with hτ
+  have hτpow : τ ^ Nat.card A = σ := by
+    have h := (powCoprime hco.symm).apply_symm_apply σ
+    rwa [powCoprime_apply] at h
+  have hsmulτ : ∀ a : A, a • τ = (ν a)⁻¹ * τ := by
+    intro a
+    refine (powCoprime hco.symm).injective ?_
+    rw [powCoprime_apply, powCoprime_apply, ← smul_pow', hτpow, hσsmul a, mul_pow, hτpow]
+  refine ⟨τ, τ.2, fun a => ?_⟩
+  calc a • (g * (τ : G)) = (a • g) * ((a • τ : N) : G) := by rw [smul_mul']; rfl
+    _ = (a • g) * ((g⁻¹ * (a • g))⁻¹ * (τ : G)) := by rw [hsmulτ a]; push_cast; rfl
+    _ = g * (τ : G) := by group
+
+/-- The commutator subgroup of a solvable subgroup is strictly smaller (the ambient
+group need not be solvable).  This is `IsSolvable.commutator_lt_of_ne_bot` with the
+solvability hypothesis on the subgroup itself. -/
+private theorem commutator_lt_of_isSolvable {N : Subgroup G} [IsSolvable N]
+    (hbot : N ≠ ⊥) : ⁅N, N⁆ < N := by
+  rw [← N.nontrivial_iff_ne_bot] at hbot
+  rw [← N.range_subtype, MonoidHom.range_eq_map, ← map_commutator,
+    map_subtype_lt_map_subtype]
+  exact IsSolvable.commutator_lt_top_of_nontrivial N
+
+universe u v
+
+/-- Auxiliary strong induction on `Nat.card N` for
+`coprime_fixedPoints_quotient_surjective`, in coset form: an `A`-stable coset of a
+finite solvable invariant normal subgroup contains a fixed point.  The bound `n` is
+explicit so that the induction hypothesis applies to the quotient `G ⧸ ⁅N, N⁆`
+(which lives in a different type). -/
+private theorem exists_mul_mem_fixedPoints_aux (A : Type v) [Group A] [Finite A]
+    (n : ℕ) :
+    ∀ (G : Type u) [Group G] [MulDistribMulAction A G],
+      ∀ (N : Subgroup G) [N.Normal] [N.SMulInvariant A] [Finite N] [IsSolvable N],
+      Nat.card N ≤ n → (Nat.card A).Coprime (Nat.card N) →
+      ∀ {g : G}, (∀ a : A, g⁻¹ * (a • g) ∈ N) →
+      ∃ x ∈ N, g * x ∈ FixedPoints.subgroup A G := by
+  induction n with
+  | zero =>
+    intro G _ _ N _ _ _ _ hn
+    exact absurd (Nat.le_zero.mp hn) Nat.card_pos.ne'
+  | succ n ih =>
+    intro G _ _ N _ _ _ _ hn hco g hg
+    by_cases habel : ⁅N, N⁆ = ⊥
+    -- Base case: `N` abelian.
+    · haveI : IsMulCommutative N := ⟨⟨fun x y => Subtype.ext <| by
+        have h1 : ⁅(x : G), (y : G)⁆ ∈ ⁅N, N⁆ := commutator_mem_commutator x.2 y.2
+        rwa [habel, mem_bot, commutatorElement_eq_one_iff_mul_comm] at h1⟩⟩
+      exact exists_mul_mem_fixedPoints_of_isMulCommutative hco hg
+    -- Inductive case: pass to `G ⧸ N'` with `N' := ⁅N, N⁆`, where the image of `N`
+    -- is abelian; lift the resulting fixed point, then correct inside `N'`.
+    · obtain ⟨N', hN'⟩ : ∃ N', N' = ⁅N, N⁆ := ⟨_, rfl⟩
+      haveI : N'.Normal := hN' ▸ commutator_normal N N
+      haveI : N'.SMulInvariant A := hN' ▸ commutator_smulInvariant N N
+      have hN'le : N' ≤ N := hN' ▸ commutator_le.mpr fun p hp q hq =>
+        N.mul_mem (N.mul_mem (N.mul_mem hp hq) (N.inv_mem hp)) (N.inv_mem hq)
+      haveI : Finite N' := Finite.of_injective _ (inclusion_injective hN'le)
+      haveI : IsSolvable N' := isSolvable_of_le ‹IsSolvable N› hN'le
+      have hN'ne : N' ≠ ⊥ := hN' ▸ habel
+      have hNne : N ≠ ⊥ := fun h => hN'ne (le_bot_iff.mp (h ▸ hN'le))
+      have hN'lt : N' < N := hN' ▸ commutator_lt_of_isSolvable hNne
+      have hcolt : Nat.card N' < Nat.card N :=
+        lt_of_le_of_ne (card_le_of_le hN'le) fun h =>
+          hN'lt.ne (eq_of_le_of_card_ge hN'le h.ge)
+      -- The image of `N` in `G ⧸ N'` is a finite abelian invariant subgroup.
+      obtain ⟨Nbar, hNbar⟩ : ∃ Nbar, Nbar = N.map (QuotientGroup.mk' N') := ⟨_, rfl⟩
+      haveI : Nbar.SMulInvariant A := hNbar ▸ SMulInvariant.map (QuotientGroup.mk' N')
+        fun a x => (MulAction.Quotient.smul_mk N' a x).symm
+      haveI : Finite Nbar := by
+        rw [hNbar]
+        exact Finite.of_surjective _ ((QuotientGroup.mk' N').subgroupMap_surjective N)
+      haveI : IsMulCommutative Nbar := by
+        constructor
+        constructor
+        rintro ⟨x, hx⟩ ⟨y, hy⟩
+        rw [hNbar] at hx hy
+        obtain ⟨p, hp, rfl⟩ := hx
+        obtain ⟨q, hq, rfl⟩ := hy
+        refine Subtype.ext ?_
+        change QuotientGroup.mk' N' p * QuotientGroup.mk' N' q
+          = QuotientGroup.mk' N' q * QuotientGroup.mk' N' p
+        rw [← map_mul, ← map_mul]
+        refine QuotientGroup.eq.mpr ?_
+        have h : (p * q)⁻¹ * (q * p) = ⁅q⁻¹, p⁻¹⁆ := by
+          rw [commutatorElement_def]; group
+        rw [h, hN']
+        exact commutator_mem_commutator (N.inv_mem hq) (N.inv_mem hp)
+      -- Push the coset condition to the quotient and lift a fixed point there.
+      have hgbar : ∀ a : A, ((g : G ⧸ N'))⁻¹ * (a • (g : G ⧸ N')) ∈ Nbar := by
+        intro a
+        rw [hNbar]
+        refine ⟨g⁻¹ * (a • g), hg a, ?_⟩
+        rw [map_mul, map_inv]
+        rfl
+      have hcobar : (Nat.card A).Coprime (Nat.card Nbar) := by
+        refine hco.coprime_dvd_right ?_
+        rw [hNbar]
+        exact N.card_map_dvd _
+      obtain ⟨nb, hnb, hfix1⟩ := exists_mul_mem_fixedPoints_of_isMulCommutative
+        (N := Nbar) hcobar hgbar
+      rw [hNbar] at hnb
+      obtain ⟨x₁, hx₁, hx₁eq⟩ := hnb
+      have hfix1' : ((g * x₁ : G) : G ⧸ N') ∈ FixedPoints.subgroup A (G ⧸ N') := by
+        have h : ((g * x₁ : G) : G ⧸ N') = (g : G ⧸ N') * nb := by rw [← hx₁eq]; rfl
+        rw [h]
+        exact hfix1
+      have hg₁ : ∀ a : A, (g * x₁)⁻¹ * (a • (g * x₁)) ∈ N' := by
+        intro a
+        have h := hfix1' a
+        rw [MulAction.Quotient.smul_mk] at h
+        exact QuotientGroup.eq.mp h.symm
+      -- Correct the lift inside `N'` by induction.
+      obtain ⟨x₂, hx₂, hfix₂⟩ := ih G N' (Nat.le_of_lt_succ (hcolt.trans_le hn))
+        (hco.coprime_dvd_right (card_dvd_of_le hN'le)) hg₁
+      exact ⟨x₁ * x₂, N.mul_mem hx₁ (hN'le hx₂), by rwa [← mul_assoc]⟩
+
+end FixedPointLifting
+
 /-- **Fixed points lift along coprime quotients** (surjectivity form): if `N` is an
 `A`-invariant normal subgroup of `G` which is finite, *solvable* and of order coprime
 to `Nat.card A`, then every `A`-fixed point of `G ⧸ N` is the image of an `A`-fixed
@@ -317,7 +510,15 @@ theorem coprime_fixedPoints_quotient_surjective [Finite A] {N : Subgroup G} [N.N
     (hco : (Nat.card A).Coprime (Nat.card N)) {x : G ⧸ N}
     (hx : x ∈ FixedPoints.subgroup A (G ⧸ N)) :
     ∃ g ∈ FixedPoints.subgroup A G, QuotientGroup.mk g = x := by
-  sorry
+  obtain ⟨g, rfl⟩ := QuotientGroup.mk_surjective x
+  have hg : ∀ a : A, g⁻¹ * (a • g) ∈ N := by
+    intro a
+    refine QuotientGroup.eq.mp ?_
+    rw [← MulAction.Quotient.smul_mk]
+    exact (hx a).symm
+  obtain ⟨y, hy, hfix⟩ := exists_mul_mem_fixedPoints_aux A (Nat.card N) G N le_rfl hco hg
+  refine ⟨g * y, hfix, ?_⟩
+  rw [QuotientGroup.mk_mul, (QuotientGroup.eq_one_iff y).mpr hy, mul_one]
 
 /-- **Fixed points of a coprime quotient** (subgroup-equality form):
 `C_G(A) N / N = C_{G ⧸ N}(A)`, stated as the image of the fixed-point subgroup under
@@ -329,7 +530,13 @@ theorem coprime_fixedPoints_quotient_eq [Finite A] {N : Subgroup G} [N.Normal]
     (hco : (Nat.card A).Coprime (Nat.card N)) :
     (FixedPoints.subgroup A G).map (QuotientGroup.mk' N)
       = FixedPoints.subgroup A (G ⧸ N) := by
-  sorry
+  refine le_antisymm ?_ fun x hx => ?_
+  · rintro _ ⟨c, hc, rfl⟩
+    intro a
+    change a • ((c : G) : G ⧸ N) = ((c : G) : G ⧸ N)
+    rw [MulAction.Quotient.smul_mk, hc a]
+  · obtain ⟨g, hgfix, rfl⟩ := coprime_fixedPoints_quotient_surjective hco hx
+    exact ⟨g, hgfix, rfl⟩
 
 /-- **The coprime commutator-centralizer product decomposition** (B&G 1.6(a)): if `A`
 acts coprimely on a finite solvable group `G`, then `G = [G, A] * C_G(A)`, stated as
