@@ -510,3 +510,61 @@ theorem FDRep.char_inv (W : FDRep ℂ G) (g : G) :
 
 end CharInv
 
+/-! ### The center of the group algebra
+
+The center of `MonoidAlgebra ℂ G` consists exactly of the elements whose coefficient
+function is a class function; consequently it is linearly equivalent to `ClassFunction G`
+and has dimension `#ConjClasses G`.  (The class sums are the image of the indicator basis
+under this equivalence; they are not needed as explicit elements in this file.) -/
+
+section Center
+
+variable {G : Type u} [Group G]
+
+/-- An element of the group algebra is central if and only if its coefficient function is
+constant on conjugacy classes. -/
+theorem MonoidAlgebra.mem_center_iff {x : MonoidAlgebra ℂ G} :
+    x ∈ Subalgebra.center ℂ (MonoidAlgebra ℂ G) ↔ ∀ g h : G, x (h * g * h⁻¹) = x g := by
+  constructor
+  · intro hx g h
+    have hcomm := Subalgebra.mem_center_iff.mp hx (single h 1)
+    have := congrArg (fun y : MonoidAlgebra ℂ G => y (h * g)) hcomm
+    simp only [single_mul_apply, mul_single_apply, one_mul, mul_one, inv_mul_cancel_left]
+      at this
+    exact this.symm
+  · intro hx
+    rw [Subalgebra.mem_center_iff]
+    intro y
+    induction y using MonoidAlgebra.induction_on with
+    | hM g =>
+      refine Finsupp.ext fun h => ?_
+      rw [MonoidAlgebra.of_apply, MonoidAlgebra.single_mul_apply,
+        MonoidAlgebra.mul_single_apply, one_mul, mul_one]
+      have := hx (h * g⁻¹) g⁻¹
+      rw [show g⁻¹ * (h * g⁻¹) * g⁻¹⁻¹ = g⁻¹ * h by group] at this
+      exact this
+    | hadd y₁ y₂ h₁ h₂ => rw [add_mul, mul_add, h₁, h₂]
+    | hsmul c y hy => rw [smul_mul_assoc, mul_smul_comm, hy]
+
+variable (G) in
+/-- For a finite group, the center of the group algebra is linearly equivalent to the space
+of class functions. -/
+def MonoidAlgebra.centerEquivClassFunction [Fintype G] :
+    Subalgebra.center ℂ (MonoidAlgebra ℂ G) ≃ₗ[ℂ] ClassFunction G where
+  toFun x := ⟨fun g => (x : MonoidAlgebra ℂ G) g, MonoidAlgebra.mem_center_iff.mp x.2⟩
+  invFun φ :=
+    ⟨Finsupp.equivFunOnFinite.symm ⇑φ, MonoidAlgebra.mem_center_iff.mpr fun g h => by
+      simp only [Finsupp.coe_equivFunOnFinite_symm]
+      exact φ.conj_apply g h⟩
+  map_add' x y := rfl
+  map_smul' c x := rfl
+  left_inv x := Subtype.ext (Finsupp.equivFunOnFinite_symm_coe _)
+  right_inv φ := rfl
+
+theorem MonoidAlgebra.finrank_center [Fintype G] :
+    Module.finrank ℂ (Subalgebra.center ℂ (MonoidAlgebra ℂ G)) = Nat.card (ConjClasses G) := by
+  rw [(MonoidAlgebra.centerEquivClassFunction G).finrank_eq,
+    ClassFunction.finrank_classFunction]
+
+end Center
+
