@@ -63,6 +63,12 @@ Lean/Mathlib ports, per `docs/superpowers/plans/2026-07-06-odd-order-port.md` §
 | `second_orthogonality_relation` | `Irr.second_orthogonality` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
 | `class_formula` (single class: `#|g ^: G| * #|'C_G[g]| = #|G|`) | `ConjClasses.nat_card_carrier_mul_card_centralizer` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
 | (center of group algebra ↔ class functions; MathComp `gring` material) | `MonoidAlgebra.mem_center_iff`, `MonoidAlgebra.centerEquivClassFunction`, `MonoidAlgebra.finrank_center` | `OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean` |
+| `cfun_ring` (class functions form a commutative ring under pointwise `*`, unit `1`) | `ClassFunction.instCommRing`, `ClassFunction.instAlgebra` | `OddOrder/Mathlib/RepresentationTheory/CharacterArith.lean` |
+| `cfun1` / `irr1` (the trivial character) | `Irr.one` | `OddOrder/Mathlib/RepresentationTheory/CharacterArith.lean` |
+| `character` / `is_char` (a class function that is an ℕ-combination of `Irr`) | `ClassFunction.IsChar` | `OddOrder/Mathlib/RepresentationTheory/CharacterArith.lean` |
+| `irr1_deg` (degree `chi 1` is a natural number) | `Irr.exists_degree` | `OddOrder/Mathlib/RepresentationTheory/CharacterArith.lean` |
+| `irr1_gt0` (`0 < chi 1`) | `Irr.exists_degree` (the positivity conjunct) | `OddOrder/Mathlib/RepresentationTheory/CharacterArith.lean` |
+| `sum_irr1_sq`-shaped corollary of second orthogonality (exact MathComp name unconfirmed at port time) | `Irr.sum_sq_degree` | `OddOrder/Mathlib/RepresentationTheory/CharacterArith.lean` |
 
 Future work (not ported yet): `coprime_Hall_subset` and the Glauberman-lemma
 variants of the coprime-action suite (`glauberman_...`, `ext_coprime_quotient_cent`
