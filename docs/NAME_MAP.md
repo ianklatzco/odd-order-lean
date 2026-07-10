@@ -69,6 +69,11 @@ Lean/Mathlib ports, per `docs/superpowers/plans/2026-07-06-odd-order-port.md` §
 | `irr1_deg` (degree `chi 1` is a natural number) | `Irr.exists_degree` | `OddOrder/Mathlib/RepresentationTheory/CharacterArith.lean` |
 | `irr1_gt0` (`0 < chi 1`) | `Irr.exists_degree` (the positivity conjunct) | `OddOrder/Mathlib/RepresentationTheory/CharacterArith.lean` |
 | `sum_irr1_sq`-shaped corollary of second orthogonality (exact MathComp name unconfirmed at port time) | `Irr.sum_sq_degree` | `OddOrder/Mathlib/RepresentationTheory/CharacterArith.lean` |
+| `cfRes` / `'Res[H] phi` (restriction of a class function to a subgroup) | `ClassFunction.res` | `OddOrder/Mathlib/RepresentationTheory/Induced.lean` |
+| `cfInd` / `'Ind[G] phi` (induction of a class function, averaging formula) | `ClassFunction.ind` | `OddOrder/Mathlib/RepresentationTheory/Induced.lean` |
+| `cfdot_cfInd` / `Frobenius_reciprocity` | `ClassFunction.cfInner_ind_eq_cfInner_res` (flipped form: `ClassFunction.cfInner_flip_res_eq_cfInner_flip_ind`) | `OddOrder/Mathlib/RepresentationTheory/Induced.lean` |
+| `cfRes_char`-shaped (restriction of a character is a character) | `ClassFunction.IsChar.res` | `OddOrder/Mathlib/RepresentationTheory/Induced.lean` |
+| `cfInd_char`-shaped (induction of a character is a character) | `ClassFunction.IsChar.ind` | `OddOrder/Mathlib/RepresentationTheory/Induced.lean` |
 
 Future work (not ported yet): `coprime_Hall_subset` and the Glauberman-lemma
 variants of the coprime-action suite (`glauberman_...`, `ext_coprime_quotient_cent`
