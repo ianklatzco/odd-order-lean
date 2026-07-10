@@ -74,6 +74,16 @@ Lean/Mathlib ports, per `docs/superpowers/plans/2026-07-06-odd-order-port.md` §
 | `cfdot_cfInd` / `Frobenius_reciprocity` | `ClassFunction.cfInner_ind_eq_cfInner_res` (flipped form: `ClassFunction.cfInner_flip_res_eq_cfInner_flip_ind`) | `OddOrder/Mathlib/RepresentationTheory/Induced.lean` |
 | `cfRes_char`-shaped (restriction of a character is a character) | `ClassFunction.IsChar.res` | `OddOrder/Mathlib/RepresentationTheory/Induced.lean` |
 | `cfInd_char`-shaped (induction of a character is a character) | `ClassFunction.IsChar.ind` | `OddOrder/Mathlib/RepresentationTheory/Induced.lean` |
+| `gring` class-sum basis vectors (exact name unconfirmed) | `MonoidAlgebra.classSum` | `OddOrder/Mathlib/RepresentationTheory/ClassSum.lean` |
+| (single-sum characterization of the class sum; no separate Coq name) | `MonoidAlgebra.classSum_eq_sum_single` | `OddOrder/Mathlib/RepresentationTheory/ClassSum.lean` |
+| `gring` basis of the group-ring center (exact name unconfirmed) | `MonoidAlgebra.classSumBasis` (via `MonoidAlgebra.classFunctionIndicatorBasis`) | `OddOrder/Mathlib/RepresentationTheory/ClassSum.lean` |
+| `gring` structure constants (exact name unconfirmed) | `MonoidAlgebra.classMulCoeff`, `MonoidAlgebra.classMulCoeff_eq`, `MonoidAlgebra.classSum_mul` | `OddOrder/Mathlib/RepresentationTheory/ClassSum.lean` |
+
+Note: `ClassSum.lean` is Task 3 of the M2 plan (class sums, center basis, structure
+constants). The plan files this material inside `CharacterArith.lean`; it was split into a
+standalone file instead, per the parallel-work isolation protocol (Task 2 implemented
+`Induced.lean` concurrently) and the plan's own "split further if any exceeds ~1200 lines"
+clause.
 
 Future work (not ported yet): `coprime_Hall_subset` and the Glauberman-lemma
 variants of the coprime-action suite (`glauberman_...`, `ext_coprime_quotient_cent`

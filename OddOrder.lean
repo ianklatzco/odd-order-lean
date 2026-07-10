@@ -12,4 +12,5 @@ import OddOrder.Mathlib.GroupTheory.PiGroup
 import OddOrder.Mathlib.GroupTheory.SchurZassenhaus
 import OddOrder.Mathlib.RepresentationTheory.CharacterArith
 import OddOrder.Mathlib.RepresentationTheory.ClassFunction
+import OddOrder.Mathlib.RepresentationTheory.ClassSum
 import OddOrder.Mathlib.RepresentationTheory.Induced
