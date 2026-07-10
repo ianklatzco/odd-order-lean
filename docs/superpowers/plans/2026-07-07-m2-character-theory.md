@@ -62,7 +62,10 @@ lines. All imported from `OddOrder.lean`; NAME_MAP rows per task.
 **Interfaces:** `ClassFunction.IsChar φ` (MathComp `character`): `φ` is an ℕ-combination
 of `Irr G` — define as `∃ c : Irr G → ℕ, φ = ∑ χ, (c χ : ℂ) • χ.toClassFunction` and prove
 equivalent to "character of some finite-dimensional `ℂ[G]`-module" (via semisimple
-decomposition of modules, `IsSemisimpleModule` + isotypic machinery already in Mathlib).
+decomposition of modules, `IsSemisimpleModule` + isotypic machinery already in Mathlib —
+**forward direction only delivered** (`isChar_moduleCharacter`, the direction downstream
+tasks consume); the converse `IsChar φ → ∃ module` is **deferred**, see task report and the
+STATUS.md results table).
 Degrees; the trivial character; pointwise ring structure.
 
 - [x] `CommRing (ClassFunction G)` + `Algebra ℂ (ClassFunction G)` (pointwise mul, one);
@@ -189,7 +192,7 @@ task plan (they need the PF context to state well).
 - [x] `IsChar`/`VirtualChar` interaction: a virtual character with `⟪φ, χ⟫ ≥ 0` for all χ
       is a character; difference presentation `φ = φ⁺ - φ⁻`.
 
-*Done in `VirtualChar.lean`. Notation `Z[S, A]` (Lean rejects leading-apostrophe atoms). `vchar_norm2` proved with the honest conclusion (four sign patterns: the stated hypotheses provably do not exclude `±(χ₁+χ₂)`); verify MathComp's exact extra hypothesis on first Coq access. Isometry-extension constructors deferred to PF1 per plan.*
+*Done in `VirtualChar.lean`. Notation `Z[S, A]` (Lean rejects leading-apostrophe atoms). `vchar_norm2` proved with the honest conclusion (four sign patterns: the stated hypotheses provably do not exclude `±(χ₁+χ₂)`); the MathComp extra hypothesis was **verified in the M2 review round** against the odd-order Coq checkout — every PF call site (PFsection1.v:152–153, 217, 233; PFsection5.v:1597) supplies `φ ∈ 'Z[irr G, G^#]` (i.e. `φ 1 = 0`) and consumes a pure difference, so the PF-shaped variant `exists_sub_of_cfInner_self_eq_two` was added alongside the four-pattern lemma. Isometry-extension constructors deferred to PF1 per plan.*
 
 ### Task 7: `cfAut` (Galois action on class functions)
 

@@ -37,6 +37,13 @@ induction preserve the character predicate `ClassFunction.IsChar` from
 
 ## Design notes
 
+* **Not a duplicate of Mathlib's categorical induction.** Mathlib's
+  `Mathlib/RepresentationTheory/Induced.lean` constructs induction of *representations*
+  (`Representation.ind` along a group hom, with the `ind ⊣ res` adjunction
+  `Rep.indResAdjunction`); it has no class-function-level induction formula, no induced
+  *character* identity, and no `cfdot`-style Frobenius reciprocity for inner products of
+  class functions — which are exactly what this file provides (and what the PF sections
+  consume), so the two developments do not overlap.
 * **Fintype seam.** Following the M2 plan's Fintype/`Nat.card` policy, statements summing over
   `G` take `[Fintype G]`, and statements involving the inner product on `H` (which sums over
   `↥H`) take `[Fintype H]` as an explicit hypothesis rather than manufacturing it internally.
@@ -163,7 +170,6 @@ def ind : ClassFunction H →ₗ[ℂ] ClassFunction G where
     rw [Finset.sum_congr rfl fun x _ => extendZero_smul_apply c φ (x⁻¹ * g * x), ← Finset.mul_sum]
     ring
 
-@[simp]
 theorem ind_apply (φ : ClassFunction H) (g : G) :
     ind H φ g = (Nat.card H : ℂ)⁻¹ * ∑ x : G, extendZero φ (x⁻¹ * g * x) :=
   rfl
@@ -191,7 +197,6 @@ namespace ClassFunction
 
 variable [Fintype G] {H : Subgroup G} [Fintype H]
 
-open scoped Classical in
 /-- **Frobenius reciprocity**: `⟪ind H φ, ψ⟫_[G] = ⟪φ, res H ψ⟫_[H]`. The proof swaps the
 order of a double sum over `G × G`, reindexes the inner sum by left multiplication (showing
 it is independent of the outer variable, using that `ψ` is a class function), and then
@@ -247,8 +252,9 @@ theorem cfInner_ind_eq_cfInner_res (φ : ClassFunction H) (ψ : ClassFunction G)
   rw [hunfold, hconst, hrestrict, ClassFunction.cfInner_def, Nat.card_eq_fintype_card (α := H)]
   field_simp
 
-/-- The flipped form of Frobenius reciprocity, via conjugate-symmetry of `cfInner`. -/
-theorem cfInner_flip_res_eq_cfInner_flip_ind (ψ : ClassFunction G) (φ : ClassFunction H) :
+/-- The flipped form of Frobenius reciprocity (`ind` in the right slot, `res` in the left),
+via conjugate-symmetry of `cfInner`. -/
+theorem cfInner_ind_right_eq_cfInner_res_left (ψ : ClassFunction G) (φ : ClassFunction H) :
     ⟪ψ, ind H φ⟫_[G] = ⟪res H ψ, φ⟫_[H] := by
   have h1 : ⟪ψ, ind H φ⟫_[G]
       = starRingEnd ℂ ⟪ind H φ, ψ⟫_[G] := cfInner_conj_symm (ind H φ) ψ

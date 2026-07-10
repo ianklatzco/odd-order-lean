@@ -641,7 +641,7 @@ a rational algebraic integer with denominator `p` — impossible. So some nonpri
 witnessing module for `χ`, forcing every commutator `[g, h]` into `χ.ker`; simplicity collapses
 `χ.ker` to `⊥`, putting `g` in the center, hence (again by simplicity) forcing `G` abelian. -/
 theorem not_isSimpleGroup_of_conjClasses_card_eq_prime_pow [IsSimpleGroup G]
-    (hab : ¬ IsMulCommutative G) {p k : ℕ} (hp : p.Prime) (_hk : 0 < k) {g : G} (hg1 : g ≠ 1)
+    (hab : ¬ IsMulCommutative G) {p k : ℕ} (hp : p.Prime) {g : G} (hg1 : g ≠ 1)
     (hcard : Nat.card (ConjClasses.mk g).carrier = p ^ k) : False := by
   classical
   have hgconj : ¬ IsConj g 1 := fun hc => hg1 (isConj_one_left.mp hc)
@@ -899,7 +899,7 @@ private theorem burnside_solvable_aux (p q : ℕ) (hp : p.Prime) (hq : q.Prime) 
         have hclassdvd : Nat.card (ConjClasses.mk z).carrier ∣ p ^ a :=
           ⟨m, hcancel.symm⟩
         obtain ⟨k, hkle, hkeq⟩ := (Nat.dvd_prime_pow hp).mp hclassdvd
-        rcases Nat.eq_zero_or_pos k with hk0 | hkpos
+        rcases Nat.eq_zero_or_pos k with hk0 | _
         · -- class size 1: `z` is central, contradicting `hcenterbot`
           rw [hk0, pow_zero] at hkeq
           have hcentop : Subgroup.centralizer ({z} : Set G) = ⊤ := by
@@ -916,7 +916,7 @@ private theorem burnside_solvable_aux (p q : ℕ) (hp : p.Prime) (hq : q.Prime) 
             exact (Subgroup.mem_centralizer_iff.mp this z rfl).symm
           rw [hcenterbot, Subgroup.mem_bot] at hzcenter
           exact hzne1 hzcenter
-        · exact not_isSimpleGroup_of_conjClasses_card_eq_prime_pow hab hp hkpos hzne1 hkeq
+        · exact not_isSimpleGroup_of_conjClasses_card_eq_prime_pow hab hp hzne1 hkeq
 
 /-- **Burnside's `p^a q^b` theorem.** Every finite group of order `p^a q^b` (`p, q` prime) is
 solvable. The headline result of the M2 character-theory plan, formalized via the nonvanishing

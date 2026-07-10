@@ -44,8 +44,9 @@ own "split further if any exceeds ~1200 lines" clause.
 * `MonoidAlgebra.classMulCoeff_eq`: representative-independence of `classMulCoeff`, via the
   conjugation bijection between solution sets for any two representatives of the same class.
 * `MonoidAlgebra.classSum_mul`: the **structure-constant formula**
-  `classSum c * classSum d = ∑ e, (classMulCoeff c d e : ℕ) • classSum e`. MathComp: `gring`
-  structure constants (exact name unconfirmed).
+  `classSum c * classSum d = ∑ e, (classMulCoeff c d e : ℕ) • classSum e`. MathComp:
+  `gring_classM_coef` (and the associated counting formula `gring_classM_coef_sum_eq`), per
+  the BGappendixC entry of `docs/audit/survey-digest.md`.
 * `MonoidAlgebra.classSum_mk_one`: sanity check, `classSum (ConjClasses.mk 1) = 1`.
 
 ## Design notes
@@ -63,7 +64,7 @@ own "split further if any exceeds ~1200 lines" clause.
 
 noncomputable section
 
-open Finset Module
+open Finset
 open scoped ClassFunction
 
 universe u
@@ -155,7 +156,8 @@ variable [Fintype G]
 variable (G) in
 /-- The indicator basis of `ClassFunction G`, transported from the standard basis of
 `ConjClasses G → ℂ` along `ClassFunction.equivFunConjClasses`. -/
-def MonoidAlgebra.classFunctionIndicatorBasis : Basis (ConjClasses G) ℂ (ClassFunction G) :=
+def MonoidAlgebra.classFunctionIndicatorBasis :
+    Module.Basis (ConjClasses G) ℂ (ClassFunction G) :=
   (Pi.basisFun ℂ (ConjClasses G)).map ClassFunction.equivFunConjClasses.symm
 
 open scoped Classical in
@@ -172,7 +174,7 @@ variable (G) in
 `classFunctionIndicatorBasis` along `MonoidAlgebra.centerEquivClassFunction`. MathComp:
 `gring` basis of the group-ring center (exact name unconfirmed). -/
 def MonoidAlgebra.classSumBasis :
-    Basis (ConjClasses G) ℂ ↥(Subalgebra.center ℂ (MonoidAlgebra ℂ G)) :=
+    Module.Basis (ConjClasses G) ℂ ↥(Subalgebra.center ℂ (MonoidAlgebra ℂ G)) :=
   (MonoidAlgebra.classFunctionIndicatorBasis G).map
     (MonoidAlgebra.centerEquivClassFunction G).symm
 
@@ -182,7 +184,7 @@ theorem MonoidAlgebra.classSumBasis_coe (c : ConjClasses G) :
   have hb : MonoidAlgebra.classSumBasis G c
       = (MonoidAlgebra.centerEquivClassFunction G).symm
           (MonoidAlgebra.classFunctionIndicatorBasis G c) :=
-    Basis.map_apply _ _ _
+    Module.Basis.map_apply _ _ _
   rw [hb]
   ext g
   change (Finsupp.equivFunOnFinite.symm
@@ -209,8 +211,8 @@ private theorem conjProdEquiv_apply (k : G) (p : G × G) :
 variable (G) in
 /-- The **structure constant**: the number of ways to write a fixed representative `e.out`
 of the class `e` as `x * y` with `x ∈ c.carrier`, `y ∈ d.carrier`. Independent of the choice
-of representative, by `classMulCoeff_eq`. MathComp: `gring` structure constants (exact name
-unconfirmed). -/
+of representative, by `classMulCoeff_eq`. MathComp: `gring_classM_coef` (per the BGappendixC
+entry of `docs/audit/survey-digest.md`). -/
 def MonoidAlgebra.classMulCoeff (c d e : ConjClasses G) : ℕ :=
   Nat.card {p : G × G // p.1 ∈ c.carrier ∧ p.2 ∈ d.carrier ∧ p.1 * p.2 = e.out}
 
@@ -245,8 +247,9 @@ theorem MonoidAlgebra.classMulCoeff_eq {c d e : ConjClasses G} {z : G} (hz : z �
 
 open scoped Classical in
 variable [Fintype G] in
-/-- **Structure-constant formula for the product of two class sums.** MathComp: `gring`
-structure constants (exact name unconfirmed). -/
+/-- **Structure-constant formula for the product of two class sums.** MathComp:
+`gring_classM_coef` / `gring_classM_coef_sum_eq` (per the BGappendixC entry of
+`docs/audit/survey-digest.md`). -/
 theorem MonoidAlgebra.classSum_mul (c d : ConjClasses G) :
     MonoidAlgebra.classSum G c * MonoidAlgebra.classSum G d
       = ∑ e : ConjClasses G, MonoidAlgebra.classMulCoeff G c d e • MonoidAlgebra.classSum G e := by

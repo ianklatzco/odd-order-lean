@@ -56,6 +56,7 @@ Milestone progress: M0 ✅ · M1 ~85% · M2 ~95% (Tasks 9 + M2-1/2/3/4/5/6 done;
 - `CoprimeAction.lean` (1,229 lines) wants splitting into SMulInvariant / actionCommutator / semidirect-bridge / suite files before it grows.
 - `IsHall`'s second component could be restated as `Nat.IsPiNumber πᶜ H.index` (defeq today; would remove recurring `show`-bridges).
 - Verify the `FittingEgen` NAME_MAP row against a real MathComp checkout.
+- `VirtualChar.lean`: the support-restricted `Z[irr G, A]` bridge (MathComp `zcharD1E`-analogue: `φ ∈ Z[image Irr, G^#] ↔ φ.IsVirtualChar ∧ φ 1 = 0`) is not stated yet — the two sides exist separately; land the bundled iff with the PF1 task plan, which fixes the `G^#` spelling (see the future-work note in `docs/NAME_MAP.md`).
 - Monitor the two priority-100 global instances in CoprimeAction.lean; scope them if elaboration slows.
 - Upstreaming order (final review, rec 3): PiGroup+Hall predicate → SZ conjugacy (into Mathlib's own file) → Hall theorems → fitting → ChiefFactor → CoprimeAction → ClassFunction last.
 
@@ -84,4 +85,4 @@ Review every task's diff before building on it (spec fidelity + a named-risk che
 - M2 plan: [2026-07-07-m2-character-theory.md](2026-07-07-m2-character-theory.md)
 - Audit evidence: `docs/audit/` (survey of all 33 Coq files + verified Mathlib coverage)
 - Name mapping: `docs/NAME_MAP.md`
-- Coq source being ported: [math-comp/odd-order](https://github.com/math-comp/odd-order) (sibling checkout when available; absent on the current machine — use `docs/audit/survey-digest.md`)
+- Coq source being ported: [math-comp/odd-order](https://github.com/math-comp/odd-order) (sibling checkout when available — as of the M2 review round it IS present at `../odd-order/theories/` (PFsection*.v, BGsection*.v); check there before claiming a name is unverifiable. MathComp *proper* (e.g. `character/vcharacter.v`, `character/integral_char.v`) is still absent — for those, use `docs/audit/survey-digest.md` plus usage sites in the odd-order sources)

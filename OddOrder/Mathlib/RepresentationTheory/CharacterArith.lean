@@ -48,10 +48,12 @@ corollary of the second orthogonality relation was not confirmed against a Coq c
   resolution does not care which file declares an instance, only that it is imported. Any
   file needing the ring structure already needs `IsChar` or `Irr.one` from this file (per the
   M2 plan's task dependency graph: Task 2 ← Task 1), so nothing downstream loses access.
-* **`IsChar` ↔ module-character equivalence: forward direction only.** The M2 plan allows
-  scoping down to `IsChar (moduleCharacter G M)` (semisimple decomposition: every
-  finite-dimensional `ℂ[G]`-module's character is an ℕ-combination of `Irr G`) if the full
-  iff fights universes/effort past budget. That forward direction is what is proved here
+* **`IsChar` ↔ module-character equivalence: forward direction only.** What is proved here
+  is the forward direction `IsChar (moduleCharacter G M)` (semisimple decomposition: every
+  finite-dimensional `ℂ[G]`-module's character is an ℕ-combination of `Irr G`); the converse
+  is a recorded deferral — see the M2 results table in `docs/superpowers/plans/STATUS.md`
+  (Task 1 row: "deferred per plan clauses: `IsChar.mul`, module-equivalence converse") and
+  the deferral annotation on Task 1 in the M2 plan itself. The forward direction is proved
   (`ClassFunction.isChar_moduleCharacter`), via `IsSemisimpleModule (MonoidAlgebra ℂ G) M`
   (Maschke, no finiteness side conditions beyond `[Finite G]` and `NeZero (Nat.card G : ℂ)`)
   and strong induction on `finrank ℂ M`: extract a simple submodule (`exists_simple_submodule`),

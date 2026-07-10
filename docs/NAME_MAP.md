@@ -71,29 +71,30 @@ Lean/Mathlib ports, per `docs/superpowers/plans/2026-07-06-odd-order-port.md` §
 | `sum_irr1_sq`-shaped corollary of second orthogonality (exact MathComp name unconfirmed at port time) | `Irr.sum_sq_degree` | `OddOrder/Mathlib/RepresentationTheory/CharacterArith.lean` |
 | `cfRes` / `'Res[H] phi` (restriction of a class function to a subgroup) | `ClassFunction.res` | `OddOrder/Mathlib/RepresentationTheory/Induced.lean` |
 | `cfInd` / `'Ind[G] phi` (induction of a class function, averaging formula) | `ClassFunction.ind` | `OddOrder/Mathlib/RepresentationTheory/Induced.lean` |
-| `cfdot_cfInd` / `Frobenius_reciprocity` | `ClassFunction.cfInner_ind_eq_cfInner_res` (flipped form: `ClassFunction.cfInner_flip_res_eq_cfInner_flip_ind`) | `OddOrder/Mathlib/RepresentationTheory/Induced.lean` |
+| `cfdot_cfInd` / `Frobenius_reciprocity` | `ClassFunction.cfInner_ind_eq_cfInner_res` (flipped form: `ClassFunction.cfInner_ind_right_eq_cfInner_res_left`) | `OddOrder/Mathlib/RepresentationTheory/Induced.lean` |
 | `cfRes_char`-shaped (restriction of a character is a character) | `ClassFunction.IsChar.res` | `OddOrder/Mathlib/RepresentationTheory/Induced.lean` |
 | `cfInd_char`-shaped (induction of a character is a character) | `ClassFunction.IsChar.ind` | `OddOrder/Mathlib/RepresentationTheory/Induced.lean` |
 | `gring` class-sum basis vectors (exact name unconfirmed) | `MonoidAlgebra.classSum` | `OddOrder/Mathlib/RepresentationTheory/ClassSum.lean` |
 | (single-sum characterization of the class sum; no separate Coq name) | `MonoidAlgebra.classSum_eq_sum_single` | `OddOrder/Mathlib/RepresentationTheory/ClassSum.lean` |
 | `gring` basis of the group-ring center (exact name unconfirmed) | `MonoidAlgebra.classSumBasis` (via `MonoidAlgebra.classFunctionIndicatorBasis`) | `OddOrder/Mathlib/RepresentationTheory/ClassSum.lean` |
-| `gring` structure constants (exact name unconfirmed) | `MonoidAlgebra.classMulCoeff`, `MonoidAlgebra.classMulCoeff_eq`, `MonoidAlgebra.classSum_mul` | `OddOrder/Mathlib/RepresentationTheory/ClassSum.lean` |
+| `gring_classM_coef` (structure constants; also the counting formula `gring_classM_coef_sum_eq` — per the BGappendixC entry of `docs/audit/survey-digest.md`) | `MonoidAlgebra.classMulCoeff`, `MonoidAlgebra.classMulCoeff_eq`, `MonoidAlgebra.classSum_mul` | `OddOrder/Mathlib/RepresentationTheory/ClassSum.lean` |
 | `χ(g)` is an algebraic integer (`Aint_char`-shaped, exact name unconfirmed) | `Irr.isIntegral_apply` (engine: `Module.End.trace_eq_sum_zeta_pow_mul_natCast`, refactored out of `Module.End.trace_pow_pred_eq_star_trace`) | `OddOrder/Mathlib/RepresentationTheory/CharacterArith.lean` (engine in `ClassFunction.lean`) |
 | central character `ω_χ` (`gring`-mode material, exact name unconfirmed) | `Irr.omega`, `Irr.omega_eq` (closed formula), `Irr.omega_mul` (structure constants), `Irr.isIntegral_omega` | `OddOrder/Mathlib/RepresentationTheory/CharacterArith.lean` |
 | `dvd_irr1_cardG` (`chi 1 ∣ #G`) | `Irr.exists_degree_dvd_card` | `OddOrder/Mathlib/RepresentationTheory/CharacterArith.lean` |
 | `zchar S A` / `'Z[S, A]`, `'Z[S]` (virtual-character lattice; exact Coq identifier for the predicate unconfirmed) | `ClassFunction.VirtualChar`, scoped notation `Z[S, A]` / `Z[S]` (Lean rejects atoms starting with a single `'`, so the MathComp apostrophe is dropped) | `OddOrder/Mathlib/RepresentationTheory/VirtualChar.lean` |
-| `zcharP`-shaped membership characterization (exact name unconfirmed) | `ClassFunction.mem_virtualChar_iff`, `ClassFunction.mem_virtualChar_univ_iff` | `OddOrder/Mathlib/RepresentationTheory/VirtualChar.lean` |
+| `zchar_split` (the span/support split of `'Z[S, A]` membership; usage PFsection1.v:208) | `ClassFunction.mem_virtualChar_iff`, `ClassFunction.mem_virtualChar_univ_iff` | `OddOrder/Mathlib/RepresentationTheory/VirtualChar.lean` |
+| `rpredD`/`rpredN`/`rpredB` applied to `zchar` (generic closure; usage e.g. PFsection1.v:208) | `ClassFunction.IsVirtualChar.add`/`.neg`/`.sub` | `OddOrder/Mathlib/RepresentationTheory/VirtualChar.lean` |
 | `'Z[irr G]` (the `Irr`-indexed lattice) | `ClassFunction.virtualCharIrr`, predicate form `ClassFunction.IsVirtualChar` (equivalence: `ClassFunction.isVirtualChar_iff_mem_virtualCharIrr`) | `OddOrder/Mathlib/RepresentationTheory/VirtualChar.lean` |
 | integrality of `'[phi, chi]` for `phi ∈ 'Z[irr G]` (the coefficient half of `zchar_expansion`; exact name unconfirmed) | `ClassFunction.IsVirtualChar.cfInner_mem_intCast` (coefficient extraction: `ClassFunction.cfInner_eq_of_eq_sum_intCast_smul`) | `OddOrder/Mathlib/RepresentationTheory/VirtualChar.lean` |
 | `vchar_norm1P` (norm-1 virtual character is `±chi`) | `ClassFunction.IsVirtualChar.exists_eq_or_eq_neg_of_cfInner_self_eq_one` | `OddOrder/Mathlib/RepresentationTheory/VirtualChar.lean` |
-| `vchar_norm2` (norm-2 virtual character orthogonal to `1`; stated here with all four sign patterns — see the file's design note re-deriving the honest hypotheses, exact MathComp statement unconfirmed) | `ClassFunction.IsVirtualChar.exists_sub_or_add_of_cfInner_self_eq_two` | `OddOrder/Mathlib/RepresentationTheory/VirtualChar.lean` |
+| `vchar_norm2` (norm-2 virtual character vanishing at `1`, i.e. in `'Z[irr G, G^#]` → pure difference `'chi_i - 'chi_j`; the shape verified at every PF call site: PFsection1.v:152–153, 217, 233; PFsection5.v:1597) | `ClassFunction.IsVirtualChar.exists_sub_of_cfInner_self_eq_two` (four-pattern variant under the weaker `⟪φ, 1⟫ = 0`: `ClassFunction.IsVirtualChar.exists_sub_or_add_of_cfInner_self_eq_two`; shared engine: `ClassFunction.IsVirtualChar.exists_sign_smul_add_of_cfInner_self_eq_two`) | `OddOrder/Mathlib/RepresentationTheory/VirtualChar.lean` |
 | `char_vchar` (a character is a virtual character; exact name unconfirmed) | `ClassFunction.IsChar.isVirtualChar`, `ClassFunction.IsChar.mem_virtualCharIrr` | `OddOrder/Mathlib/RepresentationTheory/VirtualChar.lean` |
-| (virtual character with ℕ coefficients is a character; no confirmed Coq name) | `ClassFunction.IsVirtualChar.isChar_of_forall_cfInner_nonneg` | `OddOrder/Mathlib/RepresentationTheory/VirtualChar.lean` |
-| `zchar_split`-shaped sign split `phi = phi⁺ - phi⁻` (exact name/statement unconfirmed) | `ClassFunction.IsVirtualChar.exists_isChar_sub` | `OddOrder/Mathlib/RepresentationTheory/VirtualChar.lean` |
-| nonvanishing dichotomy (analytic crux of Burnside; MathComp counterpart name to be confirmed) | `Irr.eq_zero_or_norm_eq` | `OddOrder/Mathlib/RepresentationTheory/Burnside.lean` |
+| (virtual character whose `Irr`-coefficients all have nonnegative real part is a character; no confirmed Coq name) | `ClassFunction.IsVirtualChar.isChar_of_forall_cfInner_nonneg` | `OddOrder/Mathlib/RepresentationTheory/VirtualChar.lean` |
+| `vcharP` (virtual character ↔ difference of two characters; usage PFsection1.v:639) | `ClassFunction.IsVirtualChar.exists_isChar_sub` (converse: `ClassFunction.IsChar.sub_isVirtualChar`; iff: `ClassFunction.isVirtualChar_iff_exists_isChar_sub`) | `OddOrder/Mathlib/RepresentationTheory/VirtualChar.lean` |
+| nonvanishing dichotomy (analytic crux of Burnside; likely in mathcomp's `character/integral_char.v` — verify on first mathcomp checkout) | `Irr.eq_zero_or_norm_eq` | `OddOrder/Mathlib/RepresentationTheory/Burnside.lean` |
 | character kernel (`cfker`) | `Irr.ker`, `Irr.mem_ker_iff`, `Irr.eq_one_of_ker_eq_top` | `OddOrder/Mathlib/RepresentationTheory/Burnside.lean` |
-| class-size lemma (standalone Mathlib-first target; no confirmed single Coq name) | `not_isSimpleGroup_of_conjClasses_card_eq_prime_pow` | `OddOrder/Mathlib/RepresentationTheory/Burnside.lean` |
-| **`Burnside_normal_complement`-adjacent — `p^a q^b` solvability** (exact Coq identifier for the whole-group headline theorem unconfirmed; MathComp proves it in `BGsection1.v`/`PFsection1.v`-adjacent material per the audit) | **`burnside_solvable`** | `OddOrder/Mathlib/RepresentationTheory/Burnside.lean` |
+| class-size lemma (likely in mathcomp's `character/integral_char.v` — verify on first mathcomp checkout; note the odd-order checkout's `Burnside_normal_complement` in `BGsection1.v` is the *normal p-complement* theorem, a different result) | `not_isSimpleGroup_of_conjClasses_card_eq_prime_pow` | `OddOrder/Mathlib/RepresentationTheory/Burnside.lean` |
+| **`p^a q^b` solvability** (headline; likely proved in mathcomp's `character/integral_char.v` — verify on first mathcomp checkout. It is *not* in the odd-order checkout itself: the only Burnside-named result there, `BGsection1.v:846 Burnside_normal_complement`, is the normal p-complement theorem) | **`burnside_solvable`** | `OddOrder/Mathlib/RepresentationTheory/Burnside.lean` |
 
 Note: `ClassSum.lean` is Task 3 of the M2 plan (class sums, center basis, structure
 constants). The plan files this material inside `CharacterArith.lean`; it was split into a
@@ -116,6 +117,16 @@ Future work (not ported yet): `coprime_Hall_subset` and the Glauberman-lemma
 variants of the coprime-action suite (`glauberman_...`, `ext_coprime_quotient_cent`
 for non-solvable kernels) — see the scope note in
 `OddOrder/Mathlib/GroupTheory/CoprimeAction.lean`.
+
+Future work (not ported yet): the support-restricted `Z[irr G, A]` bridge for the
+`Irr`-indexed lattice — the `zcharD1E`-analogue
+`φ ∈ Z[Finset.univ.image (Irr → ClassFunction), {1}ᶜ] ↔ φ.IsVirtualChar ∧ φ 1 = 0`
+(MathComp `zcharD1E`, usage e.g. PFsection4.v:305, PFsection11.v:722: membership in
+`'Z[irr G, G^#]` is exactly "virtual character vanishing at `1`"). The two sides exist
+separately (`ClassFunction.mem_virtualChar_iff`, `ClassFunction.IsVirtualChar`, and the
+PF-shaped `vchar_norm2` takes the unbundled `φ 1 = 0` hypothesis directly); the bundled
+bridge should land with the PF1 task plan, which fixes the `G^#` spelling. Tracked in the
+deferred-items list of `docs/superpowers/plans/STATUS.md`.
 
 Future work (not ported yet): `coprime_abelian_gen_cent1` (B&G 1.16: if `A` is
 abelian noncyclic, normalizes `G`, and `gcd(|G|,|A|) = 1`, then `G` is generated by
