@@ -150,21 +150,26 @@ is strong (verified in audit).
 
 ### Task 5: Burnside p^a q^b (acceptance test)
 
-- [ ] Nonvanishing dichotomy: if `IsCoprime (Nat.card (carrier c)) d` (χ-degree `d`) then
-      `χ g = 0 ∨ ‖χ g‖ = χ 1`-form (`Complex.abs`; uses `ω_χ` integrality + the
-      "average of roots of unity with |·| < 1 that is an algebraic integer is 0" lemma —
-      check Mathlib for `IsIntegral` + norm lemmas; this is the one genuinely analytic
-      ingredient).
-- [ ] If `G` has a conjugacy class of size `p ^ k` (`k > 0`, `p` prime) then `G` is not
-      simple (nonabelian): second orthogonality at `(g, 1)` + the dichotomy produce a
-      normal subgroup as a character kernel — needs `Irr.ker`-lite: define
-      `ClassFunction.ker χ := {g | χ g = χ 1}` as a `Subgroup` (normality from class-ness;
-      subgroup axioms need `‖χ g‖ ≤ χ 1` triangle-inequality facts — small kit).
-- [ ] **`theorem burnside_solvable (p q : ℕ) [Fact p.Prime] [Fact q.Prime] {G} [Group G]
-      [Finite G] (h : Nat.card G = p ^ a * q ^ b) : IsSolvable G`** — induction on order
-      via the class-size lemma + Sylow-center pigeonhole (M1 tools). NAME_MAP:
-      MathComp `Burnside_normal_complement`? no — the p^aq^b solvability is
-      `pgroup.p_group_sol`-adjacent; record actual Coq name at port time.
+- [x] Nonvanishing dichotomy: `Irr.eq_zero_or_norm_eq`. Delivered via **Kronecker's theorem**
+      (`NumberField.Embeddings.pow_eq_one_of_norm_le_one`) rather than the norm-product sketch
+      above — a fresh Mathlib audit at task-start time found it needs only a weak (`≤ 1`)
+      per-embedding bound and skips separability/norm-integrality/rational-descent entirely.
+- [x] Class-size lemma: `not_isSimpleGroup_of_conjClasses_card_eq_prime_pow` (a conjugacy class
+      of size `p ^ k`, `k > 0`, forces `G` non-simple or abelian — stated as `[IsSimpleGroup G] →
+      ¬IsMulCommutative G → ... → False`, the form Stage 3 actually consumes). `Irr.ker` is a
+      genuine `MonoidHom.ker`, normal for free; `Irr.mem_ker_iff`/`Irr.eq_one_of_ker_eq_top` as
+      planned.
+- [x] **`theorem burnside_solvable {p q : ℕ} [Fact p.Prime] [Fact q.Prime] {a b : ℕ} {G} [Group G]
+      [Finite G] (h : Nat.card G = p ^ a * q ^ b) : IsSolvable G`** — strong induction on
+      `Nat.card G` + the class-size lemma + Sylow-center pigeonhole. NAME_MAP: no single
+      confirmed Coq identifier for the whole-group headline theorem (MathComp proves it in
+      `BGsection1.v`/`PFsection1.v`-adjacent material per the audit); recorded as "stated" in
+      `docs/NAME_MAP.md`.
+
+*Done in `OddOrder/Mathlib/RepresentationTheory/Burnside.lean` (commit `0ebe5b6`); full report
+`.superpowers/sdd/m2-task5-report.md`. No omissions; the eigen-projection kit behind the
+equality-case arguments is duplicated locally (not added to `ClassFunction.lean`) per the
+task's commit-scoping instruction — flagged there as a future consolidation candidate.*
 
 ### Task 6: virtual characters `'Z[S, A]`
 
@@ -203,12 +208,12 @@ task plan (they need the PF context to state well).
 ## Risks
 
 1. **Integrality analytics (Task 5 dichotomy)** — ~~audit Mathlib before starting Task 5~~
-   **AUDITED 2026-07-10, defused**: Mathlib has `NumberField.Embeddings.pow_eq_one_of_norm_le_one`
-   (Kronecker), `NumberField.Embeddings.finite_of_norm_le`, `Algebra.norm_eq_prod_embeddings`,
-   and `NumberField.Embeddings.range_eval_eq_rootSet_minpoly`
-   (Mathlib/NumberTheory/NumberField/InfinitePlace/Embeddings.lean,
-   Mathlib/RingTheory/Norm/Transitivity.lean; olean cache for these already fetched).
-   The dichotomy reduces to the standard norm-product argument over ℚ(χ-values).
+   **AUDITED 2026-07-10, defused; RESOLVED at task-5 implementation time (2026-07-10) via a
+   shorter route than originally planned**: `NumberField.Embeddings.pow_eq_one_of_norm_le_one`
+   (Kronecker's theorem) needs only a *weak* (`≤ 1`) per-embedding bound and gives the dichotomy
+   directly, without `Algebra.norm_eq_prod_embeddings` or the rational-algebraic-integer-descent
+   chain the norm-product sketch anticipated. See `.superpowers/sdd/m2-task5-report.md` for the
+   full route and the re-audit that found this.
 2. **`IsChar.res` module restriction** — `MonoidAlgebra` functoriality along subgroup
    inclusion needs checking (`MonoidAlgebra.mapDomainRingHom`?); fallback via
    `Representation.res`-style composition with `Subgroup.subtype` is always available.

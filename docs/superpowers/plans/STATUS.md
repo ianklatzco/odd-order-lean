@@ -4,9 +4,9 @@
 >
 > Newcomer-facing setup instructions and the top-level punchlist live in the repo [README](../../../README.md) — keep the two in sync: README carries the what/checkboxes, this file carries the how/conventions/detail.
 
-## Current state (as of 2026-07-10, M2 Tasks 1–3 done)
+## Current state (as of 2026-07-10, M2 Tasks 1–6 done — headline theorem landed)
 
-**M2 in progress** — Tasks 1, 2, 3 of the [M2 plan](2026-07-07-m2-character-theory.md) are done, each by a Sonnet implementer + driving-session review (per-task reports in `.superpowers/sdd/`):
+**M2 nearly complete** — Tasks 1, 2, 3, 4, 5, 6 of the [M2 plan](2026-07-07-m2-character-theory.md) are done, each by a Sonnet implementer + driving-session review (per-task reports in `.superpowers/sdd/`):
 
 | M2 task | Result | Commits |
 |---|---|---|
@@ -16,8 +16,11 @@
 | Polish: `⟪·,·⟫_[·]` notation fixed for non-`G` groups (was G-literal-only); new-file headers → Rado Kirov | done | `12f4b5c` |
 | 4. Integrality: `Irr.isIntegral_apply`, `Irr.omega` (+`omega_eq`/`omega_mul`/`isIntegral_omega`), `Irr.exists_degree_dvd_card` (+ sanctioned refactor: `Module.End.trace_eq_sum_zeta_pow_mul_natCast` in ClassFunction.lean) | done, no omissions | `deb6900` |
 | 6. Virtual characters: `Z[S, A]` lattice, `IsVirtualChar`, ℤ-coefficient extraction, `vchar_norm1`/`vchar_norm2` (honest four-pattern conclusion — see plan annotation), char↔vchar interaction + sign split | done | `dc7bdc1` |
+| **5. Burnside's `p^a q^b` theorem** (`burnside_solvable`) — nonvanishing dichotomy (`Irr.eq_zero_or_norm_eq`, via **Kronecker's theorem** rather than the plan's norm-product sketch — shorter, audited fresh), character kernels + class-size lemma (`Irr.ker`, `not_isSimpleGroup_of_conjClasses_card_eq_prime_pow`), strong induction + Sylow-center pigeonhole | done, no omissions | `0ebe5b6` |
 
-**Risk 1 of the M2 plan is defused**: Mathlib has the Task-5 conjugate-norm machinery (`NumberField.Embeddings.pow_eq_one_of_norm_le_one` (Kronecker), `finite_of_norm_le`, `Algebra.norm_eq_prod_embeddings`, `range_eval_eq_rootSet_minpoly`) — audit done 2026-07-10. Next: **Task 4 (integrality: `Irr.isIntegral_apply`, ω_χ, `χ(1) ∣ |G|`)**, then **Task 5 (Burnside p^aq^b)** — Task 4 consumes Task 3's `classSum_mul` and Task 1's degree API; read `.superpowers/sdd/m2-task3-report.md` friction notes first.
+Read `.superpowers/sdd/m2-task5-report.md` before touching `Burnside.lean` or attempting a similar analytic-number-theory argument elsewhere: it documents the Kronecker-vs-norm-product route choice, a `set`-on-`Type`-hides-instance-search gotcha, an `Algebra ℤ K` diamond on `CyclotomicField`, and the deliberate local duplication of the eigen-projection kit (kept out of `ClassFunction.lean` this round to keep the commit scoped).
+
+Next: **Task 7 (`cfAut`)** is the only M2 task left (closes M2 entirely).
 
 Environment note (this machine, `/home/rado/odd-order-lean`): disk is tight; the Mathlib olean cache was fetched **targeted** (`lake exe cache get .lake/packages/mathlib/Mathlib/<file>.lean …` for the project's transitive imports) rather than in full. If a new import pulls uncached Mathlib files, extend the fetch the same way instead of running a bare `lake exe cache get` (full cache + archives may not fit). The Coq checkout is *not* present here; use `docs/audit/survey-digest.md` for MathComp reference.
 
@@ -38,11 +41,11 @@ Environment note (this machine, `/home/rado/odd-order-lean`): disk is tight; the
 | 9. **Class functions, #Irr = #classes, 2nd orthogonality** | done | `4b9eedd`..`573a6aa`, fix `fc70f80` |
 | Phase-1 polish (final review fixes) | done | `72346a5` |
 
-Milestone progress: M0 ✅ · M1 ~85% · M2 ~85% (Tasks 9 + M2-1/2/3/4/6 done; remaining: Burnside (in flight), cfAut) · M3–M8 not started. None of the 34 Coq theory files is ported yet — everything so far is Layer-0 prerequisites, per plan sequencing.
+Milestone progress: M0 ✅ · M1 ~85% · M2 ~95% (Tasks 9 + M2-1/2/3/4/5/6 done; remaining: cfAut) · M3–M8 not started. None of the 34 Coq theory files is ported yet — everything so far is Layer-0 prerequisites, per plan sequencing.
 
 ## What to work on next (in order)
 
-1. **M2 completion** — [2026-07-07-m2-character-theory.md](2026-07-07-m2-character-theory.md): **Task 5 (Burnside p^aq^b)** is the last substantive task; **Task 7 (cfAut)** closes M2 afterwards. Read the `.superpowers/sdd/m2-task*-report.md` friction notes before starting (if the scratch files are gone, the key points: `rfl`-bridge `restrictScalars`-ed equivs; `Representation.trivial_apply` and `Module.finrank_prod` need explicit `ℂ`; keep `[Fintype G]` scoped tightly or the unused-Fintype linter fires; prefer `MonoidAlgebra`-namespaced lemmas over `Finsupp` ones to dodge type-synonym `rw` failures; use `change` not `show` for definitional steps; `refine LinearMap.ext fun x => ?_` instead of bare `ext` near `Finsupp`-backed types).
+1. **M2 completion** — [2026-07-07-m2-character-theory.md](2026-07-07-m2-character-theory.md): **Task 7 (cfAut)** is the last task and closes M2. Read the `.superpowers/sdd/m2-task*-report.md` friction notes before starting (if the scratch files are gone, the key points: `rfl`-bridge `restrictScalars`-ed equivs; `Representation.trivial_apply` and `Module.finrank_prod` need explicit `ℂ`; keep `[Fintype G]` scoped tightly or the unused-Fintype linter fires; prefer `MonoidAlgebra`-namespaced lemmas over `Finsupp` ones to dodge type-synonym `rw` failures; use `change` not `show` for definitional steps; `refine LinearMap.ext fun x => ?_` instead of bare `ext` near `Finsupp`-backed types; `set` on a `Type` hides it from typeclass search — don't alias cyclotomic-field-style types with `set`; dot notation can fail on `def`-unfolded Pi/Exists types, use prefix form like `IsPGroup.isNilpotent h` instead of `h.isNilpotent`).
 2. **M1 remainder** — the D9 bridge (`AbelemRepr.lean`: G-stable elementary abelian section ⇝ `ZMod p`-module with G-action); remaining p-group material lands with M4 per plan.
 3. **Internal-action transfer layer** (final review, rec 4) — lemmas identifying `FixedPoints.subgroup A H` with centralizer intersections and `actionCommutator` with `⁅H,A⁆` for internal (conjugation) actions. **Do this before starting BG1**; it is the first M4-adjacent task.
 4. **M3** (Frobenius groups + Wielandt) — needs M2's induced-character formula for the kernel theorem.

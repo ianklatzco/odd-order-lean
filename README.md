@@ -67,7 +67,7 @@ throwing coding agents at any of these.
       reciprocity as an inner-product identity on class functions
 - [x] Integrality: `χ(g)` is an algebraic integer; central character values
       `ω_χ`; `χ(1) ∣ |G|`
-- [ ] **Burnside's `p^a q^b` theorem** — the milestone headline; believed
+- [x] **Burnside's `p^a q^b` theorem** — the milestone headline; believed
       unformalized in Lean
 - [x] Virtual characters: the lattice `ℤ[S, A]` with norm lemmas (isometry-
       extension constructors deferred to the PF1 plan, per M2 plan scope)
