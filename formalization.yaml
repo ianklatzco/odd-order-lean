@@ -1,0 +1,178 @@
+# formalization.yaml (v0.3): repo-root metadata for formalization projects.
+# Schema: https://github.com/mathlib-initiative/formalization.yaml
+# Pattern adopted from rkirov/jordan_pick.
+version: "v0.3"
+
+project:
+  name: "odd-order-lean — the Feit–Thompson odd order theorem (Lean 4 / Mathlib port of the Coq/MathComp formalization)"
+  authors:
+    - "Ian Klatzco"                    # human director; the formalization itself is agent-produced — see `automation`
+    - "Rado Kirov"                     # human director; the formalization itself is agent-produced — see `automation`
+  license: "Apache-2.0"
+
+sources:
+  - title: "A Machine-Checked Proof of the Odd Order Theorem (math-comp/odd-order)"
+    authors: ["Georges Gonthier", "et al. (MSR–Inria)"]
+    id: "https://github.com/math-comp/odd-order — ITP 2013, https://hal.inria.fr/hal-00816699"
+    type: "prior formalization (Coq/MathComp) — the primary source being ported"
+    license: "CeCILL-B"
+    author_contacted: "no"
+    prior_work: >
+      This project is a port, not a clean-room development: statements are mirrored at statement
+      granularity (following the Coq files where they deviate from the books, since the Coq
+      development repairs documented gaps in both), while proofs are re-derived in Mathlib idiom,
+      sometimes by substantially different routes. No Coq code is translated mechanically.
+  - title: "The Mathematical Components library"
+    authors: ["The Mathematical Components team"]
+    id: "https://github.com/math-comp/math-comp"
+    type: "prior formalization (Coq) — Layer-0 counterparts (hall.v, pgroup.v, nilpotent.v, classfun.v, character.v, vcharacter.v)"
+    license: "CeCILL-B"
+    author_contacted: "no"
+    prior_work: >
+      The infrastructure layer under OddOrder/Mathlib/ ports MathComp material absent from Mathlib
+      (Hall subgroups, coprime actions, the Fitting subgroup, arithmetic character theory);
+      docs/NAME_MAP.md maintains the identifier correspondence.
+  - title: "Solvability of groups of odd order"
+    authors: ["Walter Feit", "John G. Thompson"]
+    id: "Pacific J. Math. 13 (1963), 775–1029"
+    type: "paper (the theorem)"
+    license: ""
+    author_contacted: "n/a"
+    prior_work: ""
+  - title: "Local Analysis for the Odd Order Theorem"
+    authors: ["Helmut Bender", "George Glauberman"]
+    id: "LMS Lecture Note Series 188, Cambridge (1994)"
+    type: "book (source for the BG half, via the Coq BGsection files)"
+    license: ""
+    author_contacted: "n/a"
+    prior_work: ""
+  - title: "Character Theory for the Odd Order Theorem"
+    authors: ["Thomas Peterfalvi"]
+    id: "LMS Lecture Note Series 272, Cambridge (2000)"
+    type: "book (source for the PF half, via the Coq PFsection files)"
+    license: ""
+    author_contacted: "n/a"
+    prior_work: ""
+  - title: "lean-eval Burnside problem (finite_group_isSolvable_of_card_eq_prime_pow_mul_prime_pow)"
+    authors: ["Kim Morrison (submitter); Lean FRO (leanprover/lean-eval)"]
+    id: "https://lean-lang.org/eval/problems/finite_group_isSolvable_of_card_eq_prime_pow_mul_prime_pow/ — exact target statement, proved verbatim in leaneval/…/Submission.lean"
+    type: "specification / eval problem"
+    license: "Apache-2.0"
+    author_contacted: "no"
+    prior_work: ""
+  - title: "lean-eval Feit–Thompson problem (feit_thompson)"
+    authors: ["Kim Morrison (submitter); Lean FRO (leanprover/lean-eval)"]
+    id: "https://lean-lang.org/eval/problems/feit_thompson/ — statement identical to this repo's target theorem odd_order_solvable"
+    type: "specification / eval problem (the project's end goal; in progress)"
+    license: "Apache-2.0"
+    author_contacted: "no"
+    prior_work: ""
+
+automation:
+  methods:
+    - method: "autonomous"              # agentic formalization: high-level human prompts; Claude Code drives end-to-end
+      models: ["claude-fable-5", "claude-sonnet-5"]
+      framework: "Claude Code"
+      tool_setup: >
+        Claude Code driving sessions with subagent orchestration: a 112-agent audit workflow
+        (per-file survey of the Coq sources + adversarially verified Mathlib coverage audit,
+        docs/audit/) preceded planning; execution is subagent-driven development — a fresh
+        implementer per task, an adversarial reviewer per task/file (spec fidelity, named
+        mathematical risks, verification that every cited Mathlib lemma exists as used), and
+        fix/re-review loops. Soundness gates: repo-wide sorry budget enforced by CI
+        (scripts/count_sorries.sh vs .sorry-budget; currently 1 = the target theorem only),
+        kernel axiom audits on headline results (`#print axioms` must show only propext,
+        Classical.choice, Quot.sound), lake build green with Mathlib's style linters on.
+      cost:
+        wall_time: "started 2026-07-06; Phase 1 (M1 infrastructure) in one day; M2 character theory over the following days; ongoing"
+        spend_usd: "subscription/API usage across two collaborators"
+        hardware: "commodity Linux machines; API-only model access"
+      prompting_notes: >
+        Terse high-level directives; process encoded in committed docs (docs/superpowers/plans/:
+        master roadmap with design decisions D1–D9, living STATUS.md with conventions and a
+        standing subagent dispatch recipe). Statements are never weakened to close a proof;
+        blocked agents escalate instead. Statement fidelity to the Coq development is a binding
+        convention, checked against the Coq sources in review.
+  spend_usd: "subscription/API usage"
+  notes: >
+    ~9k lines of Lean so far across OddOrder/Mathlib/ (Phase 1 solvable-group infrastructure and
+    the M2 arithmetic character theory stack), sorry-free except the single budgeted target
+    theorem; adversarially agent-reviewed per task; ~12% of the estimated total port. None of the
+    34 Coq theory files (BGsection1–16, PFsection1–14, appendices) is ported yet — current work is
+    the Layer-0 prerequisites, per plan sequencing.
+
+fidelity:
+  divergences: >
+    Layer-0 statements mirror MathComp semantics with documented divergences (0/1 are π-numbers;
+    IsHall via primeFactors; conjugation spelled via MulAut.conj maps). Proof routes deviate
+    freely where Mathlib idiom is better: completeness of irreducible characters
+    (#Irr = #ConjClasses) is proved Wedderburn-free (central element + Schur + Maschke); the
+    Burnside dichotomy uses Kronecker's theorem on cyclotomic embeddings rather than a
+    norm-product argument; Hall existence/conjugacy use a bounded cross-type induction pattern.
+    MathComp's vchar_norm2 is delivered in the exact shape Peterfalvi's call sites consume
+    (verified against PFsection1/5 in the Coq sources) alongside a general four-pattern version.
+    All divergences are recorded in module docstrings and docs/NAME_MAP.md.
+
+review:
+  status: "self-assessed + adversarial agent review"
+  reviewers: []
+  notes: >
+    Every task passes an adversarial review by a fresh agent (spec fidelity, mathematical
+    named-risk checks, Mathlib-citation verification, duplication sweep) before being built upon;
+    review findings and fix rounds are recorded in the repo history. Headline results carry
+    kernel axiom audits (`#print axioms burnside_solvable` = [propext, Classical.choice,
+    Quot.sound]). The lean-eval Burnside submission additionally targets the comparator's
+    independent axiom re-check. No external human peer review yet; expert review is welcome,
+    and the Layer-0 files are written to Mathlib standards for eventual upstreaming.
+
+alignment:
+  namespace: "root-level Mathlib-style names under OddOrder/Mathlib/ (Subgroup.*, ClassFunction, Irr, MonoidAlgebra.*); Submission (lean-eval workspaces under leaneval/)"
+  statements:
+    - source: "Feit–Thompson odd order theorem (= lean-eval feit_thompson)"
+      lean: "odd_order_solvable"
+      module: "OddOrder/Basic.lean"
+      status: "stated (the project's single budgeted sorry; port in progress)"
+      note: "statement identical to the lean-eval harness statement"
+    - source: "Burnside p^a q^b theorem (= lean-eval finite_group_isSolvable_of_card_eq_prime_pow_mul_prime_pow)"
+      lean: "burnside_solvable"
+      module: "OddOrder/Mathlib/RepresentationTheory/Burnside.lean"
+      status: "proved"
+      note: "stronger than the harness statement (no p ≠ q needed); harness statement proved verbatim in leaneval/…/Submission.lean; axiom-audited"
+    - source: "P. Hall's theorems (existence, conjugacy, covering of Hall π-subgroups in finite solvable groups)"
+      lean: "Subgroup.exists_isHall, Subgroup.isHall_conj, Subgroup.IsPiGroup.le_isHall_conj"
+      module: "OddOrder/Mathlib/GroupTheory/Hall.lean"
+      status: "proved"
+      note: "believed first in Lean"
+    - source: "Schur–Zassenhaus conjugacy (solvable kernel)"
+      lean: "Subgroup.IsComplement'.exists_conj_of_coprime"
+      module: "OddOrder/Mathlib/GroupTheory/SchurZassenhaus.lean"
+      status: "proved"
+    - source: "Fitting subgroup; C_G(F(G)) ≤ F(G) for solvable G (B&G 1.3)"
+      lean: "fitting, fitting_isNilpotent, fitting_centralizer_le"
+      module: "OddOrder/Mathlib/GroupTheory/Fitting.lean"
+      status: "proved"
+    - source: "Completeness of irreducible characters (#Irr G = #ConjClasses G) and the second orthogonality relation"
+      lean: "Irr.card_eq_card_conjClasses, Irr.second_orthogonality"
+      module: "OddOrder/Mathlib/RepresentationTheory/ClassFunction.lean"
+      status: "proved"
+      note: "believed first in Lean"
+    - source: "Frobenius reciprocity for class functions; induced characters"
+      lean: "ClassFunction.cfInner_ind_eq_cfInner_res"
+      module: "OddOrder/Mathlib/RepresentationTheory/Induced.lean"
+      status: "proved"
+    - source: "Character integrality: χ(g) algebraic integer; central characters; χ(1) ∣ |G|"
+      lean: "Irr.isIntegral_apply, Irr.isIntegral_omega, Irr.exists_degree_dvd_card"
+      module: "OddOrder/Mathlib/RepresentationTheory/CharacterArith.lean"
+      status: "proved"
+    - source: "Virtual characters (MathComp vcharacter.v): norm-1 and norm-2 classification"
+      lean: "ClassFunction.IsVirtualChar, IsVirtualChar.exists_sub_of_cfInner_self_eq_two"
+      module: "OddOrder/Mathlib/RepresentationTheory/VirtualChar.lean"
+      status: "proved"
+
+acknowledgements: >
+  Built on Mathlib (Lean 4, pin 360da6f). This is a port of the Coq/MathComp formalization of the
+  Odd Order Theorem by Georges Gonthier and the MSR–Inria Mathematical Components team
+  (CeCILL-B), following Bender–Glauberman and Peterfalvi where the Coq development does; the
+  MathComp library's design is the blueprint for the infrastructure layer. Eval problem
+  statements by the Lean FRO (leanprover/lean-eval); both group-theory problems were submitted by
+  Kim Morrison. The formalization.yaml/bundling patterns follow rkirov/jordan_pick.

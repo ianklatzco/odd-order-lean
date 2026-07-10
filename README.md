@@ -12,15 +12,33 @@ The source being ported is [math-comp/odd-order](https://github.com/math-comp/od
 (Gonthier et al.), distributed under the CeCILL-B license. This repository
 is licensed under Apache 2.0 (see `LICENSE`).
 
+A collaboration of **Ian Klatzco** and **Rado Kirov** (human direction);
+the formalization itself is agent-produced — see
+[`formalization.yaml`](formalization.yaml) for full provenance, sources,
+automation setup, and review status.
+
 **Status:** the target theorem is stated (and is the repo's single
-permitted `sorry`, enforced by CI); the solvable-group infrastructure layer
-is done — P. Hall's theorems, Schur–Zassenhaus conjugacy, π-cores, the
-coprime-action suite, the Fitting subgroup with `C_G(F(G)) ≤ F(G)`, class
-functions with `#Irr G = #ConjClasses G` and the second orthogonality
-relation — plus the first slice of arithmetic character theory (the ring of
-class functions, the character predicate `IsChar`, degrees, and
-`∑ χ(1)² = |G|`). None of the 34 Coq theory files is ported yet. Live progress:
+permitted `sorry`, enforced by CI). None of the 34 Coq theory files is
+ported yet — current work is the infrastructure layer. Live progress:
 [`docs/superpowers/plans/STATUS.md`](docs/superpowers/plans/STATUS.md).
+
+## Main results so far
+
+All proved **sorry-free**; headline results kernel-audited: `#print axioms`
+shows only `[propext, Classical.choice, Quot.sound]`.
+
+| theorem | location | statement |
+|---|---|---|
+| **Burnside `p^a q^b`** | `burnside_solvable` (`OddOrder/Mathlib/RepresentationTheory/Burnside.lean`) | a finite group of order `p^a·q^b` is solvable (no `p ≠ q` needed); believed first in Lean |
+| **P. Hall's theorems** | `Subgroup.exists_isHall`, `isHall_conj`, `IsPiGroup.le_isHall_conj` (`…/GroupTheory/Hall.lean`) | Hall π-subgroups of finite solvable groups exist, are conjugate, and cover π-subgroups; believed first in Lean |
+| **Schur–Zassenhaus, conjugacy half** | `IsComplement'.exists_conj_of_coprime` (`…/GroupTheory/SchurZassenhaus.lean`) | complements of a normal solvable Hall subgroup are conjugate (Mathlib has existence only) |
+| **Fitting subgroup** | `fitting_isNilpotent`, `fitting_centralizer_le` (`…/GroupTheory/Fitting.lean`) | Fitting's theorem and `C_G(F(G)) ≤ F(G)` for solvable `G` (B&G 1.3) |
+| **Character completeness** | `Irr.card_eq_card_conjClasses` (`…/RepresentationTheory/ClassFunction.lean`) | `#Irr G = #ConjClasses G` over ℂ; believed first in Lean |
+| **Second orthogonality** | `Irr.second_orthogonality` (same file) | `∑ χ, χ(g)·conj(χ(h)) = if IsConj g h then |C_G(g)| else 0` |
+| **Frobenius reciprocity** | `cfInner_ind_eq_cfInner_res` (`…/RepresentationTheory/Induced.lean`) | `⟪Ind φ, ψ⟫_G = ⟪φ, Res ψ⟫_H` at the class-function level |
+| **Character integrality** | `Irr.isIntegral_apply`, `Irr.exists_degree_dvd_card` (`…/RepresentationTheory/CharacterArith.lean`) | `χ(g)` is an algebraic integer; `χ(1) ∣ |G|` |
+| **Virtual characters** | `IsVirtualChar.exists_sub_of_cfInner_self_eq_two` (`…/RepresentationTheory/VirtualChar.lean`) | norm-2 virtual characters vanishing at 1 are differences of two irreducibles (MathComp `vchar_norm2`, in the shape Peterfalvi consumes) |
+| Coprime action suite, π-cores, minimal-normal ⇒ elementary abelian | `…/GroupTheory/{CoprimeAction,PiGroup,ChiefFactor}.lean` | the MathComp `hall.v`/`pgroup.v` layer |
 
 ## Setup
 
