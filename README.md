@@ -17,7 +17,9 @@ permitted `sorry`, enforced by CI); the solvable-group infrastructure layer
 is done — P. Hall's theorems, Schur–Zassenhaus conjugacy, π-cores, the
 coprime-action suite, the Fitting subgroup with `C_G(F(G)) ≤ F(G)`, class
 functions with `#Irr G = #ConjClasses G` and the second orthogonality
-relation. None of the 34 Coq theory files is ported yet. Live progress:
+relation — plus the first slice of arithmetic character theory (the ring of
+class functions, the character predicate `IsChar`, degrees, and
+`∑ χ(1)² = |G|`). None of the 34 Coq theory files is ported yet. Live progress:
 [`docs/superpowers/plans/STATUS.md`](docs/superpowers/plans/STATUS.md).
 
 ## Setup

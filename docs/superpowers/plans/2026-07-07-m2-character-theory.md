@@ -65,23 +65,26 @@ equivalent to "character of some finite-dimensional `ℂ[G]`-module" (via semisi
 decomposition of modules, `IsSemisimpleModule` + isotypic machinery already in Mathlib).
 Degrees; the trivial character; pointwise ring structure.
 
-- [ ] `CommRing (ClassFunction G)` + `Algebra ℂ (ClassFunction G)` (pointwise mul, one);
+- [x] `CommRing (ClassFunction G)` + `Algebra ℂ (ClassFunction G)` (pointwise mul, one);
       `mul_apply`, `one_apply` simp lemmas. (MathComp: `cfun_ring`.)
-- [ ] `Irr.one : Irr G` — the trivial character (witness: the submodule
+- [x] `Irr.one : Irr G` — the trivial character (witness: the submodule
       `span ℂ[G] {∑ g, single g 1}`… or via `Representation.exists_irr_classFunction_eq`
       applied to the trivial representation; check `Representation.trivial` +
       `IsIrreducible` instance in Mathlib first). `Irr.one_apply : Irr.one g = 1`.
-- [ ] `ClassFunction.IsChar`, closure under `+`, `*` (tensor — via module tensor product;
-      *defer `*` if painful*, PF needs `+` and `Ind` first), `IsChar.cfInner_mem_nat`:
+- [x] `ClassFunction.IsChar`, closure under `+`, `*` (tensor — via module tensor product;
+      *defer `*` if painful*, PF needs `+` and `Ind` first — **`*` deferred** per this clause, see task report), `IsChar.cfInner_mem_nat`:
       `⟪φ, χ.toClassFunction⟫_[G] ∈ ℕ` for `IsChar φ`, `χ : Irr G`.
-- [ ] Degree: `Irr.degree χ := χ 1` with `Irr.degree_eq_finrank` (trace of identity),
+- [x] Degree: `Irr.degree χ := χ 1` with `Irr.degree_eq_finrank` (trace of identity),
       `0 < χ 1` as a real/rational cast statement, and `χ 1 ∈ ℕ` in the form
       `∃ d : ℕ, 0 < d ∧ χ 1 = d`. (MathComp `irr1_deg`, `irr1_gt0`.)
-- [ ] Sum-of-squares of degrees = |G| (evaluate second orthogonality at `g = h = 1`) —
+      *Delivered as `Irr.exists_degree` (the `∃ d`-form, covering both MathComp names); no
+      named `Irr.degree` def yet — add when Task 4 wants it.*
+- [x] Sum-of-squares of degrees = |G| (evaluate second orthogonality at `g = h = 1`) —
       cheap, good sanity theorem. (MathComp `sum_irr1_sq`? — check name at port time.)
 - [ ] Optional bridge if PF planning wants it: `Simple (FDRep ℂ G) → IsChar V.classFunction`
       and `V.classFunction ∈ Irr` (needs FDRep-simple → module-simple; assess cost, skip if
-      > 100 lines).
+      > 100 lines). *Skipped in the Task-1 pass per the assess-cost clause; still open for
+      PF planning.*
 
 ### Task 2: restriction, induction, Frobenius reciprocity
 
@@ -195,11 +198,13 @@ task plan (they need the PF context to state well).
 
 ## Risks
 
-1. **Integrality analytics (Task 5 dichotomy)** — the "algebraic integer of absolute value
-   < 1 with all conjugates ≤ 1 is 0" argument needs conjugate-norm machinery
-   (`Polynomial.roots`, `IsIntegral` minimal polynomial): audit Mathlib for
-   `IsAlgebraic`/house-of-algebraic-number lemmas *before* starting Task 5; if absent this
-   is the single biggest sub-proof (~300 lines). Mitigation: it is also upstream-valuable.
+1. **Integrality analytics (Task 5 dichotomy)** — ~~audit Mathlib before starting Task 5~~
+   **AUDITED 2026-07-10, defused**: Mathlib has `NumberField.Embeddings.pow_eq_one_of_norm_le_one`
+   (Kronecker), `NumberField.Embeddings.finite_of_norm_le`, `Algebra.norm_eq_prod_embeddings`,
+   and `NumberField.Embeddings.range_eval_eq_rootSet_minpoly`
+   (Mathlib/NumberTheory/NumberField/InfinitePlace/Embeddings.lean,
+   Mathlib/RingTheory/Norm/Transitivity.lean; olean cache for these already fetched).
+   The dichotomy reduces to the standard norm-product argument over ℚ(χ-values).
 2. **`IsChar.res` module restriction** — `MonoidAlgebra` functoriality along subgroup
    inclusion needs checking (`MonoidAlgebra.mapDomainRingHom`?); fallback via
    `Representation.res`-style composition with `Subgroup.subtype` is always available.

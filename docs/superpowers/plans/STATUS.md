@@ -4,7 +4,13 @@
 >
 > Newcomer-facing setup instructions and the top-level punchlist live in the repo [README](../../../README.md) — keep the two in sync: README carries the what/checkboxes, this file carries the how/conventions/detail.
 
-## Current state (as of 2026-07-07, commit `72346a5`)
+## Current state (as of 2026-07-10, commit `3cbd2ae`)
+
+**M2 in progress** — Task 1 of the [M2 plan](2026-07-07-m2-character-theory.md) is done (commit `3cbd2ae`, Sonnet implementer + driving-session review): `CharacterArith.lean` with the pointwise `CommRing`/`Algebra ℂ` on `ClassFunction G`, `Irr.one`, `ClassFunction.IsChar` + `isChar_moduleCharacter` (semisimple decomposition, forward direction), `IsChar.add`/`cfInner_mem_nat`, `Irr.exists_degree`, `Irr.sum_sq_degree`. Deferred per plan's defer-clauses (documented in the file + `.superpowers/sdd/m2-task1-report.md`): `IsChar.mul` (tensor route) and the module-equivalence converse. **Risk 1 of the M2 plan is defused**: Mathlib has the Task-5 conjugate-norm machinery (`NumberField.Embeddings.pow_eq_one_of_norm_le_one` (Kronecker), `finite_of_norm_le`, `Algebra.norm_eq_prod_embeddings`, `range_eval_eq_rootSet_minpoly`) — audit done 2026-07-10.
+
+Environment note (this machine, `/home/rado/odd-order-lean`): disk is tight; the Mathlib olean cache was fetched **targeted** (`lake exe cache get .lake/packages/mathlib/Mathlib/<file>.lean …` for the project's transitive imports) rather than in full. If a new import pulls uncached Mathlib files, extend the fetch the same way instead of running a bare `lake exe cache get` (full cache + archives may not fit). The Coq checkout is *not* present here; use `docs/audit/survey-digest.md` for MathComp reference.
+
+## Phase-1 state (as of 2026-07-07, commit `72346a5`)
 
 **Phase 1 is complete** — all 9 tasks of the [master plan](2026-07-06-odd-order-port.md)'s Phase 1, each implemented by a fresh subagent, adversarially reviewed (spec + quality), fix rounds applied, and closed by a whole-phase final review. ~4,000 lines of new Lean in `OddOrder/Mathlib/`, sorry count = 1 (the target theorem `odd_order_solvable` in `OddOrder/Basic.lean` — the only sorry the budget allows).
 
@@ -21,11 +27,11 @@
 | 9. **Class functions, #Irr = #classes, 2nd orthogonality** | done | `4b9eedd`..`573a6aa`, fix `fc70f80` |
 | Phase-1 polish (final review fixes) | done | `72346a5` |
 
-Milestone progress: M0 ✅ · M1 ~85% · M2 ~20% · M3–M8 not started. None of the 34 Coq theory files is ported yet — everything so far is Layer-0 prerequisites, per plan sequencing.
+Milestone progress: M0 ✅ · M1 ~85% · M2 ~35% (Tasks 9 + M2-1 done) · M3–M8 not started. None of the 34 Coq theory files is ported yet — everything so far is Layer-0 prerequisites, per plan sequencing.
 
 ## What to work on next (in order)
 
-1. **M2 continuation** — follow [2026-07-07-m2-character-theory.md](2026-07-07-m2-character-theory.md) task by task (induced characters + Frobenius reciprocity → integrality → **Burnside p^aq^b** → virtual characters → cfAut). Headline target: Burnside.
+1. **M2 continuation** — follow [2026-07-07-m2-character-theory.md](2026-07-07-m2-character-theory.md) task by task; next up **Task 2** (induced characters + Frobenius reciprocity) and **Task 3** (class sums — independent of Task 2, parallelizable), then integrality → **Burnside p^aq^b** → virtual characters → cfAut. Headline target: Burnside. Read `.superpowers/sdd/m2-task1-report.md` §"API friction" before starting Tasks 2/4 (if the scratch file is gone, the key points are: `rfl`-bridge `restrictScalars`-ed equivs; `Representation.trivial_apply` and `Module.finrank_prod` need explicit `ℂ`; keep `[Fintype G]` scoped tightly or the unused-Fintype linter fires).
 2. **M1 remainder** — the D9 bridge (`AbelemRepr.lean`: G-stable elementary abelian section ⇝ `ZMod p`-module with G-action); remaining p-group material lands with M4 per plan.
 3. **Internal-action transfer layer** (final review, rec 4) — lemmas identifying `FixedPoints.subgroup A H` with centralizer intersections and `actionCommutator` with `⁅H,A⁆` for internal (conjugation) actions. **Do this before starting BG1**; it is the first M4-adjacent task.
 4. **M3** (Frobenius groups + Wielandt) — needs M2's induced-character formula for the kernel theorem.
@@ -52,7 +58,7 @@ Milestone progress: M0 ✅ · M1 ~85% · M2 ~20% · M3–M8 not started. None of
 
 Give an implementer subagent, verbatim plus the task specifics:
 
-> Work from /home/user/feit-thompson/odd-order-lean (branch main; commit, do NOT push). `lake` is on PATH; iterate with `lake build <Module.Name>`; full `lake build` must end clean except the one budgeted sorry in OddOrder/Basic.lean, and `bash scripts/count_sorries.sh` must print the value in `.sorry-budget`.
+> Work from the repo root (this machine: /home/rado/odd-order-lean; branch main; commit, do NOT push). `lake` is on PATH; iterate with `lake build <Module.Name>`; full `lake build` must end clean except the one budgeted sorry in OddOrder/Basic.lean, and `bash scripts/count_sorries.sh` must print the value in `.sorry-budget`.
 > Read first: docs/superpowers/plans/STATUS.md (state + conventions), then your task's section in [the relevant plan file]. GREP `.lake/packages/mathlib/Mathlib/` for exact lemma names — never trust recall; `docs/audit/coverage-present.md` lists audit-verified declarations. Existing project API: grep `OddOrder/Mathlib/` before re-proving anything.
 > Escalate (BLOCKED, with the precise stuck point and what you tried) instead of weakening statements. Write a full report; return a short status.
 
@@ -64,4 +70,4 @@ Review every task's diff before building on it (spec fidelity + a named-risk che
 - M2 plan: [2026-07-07-m2-character-theory.md](2026-07-07-m2-character-theory.md)
 - Audit evidence: `docs/audit/` (survey of all 33 Coq files + verified Mathlib coverage)
 - Name mapping: `docs/NAME_MAP.md`
-- Coq source being ported: `~/feit-thompson/odd-order/theories/`
+- Coq source being ported: [math-comp/odd-order](https://github.com/math-comp/odd-order) (sibling checkout when available; absent on the current machine — use `docs/audit/survey-digest.md`)
