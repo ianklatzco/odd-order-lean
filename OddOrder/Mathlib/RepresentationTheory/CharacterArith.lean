@@ -4,6 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Rado Kirov
 -/
 import OddOrder.Mathlib.RepresentationTheory.ClassFunction
+import OddOrder.Mathlib.RepresentationTheory.ClassSum
+import Mathlib.RingTheory.IntegralClosure.IntegrallyClosed
+import Mathlib.RingTheory.Polynomial.RationalRoot
+import Mathlib.RingTheory.Localization.FractionRing
 
 /-!
 # Arithmetic character theory: the ring of class functions, the character predicate, degrees
@@ -369,3 +373,456 @@ theorem Irr.sum_sq_degree : ∑ χ : Irr G, (χ 1 : ℂ) ^ 2 = (Nat.card G : ℂ
   rw [hd, sq, map_natCast]
 
 end Degree
+
+/-! ### Algebraic integrality of character values (Task 4, item 1)
+
+`χ(g)` is an algebraic integer over `ℤ`: it is, via
+`Module.End.trace_eq_sum_zeta_pow_mul_natCast` (refactored out of
+`Module.End.trace_pow_pred_eq_star_trace` in `ClassFunction.lean` for exactly this reuse), a
+`ℕ`-weighted sum of `orderOf g`-th roots of unity, and each of those is integral (root of
+`X ^ n - 1`) while sums/products of integral elements are integral.  MathComp: `χ(g)` is an
+algebraic integer (`Aint_char`-shaped, exact name unconfirmed). -/
+
+section IsIntegralApply
+
+variable {G : Type u} [Group G] [Fintype G]
+
+/-- The value of an irreducible character at any group element is an algebraic integer. -/
+theorem Irr.isIntegral_apply (χ : Irr G) (g : G) : IsIntegral ℤ (χ g) := by
+  obtain ⟨N, hN, hχ⟩ := χ.exists_simple'
+  haveI := hN
+  have hn : orderOf g ≠ 0 := (orderOf_pos g).ne'
+  have hpow1 : (MonoidAlgebra.actionEnd (↥N) g) ^ orderOf g = 1 := by
+    rw [← MonoidAlgebra.ofModule'_eq_actionEnd, ← map_pow, pow_orderOf_eq_one, map_one]
+  set ζ : ℂ := Complex.exp (2 * Real.pi * Complex.I / orderOf g) with hζdef
+  have hζ : IsPrimitiveRoot ζ (orderOf g) := Complex.isPrimitiveRoot_exp (orderOf g) hn
+  obtain ⟨m, hm⟩ := Module.End.trace_eq_sum_zeta_pow_mul_natCast hn hpow1 hζ
+  have hχg : χ g = trace ℂ (↥N) (MonoidAlgebra.actionEnd (↥N) g) := by
+    have := congrArg (fun φ : ClassFunction G => φ g) hχ
+    simpa [MonoidAlgebra.moduleCharacter_apply] using this
+  have h1 := hm 1
+  simp only [pow_one] at h1
+  rw [hχg, h1]
+  have hζI : IsIntegral ℤ ζ := by
+    refine ⟨Polynomial.X ^ orderOf g - Polynomial.C (1 : ℤ),
+      Polynomial.monic_X_pow_sub_C 1 hn, ?_⟩
+    simp [hζ.pow_eq_one]
+  exact IsIntegral.sum _ fun j _ => IsIntegral.mul (hζI.pow j) (isIntegral_natCast _)
+
+end IsIntegralApply
+
+/-! ### The central character `ω_χ` (Task 4, item 2)
+
+For `χ : Irr G` and a conjugacy class `c`, Schur's lemma shows that the class sum
+`classSum c` (central in `ℂ[G]`, hence `ℂ[G]`-linear as a left-multiplication map) acts on
+any simple module witnessing `χ` by a single scalar `ω_χ(c)`, the **central character**. The
+scalar-extraction map, for a fixed simple submodule `N`, is packaged as an algebra
+homomorphism `MonoidAlgebra.centralScalarHom N : center →ₐ[ℂ] ℂ`; the two facts consumed
+downstream (the closed formula `Irr.omega_eq` and the structure-constant identity
+`Irr.omega_mul`) both come from generic `AlgHom`/`AlgEquiv` API (`map_mul`, `map_sum`, and a
+trace computation) rather than bespoke uniqueness arguments. MathComp: the central character
+`ω_χ` (`gring`-mode material, exact name unconfirmed). -/
+
+section CentralAction
+
+variable {G : Type u} [Group G]
+
+/-- Left multiplication by a central element of the group algebra, restricted to a submodule
+`N` of the regular module: `ℂ[G]`-linear precisely because `z` is central. -/
+def MonoidAlgebra.centralAction {z : MonoidAlgebra ℂ G}
+    (hz : z ∈ Subalgebra.center ℂ (MonoidAlgebra ℂ G))
+    (N : Submodule (MonoidAlgebra ℂ G) (MonoidAlgebra ℂ G)) :
+    N →ₗ[MonoidAlgebra ℂ G] N where
+  toFun x := ⟨z * (x : MonoidAlgebra ℂ G), by
+    have h := N.smul_mem z x.2
+    rwa [smul_eq_mul] at h⟩
+  map_add' x y := Subtype.ext (mul_add _ _ _)
+  map_smul' a x := Subtype.ext (by
+    change z * (a * (x : MonoidAlgebra ℂ G)) = a * (z * (x : MonoidAlgebra ℂ G))
+    rw [← mul_assoc, ← Subalgebra.mem_center_iff.mp hz a, mul_assoc])
+
+@[simp]
+theorem MonoidAlgebra.centralAction_coe {z : MonoidAlgebra ℂ G}
+    (hz : z ∈ Subalgebra.center ℂ (MonoidAlgebra ℂ G))
+    (N : Submodule (MonoidAlgebra ℂ G) (MonoidAlgebra ℂ G)) (x : N) :
+    (MonoidAlgebra.centralAction hz N x : MonoidAlgebra ℂ G) = z * (x : MonoidAlgebra ℂ G) :=
+  rfl
+
+/-- The `ℂ`-algebra homomorphism sending a central element of the group algebra to (left
+multiplication by it, restricted to a submodule `N`): `map_one`/`map_mul`/`map_add` are
+associativity/distributivity of ring multiplication. -/
+noncomputable def MonoidAlgebra.centralActionAlgHom
+    (N : Submodule (MonoidAlgebra ℂ G) (MonoidAlgebra ℂ G)) :
+    ↥(Subalgebra.center ℂ (MonoidAlgebra ℂ G)) →ₐ[ℂ] Module.End (MonoidAlgebra ℂ G) N :=
+  AlgHom.ofLinearMap
+    { toFun := fun z => MonoidAlgebra.centralAction z.2 N
+      map_add' := fun z₁ z₂ => LinearMap.ext fun x => Subtype.ext (by
+        change ((z₁ : MonoidAlgebra ℂ G) + z₂) * (x : MonoidAlgebra ℂ G)
+            = (z₁ : MonoidAlgebra ℂ G) * x + (z₂ : MonoidAlgebra ℂ G) * x
+        rw [add_mul])
+      map_smul' := fun a z => LinearMap.ext fun x => Subtype.ext (by
+        change (a • (z : MonoidAlgebra ℂ G)) * (x : MonoidAlgebra ℂ G)
+            = a • ((z : MonoidAlgebra ℂ G) * x)
+        rw [smul_mul_assoc]) }
+    (LinearMap.ext fun x => Subtype.ext (one_mul _))
+    (fun z₁ z₂ => LinearMap.ext fun x => Subtype.ext (by
+      change ((z₁ : MonoidAlgebra ℂ G) * z₂) * (x : MonoidAlgebra ℂ G)
+          = (z₁ : MonoidAlgebra ℂ G) * ((z₂ : MonoidAlgebra ℂ G) * (x : MonoidAlgebra ℂ G))
+      rw [mul_assoc]))
+
+@[simp]
+theorem MonoidAlgebra.centralActionAlgHom_apply
+    (N : Submodule (MonoidAlgebra ℂ G) (MonoidAlgebra ℂ G))
+    (z : ↥(Subalgebra.center ℂ (MonoidAlgebra ℂ G))) :
+    MonoidAlgebra.centralActionAlgHom N z = MonoidAlgebra.centralAction z.2 N :=
+  rfl
+
+end CentralAction
+
+section CentralScalar
+
+variable {G : Type u} [Group G] [Finite G]
+  (N : Submodule (MonoidAlgebra ℂ G) (MonoidAlgebra ℂ G)) [IsSimpleModule (MonoidAlgebra ℂ G) N]
+
+/-- **Schur's lemma**, packaged as an algebra isomorphism: every `ℂ[G]`-linear endomorphism
+of a simple module `N` is a scalar. -/
+noncomputable def MonoidAlgebra.centralScalarAlgEquiv :
+    ℂ ≃ₐ[ℂ] Module.End (MonoidAlgebra ℂ G) N :=
+  AlgEquiv.ofBijective (Algebra.ofId ℂ (Module.End (MonoidAlgebra ℂ G) N))
+    (IsSimpleModule.algebraMap_end_bijective_of_isAlgClosed
+      (k := ℂ) (A := MonoidAlgebra ℂ G) (V := N))
+
+/-- The **central character** scalar-extraction map: a `ℂ`-algebra homomorphism from the
+center of the group algebra to `ℂ`, sending a central element `z` to the scalar by which it
+acts on the simple module `N` (via Schur's lemma). -/
+noncomputable def MonoidAlgebra.centralScalarHom :
+    ↥(Subalgebra.center ℂ (MonoidAlgebra ℂ G)) →ₐ[ℂ] ℂ :=
+  (MonoidAlgebra.centralScalarAlgEquiv N).symm.toAlgHom.comp
+    (MonoidAlgebra.centralActionAlgHom N)
+
+/-- The defining property of `centralScalarHom`: the scalar it produces acts on `N` exactly
+as `z` does (via left multiplication). -/
+theorem MonoidAlgebra.centralActionAlgHom_eq_algebraMap_centralScalarHom
+    (z : ↥(Subalgebra.center ℂ (MonoidAlgebra ℂ G))) :
+    MonoidAlgebra.centralActionAlgHom N z
+      = algebraMap ℂ (Module.End (MonoidAlgebra ℂ G) N)
+          (MonoidAlgebra.centralScalarHom N z) := by
+  change MonoidAlgebra.centralActionAlgHom N z
+    = (MonoidAlgebra.centralScalarAlgEquiv N)
+        ((MonoidAlgebra.centralScalarAlgEquiv N).symm (MonoidAlgebra.centralActionAlgHom N z))
+  rw [AlgEquiv.apply_symm_apply]
+
+/-- The Schur scalar for a central element `z`, viewed over `ℂ`: multiplication by `z` on `N`
+is exactly scalar multiplication by `centralScalarHom N ⟨z, hz⟩`. -/
+theorem MonoidAlgebra.restrictScalars_centralAction {z : MonoidAlgebra ℂ G}
+    (hz : z ∈ Subalgebra.center ℂ (MonoidAlgebra ℂ G)) :
+    LinearMap.restrictScalars ℂ (MonoidAlgebra.centralAction hz N)
+      = (MonoidAlgebra.centralScalarHom N ⟨z, hz⟩) • LinearMap.id := by
+  have hs : algebraMap ℂ (Module.End (MonoidAlgebra ℂ G) N)
+      (MonoidAlgebra.centralScalarHom N ⟨z, hz⟩) = MonoidAlgebra.centralAction hz N :=
+    (MonoidAlgebra.centralActionAlgHom_eq_algebraMap_centralScalarHom N ⟨z, hz⟩).symm.trans
+      (MonoidAlgebra.centralActionAlgHom_apply N ⟨z, hz⟩)
+  refine LinearMap.ext fun y => ?_
+  rw [LinearMap.restrictScalars_apply, ← hs, Algebra.algebraMap_eq_smul_one,
+    LinearMap.smul_apply, Module.End.one_apply, LinearMap.smul_apply, LinearMap.id_apply]
+
+end CentralScalar
+
+section TraceCentralAction
+
+variable {G : Type u} [Group G] [Fintype G]
+
+open scoped Classical in
+/-- The trace of the class-sum action on a submodule `N` is the sum of `N`'s character over
+the conjugacy class `c`: the class sum is a sum of group-algebra basis elements, and left
+multiplication by a basis element `single x 1` acts as `MonoidAlgebra.actionEnd N x`. -/
+theorem MonoidAlgebra.trace_centralAction_classSum (c : ConjClasses G)
+    (N : Submodule (MonoidAlgebra ℂ G) (MonoidAlgebra ℂ G)) [FiniteDimensional ℂ N] :
+    trace ℂ N (LinearMap.restrictScalars ℂ
+        (MonoidAlgebra.centralAction (MonoidAlgebra.classSum_mem_center c) N))
+      = ∑ x ∈ Finset.univ.filter (· ∈ c.carrier), MonoidAlgebra.moduleCharacter G N x := by
+  have hrestrict : LinearMap.restrictScalars ℂ
+      (MonoidAlgebra.centralAction (MonoidAlgebra.classSum_mem_center c) N)
+      = ∑ x ∈ Finset.univ.filter (· ∈ c.carrier), MonoidAlgebra.actionEnd N x := by
+    refine LinearMap.ext fun y => Subtype.ext ?_
+    rw [LinearMap.restrictScalars_apply, MonoidAlgebra.centralAction_coe,
+      MonoidAlgebra.classSum_eq_sum_single, Finset.sum_mul, LinearMap.sum_apply,
+      AddSubmonoidClass.coe_finsetSum]
+    exact Finset.sum_congr rfl fun x _ => by
+      rw [MonoidAlgebra.actionEnd_apply, Submodule.coe_smul, smul_eq_mul]
+  rw [hrestrict, map_sum]
+  exact Finset.sum_congr rfl fun x _ => rfl
+
+end TraceCentralAction
+
+section CentralCharacter
+
+variable {G : Type u} [Group G] [Fintype G]
+
+/-- The **central character** `ω_χ(c)`: the scalar by which the class sum `classSum c` acts
+(via Schur's lemma) on a witnessing simple module for `χ`. MathComp: the central character
+(`gring`-mode material, exact name unconfirmed). -/
+noncomputable def Irr.omega (χ : Irr G) (c : ConjClasses G) : ℂ :=
+  letI := χ.exists_simple'.choose_spec.1
+  MonoidAlgebra.centralScalarHom χ.exists_simple'.choose
+    ⟨MonoidAlgebra.classSum G c, MonoidAlgebra.classSum_mem_center c⟩
+
+open scoped Classical in
+/-- **Closed formula for the central character**: `ω_χ(c) = |c| * χ(c.out) / χ(1)`.
+MathComp: the central character formula (`gring`-mode material, exact name unconfirmed). -/
+theorem Irr.omega_eq (χ : Irr G) (c : ConjClasses G) :
+    Irr.omega χ c = (Nat.card c.carrier : ℂ) * χ c.out / χ 1 := by
+  classical
+  set N := χ.exists_simple'.choose with hNdef
+  haveI hN : IsSimpleModule (MonoidAlgebra ℂ G) N := χ.exists_simple'.choose_spec.1
+  have hχ : χ.toClassFunction = MonoidAlgebra.moduleCharacter G N :=
+    χ.exists_simple'.choose_spec.2
+  have homega : Irr.omega χ c = MonoidAlgebra.centralScalarHom N
+      ⟨MonoidAlgebra.classSum G c, MonoidAlgebra.classSum_mem_center c⟩ := rfl
+  have htrace1 : trace ℂ N (LinearMap.restrictScalars ℂ
+      (MonoidAlgebra.centralAction (MonoidAlgebra.classSum_mem_center c) N))
+      = (MonoidAlgebra.centralScalarHom N
+          ⟨MonoidAlgebra.classSum G c, MonoidAlgebra.classSum_mem_center c⟩)
+          * Module.finrank ℂ N := by
+    rw [MonoidAlgebra.restrictScalars_centralAction, map_smul, LinearMap.trace_id, smul_eq_mul]
+  have htrace2 : trace ℂ N (LinearMap.restrictScalars ℂ
+      (MonoidAlgebra.centralAction (MonoidAlgebra.classSum_mem_center c) N))
+      = ∑ x ∈ Finset.univ.filter (· ∈ c.carrier), χ x := by
+    rw [MonoidAlgebra.trace_centralAction_classSum]
+    refine Finset.sum_congr rfl fun x _ => ?_
+    have hthis := congrArg (fun φ : ClassFunction G => φ x) hχ
+    simpa using hthis.symm
+  have hconst : ∀ x ∈ Finset.univ.filter (· ∈ c.carrier), χ x = χ c.out := by
+    intro x hx
+    rw [Finset.mem_filter] at hx
+    have hcout : c.out ∈ c.carrier := ConjClasses.mem_carrier_iff_mk_eq.mpr c.out_eq
+    have hxc : IsConj x c.out := ConjClasses.mk_eq_mk_iff_isConj.mp
+      ((ConjClasses.mem_carrier_iff_mk_eq.mp hx.2).trans
+        (ConjClasses.mem_carrier_iff_mk_eq.mp hcout).symm)
+    exact χ.toClassFunction.apply_eq_of_isConj hxc
+  have hcard : (Finset.univ.filter (· ∈ c.carrier)).card = Nat.card c.carrier := by
+    rw [Nat.card_eq_fintype_card, Fintype.card_subtype]
+  have hsum : ∑ x ∈ Finset.univ.filter (· ∈ c.carrier), χ x
+      = (Nat.card c.carrier : ℂ) * χ c.out := by
+    rw [Finset.sum_congr rfl hconst, Finset.sum_const, hcard, nsmul_eq_mul]
+  have hχ1 : χ 1 = (Module.finrank ℂ N : ℂ) := by
+    have hthis := congrArg (fun φ : ClassFunction G => φ 1) hχ
+    simpa [MonoidAlgebra.moduleCharacter_one] using hthis
+  have hkey : (MonoidAlgebra.centralScalarHom N
+      ⟨MonoidAlgebra.classSum G c, MonoidAlgebra.classSum_mem_center c⟩) * χ 1
+      = (Nat.card c.carrier : ℂ) * χ c.out := by
+    rw [hχ1, ← htrace1, htrace2]
+    exact hsum
+  rw [homega]
+  have hdne : (χ 1 : ℂ) ≠ 0 := by
+    obtain ⟨d, hd0, hd⟩ := χ.exists_degree
+    rw [hd]
+    exact Nat.cast_ne_zero.mpr hd0.ne'
+  rw [eq_div_iff hdne]
+  exact hkey
+
+open scoped Classical in
+/-- **Structure-constant identity for central characters**, transporting Task 3's
+`classSum_mul` through the algebra homomorphism `centralScalarHom`:
+`ω_χ(c) * ω_χ(d) = ∑ e, classMulCoeff c d e * ω_χ(e)`. This is the integrality workhorse for
+`Irr.isIntegral_omega`. -/
+theorem Irr.omega_mul (χ : Irr G) (c d : ConjClasses G) :
+    Irr.omega χ c * Irr.omega χ d
+      = ∑ e : ConjClasses G, (MonoidAlgebra.classMulCoeff G c d e : ℂ) * Irr.omega χ e := by
+  classical
+  set N := χ.exists_simple'.choose with hNdef
+  haveI hN : IsSimpleModule (MonoidAlgebra ℂ G) N := χ.exists_simple'.choose_spec.1
+  set ze : ConjClasses G → ↥(Subalgebra.center ℂ (MonoidAlgebra ℂ G)) :=
+    fun e => ⟨MonoidAlgebra.classSum G e, MonoidAlgebra.classSum_mem_center e⟩ with hzedef
+  have homega : ∀ e : ConjClasses G, Irr.omega χ e = MonoidAlgebra.centralScalarHom N (ze e) :=
+    fun _ => rfl
+  have hzz : ze c * ze d = ∑ e : ConjClasses G, MonoidAlgebra.classMulCoeff G c d e • ze e := by
+    refine Subtype.ext ?_
+    have hcoe : ((ze c * ze d :
+        ↥(Subalgebra.center ℂ (MonoidAlgebra ℂ G))) : MonoidAlgebra ℂ G)
+        = MonoidAlgebra.classSum G c * MonoidAlgebra.classSum G d := rfl
+    have hcoe2 : ((∑ e : ConjClasses G, MonoidAlgebra.classMulCoeff G c d e • ze e :
+        ↥(Subalgebra.center ℂ (MonoidAlgebra ℂ G))) : MonoidAlgebra ℂ G)
+        = ∑ e : ConjClasses G,
+            MonoidAlgebra.classMulCoeff G c d e • MonoidAlgebra.classSum G e := by
+      rw [AddSubmonoidClass.coe_finsetSum]
+      exact Finset.sum_congr rfl fun e _ => rfl
+    rw [hcoe, hcoe2]
+    exact MonoidAlgebra.classSum_mul c d
+  calc Irr.omega χ c * Irr.omega χ d
+      = MonoidAlgebra.centralScalarHom N (ze c) * MonoidAlgebra.centralScalarHom N (ze d) := by
+        rw [homega c, homega d]
+    _ = MonoidAlgebra.centralScalarHom N (ze c * ze d) := (map_mul _ (ze c) (ze d)).symm
+    _ = MonoidAlgebra.centralScalarHom N
+          (∑ e : ConjClasses G, MonoidAlgebra.classMulCoeff G c d e • ze e) := by rw [hzz]
+    _ = ∑ e : ConjClasses G,
+          MonoidAlgebra.classMulCoeff G c d e • MonoidAlgebra.centralScalarHom N (ze e) := by
+        rw [map_sum]
+        exact Finset.sum_congr rfl fun e _ => map_nsmul _ _ _
+    _ = ∑ e : ConjClasses G, (MonoidAlgebra.classMulCoeff G c d e : ℂ) * Irr.omega χ e := by
+        refine Finset.sum_congr rfl fun e _ => ?_
+        rw [homega e, nsmul_eq_mul]
+
+/-- Sanity check: the central character of the trivial conjugacy class is `1` (the class sum
+of `{1}` is the identity of the group algebra, which acts by the scalar `1`). Used to show
+the `ℤ`-span of the `ω_χ` family contains `1`, for `Irr.isIntegral_omega`. -/
+theorem Irr.omega_mk_one (χ : Irr G) : Irr.omega χ (ConjClasses.mk 1) = 1 := by
+  classical
+  set N := χ.exists_simple'.choose with hNdef
+  haveI hN : IsSimpleModule (MonoidAlgebra ℂ G) N := χ.exists_simple'.choose_spec.1
+  have homega : Irr.omega χ (ConjClasses.mk 1) = MonoidAlgebra.centralScalarHom N
+      ⟨MonoidAlgebra.classSum G (ConjClasses.mk 1),
+        MonoidAlgebra.classSum_mem_center (ConjClasses.mk 1)⟩ := rfl
+  have h1 : (⟨MonoidAlgebra.classSum G (ConjClasses.mk 1),
+      MonoidAlgebra.classSum_mem_center (ConjClasses.mk 1)⟩ :
+      ↥(Subalgebra.center ℂ (MonoidAlgebra ℂ G))) = 1 :=
+    Subtype.ext MonoidAlgebra.classSum_mk_one
+  rw [homega, h1, map_one]
+
+/-- **Algebraic integrality of the central character** (item 2c): `ω_χ(c)` is an algebraic
+integer. Route: the `ℤ`-span `S` of the family `{ω_χ(e)}_{e : ConjClasses G}` is finitely
+generated (the family is finite), contains `1` (hence is nonzero), and is stable under
+multiplication by any `ω_χ(d)` (`Irr.omega_mul` expresses the product as a `ℕ`-combination of
+the family, hence an element of the span); `isIntegral_of_smul_mem_submodule` then gives
+integrality. MathComp: `ω_χ(c)` is an algebraic integer (`gring`-mode material, exact name
+unconfirmed). -/
+theorem Irr.isIntegral_omega (χ : Irr G) (c : ConjClasses G) : IsIntegral ℤ (Irr.omega χ c) := by
+  classical
+  set S : Submodule ℤ ℂ := Submodule.span ℤ (Set.range (Irr.omega χ)) with hSdef
+  have hSfg : S.FG := Submodule.fg_span (Set.finite_range (Irr.omega χ))
+  have h1S : (1 : ℂ) ∈ S := by
+    rw [hSdef, ← Irr.omega_mk_one χ]
+    exact Submodule.subset_span ⟨ConjClasses.mk 1, rfl⟩
+  have hSne : S ≠ ⊥ := by
+    intro hbot
+    rw [hbot, Submodule.mem_bot] at h1S
+    exact one_ne_zero h1S
+  have hSmem : ∀ d : ConjClasses G, ∀ n ∈ S, Irr.omega χ d * n ∈ S := by
+    intro d
+    set mulBy : ℂ →ₗ[ℤ] ℂ :=
+      { toFun := fun n => Irr.omega χ d * n
+        map_add' := fun x y => mul_add _ x y
+        map_smul' := fun a x => by
+          simp only [zsmul_eq_mul, RingHom.id_apply]
+          ring } with hmulBydef
+    have hsub : Set.range (Irr.omega χ) ⊆ (S.comap mulBy : Set ℂ) := by
+      rintro n ⟨c', rfl⟩
+      change Irr.omega χ d * Irr.omega χ c' ∈ S
+      rw [Irr.omega_mul]
+      refine Submodule.sum_mem S fun e _ => ?_
+      have hcast : (MonoidAlgebra.classMulCoeff G d c' e : ℂ) * Irr.omega χ e
+          = (MonoidAlgebra.classMulCoeff G d c' e : ℤ) • Irr.omega χ e := by
+        rw [zsmul_eq_mul]
+        push_cast
+        ring
+      rw [hcast]
+      exact Submodule.smul_mem S _ (Submodule.subset_span ⟨e, rfl⟩)
+    have hle : S ≤ S.comap mulBy := Submodule.span_le.mpr hsub
+    exact fun n hn => hle hn
+  exact isIntegral_of_smul_mem_submodule S hSne hSfg (Irr.omega χ c) (hSmem c)
+
+end CentralCharacter
+
+/-! ### `χ(1) ∣ |G|` (Task 4, item 3)
+
+First orthogonality (`⟪χ,χ⟫ = 1`) expands, grouping the sum over `G` by conjugacy classes and
+applying `Irr.omega_eq`, to `|G| = χ(1) * ∑_c ω_χ(c) * conj(χ(c.out))`. The sum on the right is
+an algebraic integer (products of the integral `ω_χ(c)` and the integral `conj(χ(c.out))`);
+since it equals the rational number `|G|/χ(1)`, that rational number is a rational algebraic
+integer, hence (integral closure of `ℤ` in `ℚ`) an actual integer, giving `χ(1) ∣ |G|`.
+MathComp: `dvd_irr1_cardG`. -/
+
+section DegreeDvdCard
+
+variable {G : Type u} [Group G] [Fintype G]
+
+open scoped Classical in
+/-- **The degree of an irreducible character divides the order of the group.**
+MathComp: `dvd_irr1_cardG`. -/
+theorem Irr.exists_degree_dvd_card (χ : Irr G) :
+    ∃ d : ℕ, (χ 1 : ℂ) = d ∧ d ∣ Nat.card G := by
+  classical
+  obtain ⟨d, hd0, hd⟩ := χ.exists_degree
+  refine ⟨d, hd, ?_⟩
+  have hdne : (χ 1 : ℂ) ≠ 0 := by rw [hd]; exact Nat.cast_ne_zero.mpr hd0.ne'
+  -- first orthogonality, expanded: `∑ g, χ g * conj (χ g) = |G|`
+  have hsum1 : ∑ g : G, χ g * starRingEnd ℂ (χ g) = (Fintype.card G : ℂ) := by
+    have h := Irr.cfInner_eq χ χ
+    rw [if_pos rfl, ClassFunction.cfInner_def] at h
+    have hGne : (Fintype.card G : ℂ) ≠ 0 := Nat.cast_ne_zero.mpr Fintype.card_ne_zero
+    have h2 := congrArg (fun x => (Fintype.card G : ℂ) * x) h
+    simpa [mul_inv_cancel_left₀ hGne] using h2
+  -- group the sum over `G` by conjugacy classes
+  have hpartition : ∑ g : G, χ g * starRingEnd ℂ (χ g)
+      = ∑ c : ConjClasses G, (Nat.card c.carrier : ℂ) * (χ c.out * starRingEnd ℂ (χ c.out)) := by
+    have hstep : ∑ g : G, χ g * starRingEnd ℂ (χ g)
+        = ∑ g : G, χ (ConjClasses.mk g).out * starRingEnd ℂ (χ (ConjClasses.mk g).out) := by
+      refine Finset.sum_congr rfl fun g _ => ?_
+      have hcout : IsConj (ConjClasses.mk g).out g :=
+        ConjClasses.mk_eq_mk_iff_isConj.mp (ConjClasses.mk g).out_eq
+      have heq : χ (ConjClasses.mk g).out = χ g := by
+        have hthis := χ.toClassFunction.apply_eq_of_isConj hcout
+        simpa using hthis
+      rw [heq]
+    rw [hstep, ← Finset.sum_fiberwise' (Finset.univ : Finset G) ConjClasses.mk
+      (fun c => χ c.out * starRingEnd ℂ (χ c.out))]
+    refine Finset.sum_congr rfl fun c _ => ?_
+    rw [Finset.sum_const]
+    have hcardc : (Finset.univ.filter (fun g : G => ConjClasses.mk g = c)).card
+        = Nat.card c.carrier := by
+      rw [← Fintype.card_subtype, Fintype.card_congr (Equiv.subtypeEquivRight fun g =>
+        (ConjClasses.mem_carrier_iff_mk_eq (a := g) (b := c)).symm), Nat.card_eq_fintype_card]
+    rw [hcardc, nsmul_eq_mul]
+  -- `|G| = χ(1) * ∑_c ω_χ(c) * conj (χ (c.out))`
+  have hmain : (Nat.card G : ℂ)
+      = χ 1 * ∑ c : ConjClasses G, Irr.omega χ c * starRingEnd ℂ (χ c.out) := by
+    rw [Nat.card_eq_fintype_card, ← hsum1, hpartition, Finset.mul_sum]
+    refine Finset.sum_congr rfl fun c _ => ?_
+    have homegamul : Irr.omega χ c * χ 1 = (Nat.card c.carrier : ℂ) * χ c.out :=
+      (eq_div_iff hdne).mp (Irr.omega_eq χ c)
+    rw [← mul_assoc, ← homegamul]
+    ring
+  -- the sum is an algebraic integer
+  set S : ℂ := ∑ c : ConjClasses G, Irr.omega χ c * starRingEnd ℂ (χ c.out) with hSdef
+  have hSint : IsIntegral ℤ S :=
+    IsIntegral.sum _ fun c _ => IsIntegral.mul (Irr.isIntegral_omega χ c)
+      (IsIntegral.map (starRingEnd ℂ).toIntAlgHom (Irr.isIntegral_apply χ c.out))
+  -- `S` equals the rational number `|G| / d`
+  set q : ℚ := (Nat.card G : ℚ) / (d : ℚ) with hqdef
+  have hdQne : (d : ℚ) ≠ 0 := Nat.cast_ne_zero.mpr hd0.ne'
+  have hdCne : (d : ℂ) ≠ 0 := Nat.cast_ne_zero.mpr hd0.ne'
+  have hSeq : S = (q : ℂ) := by
+    rw [hqdef]
+    push_cast
+    rw [eq_div_iff hdCne, mul_comm, ← hd]
+    exact hmain.symm
+  have hqCint : IsIntegral ℤ (q : ℂ) := hSeq ▸ hSint
+  -- transport integrality from `ℂ` down to `ℚ`
+  have hinj : Function.Injective ((Rat.castHom ℂ).toIntAlgHom : ℚ →ₐ[ℤ] ℂ) := by
+    intro a b hab
+    exact Rat.cast_injective (α := ℂ) hab
+  have heqcast : ((Rat.castHom ℂ).toIntAlgHom : ℚ →ₐ[ℤ] ℂ) q = (q : ℂ) := rfl
+  have hqint : IsIntegral ℤ q := by
+    rw [← heqcast] at hqCint
+    exact (isIntegral_algHom_iff ((Rat.castHom ℂ).toIntAlgHom : ℚ →ₐ[ℤ] ℂ) hinj).mp hqCint
+  -- `ℤ` is integrally closed in `ℚ`, so `q` is an integer
+  obtain ⟨y, hy⟩ := (isIntegrallyClosed_iff ℚ).mp inferInstance hqint
+  have hyQ : (y : ℚ) = q := by
+    rw [← hy]; simp [algebraMap_int_eq]
+  have hqnonneg : 0 ≤ q := by rw [hqdef]; positivity
+  have hynonneg : 0 ≤ y := by
+    have : (0 : ℚ) ≤ (y : ℚ) := hyQ ▸ hqnonneg
+    exact_mod_cast this
+  set k : ℕ := y.toNat with hkdef
+  have hyk : (y : ℤ) = (k : ℤ) := (Int.toNat_of_nonneg hynonneg).symm
+  have hkQ : (k : ℚ) = q := by
+    have := hyQ
+    rw [hyk] at this
+    exact_mod_cast this
+  have hkd : (k : ℚ) * (d : ℚ) = (Nat.card G : ℚ) := by
+    rw [hkQ, hqdef, div_mul_cancel₀]
+    exact hdQne
+  have hkdN : k * d = Nat.card G := by exact_mod_cast hkd
+  exact ⟨k, hkdN.symm.trans (mul_comm k d)⟩
+
+end DegreeDvdCard

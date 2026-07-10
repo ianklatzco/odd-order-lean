@@ -78,12 +78,26 @@ Lean/Mathlib ports, per `docs/superpowers/plans/2026-07-06-odd-order-port.md` §
 | (single-sum characterization of the class sum; no separate Coq name) | `MonoidAlgebra.classSum_eq_sum_single` | `OddOrder/Mathlib/RepresentationTheory/ClassSum.lean` |
 | `gring` basis of the group-ring center (exact name unconfirmed) | `MonoidAlgebra.classSumBasis` (via `MonoidAlgebra.classFunctionIndicatorBasis`) | `OddOrder/Mathlib/RepresentationTheory/ClassSum.lean` |
 | `gring` structure constants (exact name unconfirmed) | `MonoidAlgebra.classMulCoeff`, `MonoidAlgebra.classMulCoeff_eq`, `MonoidAlgebra.classSum_mul` | `OddOrder/Mathlib/RepresentationTheory/ClassSum.lean` |
+| `χ(g)` is an algebraic integer (`Aint_char`-shaped, exact name unconfirmed) | `Irr.isIntegral_apply` (engine: `Module.End.trace_eq_sum_zeta_pow_mul_natCast`, refactored out of `Module.End.trace_pow_pred_eq_star_trace`) | `OddOrder/Mathlib/RepresentationTheory/CharacterArith.lean` (engine in `ClassFunction.lean`) |
+| central character `ω_χ` (`gring`-mode material, exact name unconfirmed) | `Irr.omega`, `Irr.omega_eq` (closed formula), `Irr.omega_mul` (structure constants), `Irr.isIntegral_omega` | `OddOrder/Mathlib/RepresentationTheory/CharacterArith.lean` |
+| `dvd_irr1_cardG` (`chi 1 ∣ #G`) | `Irr.exists_degree_dvd_card` | `OddOrder/Mathlib/RepresentationTheory/CharacterArith.lean` |
 
 Note: `ClassSum.lean` is Task 3 of the M2 plan (class sums, center basis, structure
 constants). The plan files this material inside `CharacterArith.lean`; it was split into a
 standalone file instead, per the parallel-work isolation protocol (Task 2 implemented
 `Induced.lean` concurrently) and the plan's own "split further if any exceeds ~1200 lines"
 clause.
+
+Note: Task 4 (algebraic integrality) lands in `CharacterArith.lean` as planned. The Schur
+scalar-extraction machinery (`MonoidAlgebra.centralAction`, `centralActionAlgHom`,
+`centralScalarAlgEquiv`, `centralScalarHom`) is bundled as an `AlgHom`/`AlgEquiv` chain
+(center of the group algebra → `ℂ[G]`-endomorphisms of a simple module → `ℂ`, via Schur's
+lemma as an algebra isomorphism) so that `Irr.omega_mul`'s structure-constant identity and
+`Irr.isIntegral_omega`'s finitely-generated-module argument both follow from generic
+`AlgHom`/`AlgEquiv` API (`map_mul`, `map_sum`) rather than bespoke uniqueness arguments. The
+one sanctioned edit to `ClassFunction.lean` refactors the eigenprojection computation inside
+`Module.End.trace_pow_pred_eq_star_trace` into a standalone, reusable lemma
+`Module.End.trace_eq_sum_zeta_pow_mul_natCast` (no statement changes, no new sorries).
 
 Future work (not ported yet): `coprime_Hall_subset` and the Glauberman-lemma
 variants of the coprime-action suite (`glauberman_...`, `ext_coprime_quotient_cent`

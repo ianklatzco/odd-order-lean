@@ -367,14 +367,19 @@ section CharInv
 
 variable {V : Type*} [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
 
-/-- If `f ^ n = 1`, then the trace of `f ^ (n - 1) = f⁻¹` is the complex conjugate of the
-trace of `f`. -/
-theorem Module.End.trace_pow_pred_eq_star_trace {f : Module.End ℂ V} {n : ℕ} (hn : n ≠ 0)
-    (hf : f ^ n = 1) :
-    trace ℂ V (f ^ (n - 1)) = starRingEnd ℂ (trace ℂ V f) := by
+/-- **Eigenprojection decomposition of the trace.** If `f ^ n = 1` and `ζ` is a primitive
+`n`-th root of unity, the trace of `f ^ k` (for *any* `k`) is a `ℕ`-weighted sum of the powers
+of `ζ`: `trace (f ^ k) = ∑ j < n, (ζ ^ j) ^ k * m j`, where `m j` is the dimension of the
+`ζ ^ j`-eigenspace of `f` (in particular a natural number, independent of `k`). This is the
+engine behind `Module.End.trace_pow_pred_eq_star_trace` (instantiated at `k = 1` and
+`k = n - 1`) and, via `IsIntegral.sum`/`IsIntegral.mul`, behind the algebraic integrality of
+character values (`Irr.isIntegral_apply`, `OddOrder/Mathlib/RepresentationTheory/
+CharacterArith.lean`; MathComp: character values are algebraic integers, `Aint_char`-shaped,
+exact name unconfirmed). -/
+theorem Module.End.trace_eq_sum_zeta_pow_mul_natCast {f : Module.End ℂ V} {n : ℕ} (hn : n ≠ 0)
+    (hf : f ^ n = 1) {ζ : ℂ} (hζ : IsPrimitiveRoot ζ n) :
+    ∃ m : ℕ → ℕ, ∀ k : ℕ, trace ℂ V (f ^ k) = ∑ j ∈ range n, (ζ ^ j) ^ k * (m j : ℂ) := by
   have hn0 : (n : ℂ) ≠ 0 := Nat.cast_ne_zero.mpr hn
-  set ζ : ℂ := Complex.exp (2 * Real.pi * Complex.I / n) with hζdef
-  have hζ : IsPrimitiveRoot ζ n := Complex.isPrimitiveRoot_exp n hn
   have hζn : ζ ^ n = 1 := hζ.pow_eq_one
   have hζ0 : ζ ≠ 0 := by
     intro h
@@ -469,15 +474,31 @@ theorem Module.End.trace_pow_pred_eq_star_trace {f : Module.End ℂ V} {n : ℕ}
         one_pow, one_smul]
     rw [Finset.sum_congr rfl this, Finset.sum_const, card_range, ← Nat.cast_smul_eq_nsmul ℂ,
       smul_smul, inv_mul_cancel₀ hn0, one_smul]
-  -- traces of the projections are natural numbers, hence fixed by conjugation
-  have htrQ : ∀ j, starRingEnd ℂ (trace ℂ V (Q j)) = trace ℂ V (Q j) := by
+  -- `Q j` is a projection, so its trace is the (natural-number) dimension of its range.
+  have hproj : ∀ j, LinearMap.IsProj (LinearMap.range (Q j)) (Q j) := by
     intro j
-    have hproj : LinearMap.IsProj (LinearMap.range (Q j)) (Q j) := by
-      refine ⟨fun x => LinearMap.mem_range_self _ x, fun x hx => ?_⟩
-      obtain ⟨y, rfl⟩ := hx
-      have := congrArg (fun T : Module.End ℂ V => T y) (hQQ j)
-      simpa [Module.End.mul_apply] using this
-    rw [hproj.trace, map_natCast]
+    refine ⟨fun x => LinearMap.mem_range_self _ x, fun x hx => ?_⟩
+    obtain ⟨y, rfl⟩ := hx
+    have := congrArg (fun T : Module.End ℂ V => T y) (hQQ j)
+    simpa [Module.End.mul_apply] using this
+  refine ⟨fun j => Module.finrank ℂ (LinearMap.range (Q j)), fun k => ?_⟩
+  -- expand `trace (f ^ k)` over the projections
+  have hexp : trace ℂ V (f ^ k) = ∑ j ∈ range n, (ζ ^ j) ^ k * trace ℂ V (Q j) := by
+    conv_lhs => rw [← mul_one (f ^ k), ← hQsum, Finset.mul_sum]
+    rw [map_sum]
+    exact Finset.sum_congr rfl fun j _ => by rw [hfpowQ j k, map_smul, smul_eq_mul]
+  rw [hexp]
+  exact Finset.sum_congr rfl fun j _ => by rw [(hproj j).trace]
+
+/-- If `f ^ n = 1`, then the trace of `f ^ (n - 1) = f⁻¹` is the complex conjugate of the
+trace of `f`. -/
+theorem Module.End.trace_pow_pred_eq_star_trace {f : Module.End ℂ V} {n : ℕ} (hn : n ≠ 0)
+    (hf : f ^ n = 1) :
+    trace ℂ V (f ^ (n - 1)) = starRingEnd ℂ (trace ℂ V f) := by
+  set ζ : ℂ := Complex.exp (2 * Real.pi * Complex.I / n) with hζdef
+  have hζ : IsPrimitiveRoot ζ n := Complex.isPrimitiveRoot_exp n hn
+  have hζn : ζ ^ n = 1 := hζ.pow_eq_one
+  obtain ⟨m, hm⟩ := Module.End.trace_eq_sum_zeta_pow_mul_natCast hn hf hζ
   -- star of each eigenvalue is its inverse, realized as the `(n-1)`-st power
   have hstar : ∀ j, (ζ ^ j) ^ (n - 1) = starRingEnd ℂ (ζ ^ j) := by
     intro j
@@ -487,21 +508,15 @@ theorem Module.End.trace_pow_pred_eq_star_trace {f : Module.End ℂ V} {n : ℕ}
       rw [← pow_succ, Nat.sub_add_cancel (Nat.one_le_iff_ne_zero.mpr hn), hpow1]
     rw [← Complex.inv_eq_conj hnorm]
     exact (inv_eq_of_mul_eq_one_left hmul).symm
-  -- expand the two traces over the projections and compare termwise
-  have hexp : ∀ k, trace ℂ V (f ^ k) = ∑ j ∈ range n, (ζ ^ j) ^ k * trace ℂ V (Q j) := by
-    intro k
-    conv_lhs => rw [← mul_one (f ^ k), ← hQsum, Finset.mul_sum]
-    rw [map_sum]
-    exact Finset.sum_congr rfl fun j _ => by rw [hfpowQ j k, map_smul, smul_eq_mul]
   calc trace ℂ V (f ^ (n - 1))
-      = ∑ j ∈ range n, (ζ ^ j) ^ (n - 1) * trace ℂ V (Q j) := hexp (n - 1)
-    _ = ∑ j ∈ range n, starRingEnd ℂ (ζ ^ j * trace ℂ V (Q j)) := by
+      = ∑ j ∈ range n, (ζ ^ j) ^ (n - 1) * (m j : ℂ) := hm (n - 1)
+    _ = ∑ j ∈ range n, starRingEnd ℂ (ζ ^ j * (m j : ℂ)) := by
         refine Finset.sum_congr rfl fun j _ => ?_
-        rw [map_mul, htrQ j, hstar j]
-    _ = starRingEnd ℂ (∑ j ∈ range n, ζ ^ j * trace ℂ V (Q j)) := by rw [map_sum]
+        rw [map_mul, map_natCast, hstar j]
+    _ = starRingEnd ℂ (∑ j ∈ range n, ζ ^ j * (m j : ℂ)) := by rw [map_sum]
     _ = starRingEnd ℂ (trace ℂ V f) := by
         congr 1
-        have := hexp 1
+        have := hm 1
         simpa [pow_one] using this.symm
 
 variable {G : Type u} [Group G] [Finite G]
