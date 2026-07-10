@@ -90,6 +90,10 @@ Lean/Mathlib ports, per `docs/superpowers/plans/2026-07-06-odd-order-port.md` §
 | `char_vchar` (a character is a virtual character; exact name unconfirmed) | `ClassFunction.IsChar.isVirtualChar`, `ClassFunction.IsChar.mem_virtualCharIrr` | `OddOrder/Mathlib/RepresentationTheory/VirtualChar.lean` |
 | (virtual character with ℕ coefficients is a character; no confirmed Coq name) | `ClassFunction.IsVirtualChar.isChar_of_forall_cfInner_nonneg` | `OddOrder/Mathlib/RepresentationTheory/VirtualChar.lean` |
 | `zchar_split`-shaped sign split `phi = phi⁺ - phi⁻` (exact name/statement unconfirmed) | `ClassFunction.IsVirtualChar.exists_isChar_sub` | `OddOrder/Mathlib/RepresentationTheory/VirtualChar.lean` |
+| nonvanishing dichotomy (analytic crux of Burnside; MathComp counterpart name to be confirmed) | `Irr.eq_zero_or_norm_eq` | `OddOrder/Mathlib/RepresentationTheory/Burnside.lean` |
+| character kernel (`cfker`) | `Irr.ker`, `Irr.mem_ker_iff`, `Irr.eq_one_of_ker_eq_top` | `OddOrder/Mathlib/RepresentationTheory/Burnside.lean` |
+| class-size lemma (standalone Mathlib-first target; no confirmed single Coq name) | `not_isSimpleGroup_of_conjClasses_card_eq_prime_pow` | `OddOrder/Mathlib/RepresentationTheory/Burnside.lean` |
+| **`Burnside_normal_complement`-adjacent — `p^a q^b` solvability** (exact Coq identifier for the whole-group headline theorem unconfirmed; MathComp proves it in `BGsection1.v`/`PFsection1.v`-adjacent material per the audit) | **`burnside_solvable`** | `OddOrder/Mathlib/RepresentationTheory/Burnside.lean` |
 
 Note: `ClassSum.lean` is Task 3 of the M2 plan (class sums, center basis, structure
 constants). The plan files this material inside `CharacterArith.lean`; it was split into a
@@ -118,3 +122,21 @@ abelian noncyclic, normalizes `G`, and `gcd(|G|,|A|) = 1`, then `G` is generated
 the centralizers `C_G(a)` for `a ∈ A \ {1}`) and its variant
 `coprime_abelian_gen_cent` — see the scope note in
 `OddOrder/Mathlib/GroupTheory/CoprimeAction.lean`.
+
+Note: Task 5 (Burnside's `p^a q^b` theorem) lands in `Burnside.lean`, in three stages.
+**Stage 1** (the analytic crux, `Irr.eq_zero_or_norm_eq`) departs from the M2 plan's sketched
+route: instead of the norm-product argument (`Algebra.norm_eq_prod_embeddings` + rational-
+algebraic-integer descent), it uses **Kronecker's theorem**
+(`NumberField.Embeddings.pow_eq_one_of_norm_le_one`) — a nonzero algebraic integer all of whose
+conjugates lie in the closed unit disc is a root of unity — which needs only a *weak* (`≤ 1`)
+per-embedding bound and skips the separability/norm-integrality/rational-descent machinery
+entirely (see the task report for the full audit). **Stage 2**'s kernel characterization and
+the class-size lemma's scalar-action step both need the *operator* identity behind
+`Module.End.trace_eq_sum_zeta_pow_mul_natCast` (the eigen-projections themselves, not just
+their trace corollary); rather than exposing this from the already-reviewed
+`ClassFunction.lean`, the projection construction is duplicated locally in `Burnside.lean`
+(`Module.End.exists_zeta_pow_eigenProjections`) to keep the task's commit scoped to
+`Burnside.lean` + `OddOrder.lean` + `NAME_MAP.md`. **Stage 3** additionally exposes
+`Irr.degreeNat` (a natural-number degree accessor, choice witness of `Irr.exists_degree`) and
+two small number-theoretic helpers (`exists_eq_pow_mul_pow_of_dvd`,
+`factorization_pow_mul_pow_self_right`), both private to `Burnside.lean`.
