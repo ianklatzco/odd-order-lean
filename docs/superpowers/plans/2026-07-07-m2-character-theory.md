@@ -134,17 +134,17 @@ central-character integrality argument.
 **Interfaces:** all statements with `IsIntegral ℤ`; Mathlib's cyclotomic/`IsIntegral` API
 is strong (verified in audit).
 
-- [ ] `Irr.isIntegral_apply : IsIntegral ℤ (χ g)` — χ(g) is a sum of `orderOf g`-th roots
+- [x] `Irr.isIntegral_apply : IsIntegral ℤ (χ g)` — χ(g) is a sum of `orderOf g`-th roots
       of unity. Route: reuse Task 9's eigenprojection decomposition
       (`trace f = ∑ j, ζ^j * trace (Q j)` with `trace (Q j) ∈ ℕ`) — the identity is
       already proved inside `Module.End.trace_pow_pred_eq_star_trace`; **refactor it out**
       as `Module.End.trace_eq_sum_zeta_pow_mul_natCast` (statement:
       `f ^ n = 1 → ∃ m : ℕ → ℕ, trace ℂ V f = ∑ j < n, ζ^j * m j`) rather than reproving.
-- [ ] Central character `Irr.omega χ (c : ConjClasses G) := |carrier c| * χ (rep) / χ 1`
+- [x] Central character `Irr.omega χ (c : ConjClasses G) := |carrier c| * χ (rep) / χ 1`
       — stated via `classSum` action: `z_c` acts on the simple module of `χ` by the scalar
       `ω_χ(c)` (Schur, same pattern as Task 9 completeness); `IsIntegral ℤ (ω_χ c)` from
       Task 3 structure constants (`ω_χ` spans a finitely generated ℤ-module).
-- [ ] `Irr.degree_dvd_card : (χ 1 : ℂ) ∣ (Nat.card G : ℂ)`-form — actual statement
+- [x] `Irr.degree_dvd_card : (χ 1 : ℂ) ∣ (Nat.card G : ℂ)`-form — actual statement
       `∃ d : ℕ, χ 1 = d ∧ d ∣ Nat.card G` (from `|G|/χ(1) = ∑_c ω_χ(c) * conj (χ c)`
       integral + rational ⇒ integer). (MathComp `dvd_irr1_cardG`.)
 
@@ -173,16 +173,18 @@ supported on `A`. This is the vocabulary of PF2–7 (Dade isometry, coherence); 
 *definitions and norm lemmas* right, defer the isometry-extension constructors to the PF1
 task plan (they need the PF context to state well).
 
-- [ ] `VirtualChar S A : AddSubgroup (ClassFunction G)` (ℤ-span of `S` intersected with
+- [x] `VirtualChar S A : AddSubgroup (ClassFunction G)` (ℤ-span of `S` intersected with
       `supportedOn A`); notation scoped `'Z[S, A]`, `'Z[S] := 'Z[S, univ]`; membership
       lemmas; `Irr`-indexed special case with coefficient extraction
       `⟪φ, χ⟫_[G] ∈ ℤ`-form (`∃ n : ℤ, …`).
-- [ ] Norm lemmas: `vchar_norm1` (φ ∈ 'Z[Irr G], ⟪φ,φ⟫ = 1 → φ = ±χ for some χ ∈ Irr) and
+- [x] Norm lemmas: `vchar_norm1` (φ ∈ 'Z[Irr G], ⟪φ,φ⟫ = 1 → φ = ±χ for some χ ∈ Irr) and
       `vchar_norm2` (norm 2, orthogonal to 1 → χ₁ - χ₂ form) — pure `Finsupp`-support
       arithmetic over the orthonormal basis; the Task 9 `cfInnerₗ`/`Irr.basis` API is
       exactly what these need.
-- [ ] `IsChar`/`VirtualChar` interaction: a virtual character with `⟪φ, χ⟫ ≥ 0` for all χ
+- [x] `IsChar`/`VirtualChar` interaction: a virtual character with `⟪φ, χ⟫ ≥ 0` for all χ
       is a character; difference presentation `φ = φ⁺ - φ⁻`.
+
+*Done in `VirtualChar.lean`. Notation `Z[S, A]` (Lean rejects leading-apostrophe atoms). `vchar_norm2` proved with the honest conclusion (four sign patterns: the stated hypotheses provably do not exclude `±(χ₁+χ₂)`); verify MathComp's exact extra hypothesis on first Coq access. Isometry-extension constructors deferred to PF1 per plan.*
 
 ### Task 7: `cfAut` (Galois action on class functions)
 

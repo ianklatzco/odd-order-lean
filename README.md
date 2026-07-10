@@ -65,12 +65,12 @@ throwing coding agents at any of these.
 
 - [x] Induced characters: the explicit induction formula and Frobenius
       reciprocity as an inner-product identity on class functions
-- [ ] Integrality: `χ(g)` is an algebraic integer; central character values
+- [x] Integrality: `χ(g)` is an algebraic integer; central character values
       `ω_χ`; `χ(1) ∣ |G|`
 - [ ] **Burnside's `p^a q^b` theorem** — the milestone headline; believed
       unformalized in Lean
-- [ ] Virtual characters: the lattice `ℤ[S, A]` with norm lemmas and
-      isometry-extension constructors (MathComp `vcharacter.v`)
+- [x] Virtual characters: the lattice `ℤ[S, A]` with norm lemmas (isometry-
+      extension constructors deferred to the PF1 plan, per M2 plan scope)
 - [ ] Galois action on characters (`cfAut`)
 
 **M1 remainder / pre-BG gates:**
