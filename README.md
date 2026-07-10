@@ -63,7 +63,7 @@ throwing coding agents at any of these.
 **M2 — arithmetic character theory** (plan:
 [`2026-07-07-m2-character-theory.md`](docs/superpowers/plans/2026-07-07-m2-character-theory.md)):
 
-- [ ] Induced characters: the explicit induction formula and Frobenius
+- [x] Induced characters: the explicit induction formula and Frobenius
       reciprocity as an inner-product identity on class functions
 - [ ] Integrality: `χ(g)` is an algebraic integer; central character values
       `ω_χ`; `χ(1) ∣ |G|`

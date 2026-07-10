@@ -4,9 +4,18 @@
 >
 > Newcomer-facing setup instructions and the top-level punchlist live in the repo [README](../../../README.md) — keep the two in sync: README carries the what/checkboxes, this file carries the how/conventions/detail.
 
-## Current state (as of 2026-07-10, commit `3cbd2ae`)
+## Current state (as of 2026-07-10, M2 Tasks 1–3 done)
 
-**M2 in progress** — Task 1 of the [M2 plan](2026-07-07-m2-character-theory.md) is done (commit `3cbd2ae`, Sonnet implementer + driving-session review): `CharacterArith.lean` with the pointwise `CommRing`/`Algebra ℂ` on `ClassFunction G`, `Irr.one`, `ClassFunction.IsChar` + `isChar_moduleCharacter` (semisimple decomposition, forward direction), `IsChar.add`/`cfInner_mem_nat`, `Irr.exists_degree`, `Irr.sum_sq_degree`. Deferred per plan's defer-clauses (documented in the file + `.superpowers/sdd/m2-task1-report.md`): `IsChar.mul` (tensor route) and the module-equivalence converse. **Risk 1 of the M2 plan is defused**: Mathlib has the Task-5 conjugate-norm machinery (`NumberField.Embeddings.pow_eq_one_of_norm_le_one` (Kronecker), `finite_of_norm_le`, `Algebra.norm_eq_prod_embeddings`, `range_eval_eq_rootSet_minpoly`) — audit done 2026-07-10.
+**M2 in progress** — Tasks 1, 2, 3 of the [M2 plan](2026-07-07-m2-character-theory.md) are done, each by a Sonnet implementer + driving-session review (per-task reports in `.superpowers/sdd/`):
+
+| M2 task | Result | Commits |
+|---|---|---|
+| 1. Ring of class functions, `Irr.one`, `IsChar`, degrees, `∑ χ(1)² = |G|` | done (deferred per plan clauses: `IsChar.mul`, module-equivalence converse) | `3cbd2ae`, docs `69e8395` |
+| 2. `ClassFunction.res`/`ind`, **Frobenius reciprocity**, `IsChar.res`/`ind` | done (skipped per clause: `supportedOn` calculus) | `99dc285` |
+| 3. `classSum`, center basis, **integer structure constants** (`classMulCoeff`, `classSum_mul`) | done, in `ClassSum.lean` (file split for parallel work) | `9c58dfa` |
+| Polish: `⟪·,·⟫_[·]` notation fixed for non-`G` groups (was G-literal-only); new-file headers → Rado Kirov | done | (this commit) |
+
+**Risk 1 of the M2 plan is defused**: Mathlib has the Task-5 conjugate-norm machinery (`NumberField.Embeddings.pow_eq_one_of_norm_le_one` (Kronecker), `finite_of_norm_le`, `Algebra.norm_eq_prod_embeddings`, `range_eval_eq_rootSet_minpoly`) — audit done 2026-07-10. Next: **Task 4 (integrality: `Irr.isIntegral_apply`, ω_χ, `χ(1) ∣ |G|`)**, then **Task 5 (Burnside p^aq^b)** — Task 4 consumes Task 3's `classSum_mul` and Task 1's degree API; read `.superpowers/sdd/m2-task3-report.md` friction notes first.
 
 Environment note (this machine, `/home/rado/odd-order-lean`): disk is tight; the Mathlib olean cache was fetched **targeted** (`lake exe cache get .lake/packages/mathlib/Mathlib/<file>.lean …` for the project's transitive imports) rather than in full. If a new import pulls uncached Mathlib files, extend the fetch the same way instead of running a bare `lake exe cache get` (full cache + archives may not fit). The Coq checkout is *not* present here; use `docs/audit/survey-digest.md` for MathComp reference.
 
@@ -27,11 +36,11 @@ Environment note (this machine, `/home/rado/odd-order-lean`): disk is tight; the
 | 9. **Class functions, #Irr = #classes, 2nd orthogonality** | done | `4b9eedd`..`573a6aa`, fix `fc70f80` |
 | Phase-1 polish (final review fixes) | done | `72346a5` |
 
-Milestone progress: M0 ✅ · M1 ~85% · M2 ~35% (Tasks 9 + M2-1 done) · M3–M8 not started. None of the 34 Coq theory files is ported yet — everything so far is Layer-0 prerequisites, per plan sequencing.
+Milestone progress: M0 ✅ · M1 ~85% · M2 ~60% (Tasks 9 + M2-1/2/3 done; remaining: integrality, Burnside, virtual chars, cfAut) · M3–M8 not started. None of the 34 Coq theory files is ported yet — everything so far is Layer-0 prerequisites, per plan sequencing.
 
 ## What to work on next (in order)
 
-1. **M2 continuation** — follow [2026-07-07-m2-character-theory.md](2026-07-07-m2-character-theory.md) task by task; next up **Task 2** (induced characters + Frobenius reciprocity) and **Task 3** (class sums — independent of Task 2, parallelizable), then integrality → **Burnside p^aq^b** → virtual characters → cfAut. Headline target: Burnside. Read `.superpowers/sdd/m2-task1-report.md` §"API friction" before starting Tasks 2/4 (if the scratch file is gone, the key points are: `rfl`-bridge `restrictScalars`-ed equivs; `Representation.trivial_apply` and `Module.finrank_prod` need explicit `ℂ`; keep `[Fintype G]` scoped tightly or the unused-Fintype linter fires).
+1. **M2 continuation** — follow [2026-07-07-m2-character-theory.md](2026-07-07-m2-character-theory.md) task by task; next up **Task 4** (integrality: `Irr.isIntegral_apply` via the root-of-unity trace refactor, central character ω_χ via `classSum` action + `classSum_mul` structure constants, `χ(1) ∣ |G|`), then **Task 5 (Burnside p^aq^b — the headline)**, then Tasks 6 (virtual characters) and 7 (cfAut), which are lighter. Read the `.superpowers/sdd/m2-task*-report.md` friction notes before starting (if the scratch files are gone, the key points: `rfl`-bridge `restrictScalars`-ed equivs; `Representation.trivial_apply` and `Module.finrank_prod` need explicit `ℂ`; keep `[Fintype G]` scoped tightly or the unused-Fintype linter fires; prefer `MonoidAlgebra`-namespaced lemmas over `Finsupp` ones to dodge type-synonym `rw` failures).
 2. **M1 remainder** — the D9 bridge (`AbelemRepr.lean`: G-stable elementary abelian section ⇝ `ZMod p`-module with G-action); remaining p-group material lands with M4 per plan.
 3. **Internal-action transfer layer** (final review, rec 4) — lemmas identifying `FixedPoints.subgroup A H` with centralizer intersections and `actionCommutator` with `⁅H,A⁆` for internal (conjugation) actions. **Do this before starting BG1**; it is the first M4-adjacent task.
 4. **M3** (Frobenius groups + Wielandt) — needs M2's induced-character formula for the kernel theorem.
@@ -50,7 +59,7 @@ Milestone progress: M0 ✅ · M1 ~85% · M2 ~35% (Tasks 9 + M2-1 done) · M3–M
 - Coq statements mirrored at statement granularity for FT-specific parts; **follow the Coq file, not the book**, where they differ.
 - ℂ is the character coefficient field. Sums over elements use `[Fintype G]`; exported counting statements use `Nat.card` (policy paragraph in the M2 plan).
 - Conjugation spelling: `H.map (MulAut.conj g).toMonoidHom` everywhere. Coprime actions: external `[MulDistribMulAction A G]` + explicit coprimality (see CoprimeAction.lean module docstring).
-- Every new `.lean` file: standard 2026 Ian Klatzco / Apache 2.0 header; Mathlib style linters must pass; docstrings cite MathComp counterparts; update `docs/NAME_MAP.md`.
+- Every new `.lean` file: standard 2026 **Rado Kirov** / Apache 2.0 header (per Rado, 2026-07-10; older files keep their existing headers); Mathlib style linters must pass; docstrings cite MathComp counterparts; update `docs/NAME_MAP.md`.
 - Sorry budget: `.sorry-budget` (currently 1). Never weaken a statement to close a sorry; use the DONE_WITH_CONCERNS protocol (bump budget + `-- TODO(task-N):` + NAME_MAP "(stated)") only as documented in the plan.
 - Commit trailers: `Co-Authored-By: Claude ...` per session harness; do not push unless the driving session says to.
 

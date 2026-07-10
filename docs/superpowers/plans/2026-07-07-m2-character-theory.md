@@ -93,22 +93,22 @@ Degrees; the trivial character; pointwise ring structure.
 *formula*, no induced-representation construction (MathComp does the same):
 `ind φ g = (Nat.card H : ℂ)⁻¹ * ∑ x : G, φ' (x⁻¹ * g * x)` where `φ'` extends `φ` by zero.
 
-- [ ] `ClassFunction.res (H : Subgroup G) : ClassFunction G →ₗ[ℂ] ClassFunction H`
+- [x] `ClassFunction.res (H : Subgroup G) : ClassFunction G →ₗ[ℂ] ClassFunction H`
       (restriction of a class function on `G` is a class function on `H`: conjugation in
       `H` is conjugation in `G`). `res_apply` simp.
-- [ ] `ClassFunction.ind (H : Subgroup G) : ClassFunction H →ₗ[ℂ] ClassFunction G` —
+- [x] `ClassFunction.ind (H : Subgroup G) : ClassFunction H →ₗ[ℂ] ClassFunction G` —
       well-definedness: the formula is conjugation-invariant in `g` (reindex `x ↦ …`);
       `ind_apply`; `ind_apply_one : ind φ 1 = (H.index : ℂ) * φ 1`.
-- [ ] **Frobenius reciprocity** `⟪ind H φ, ψ⟫_[G] = ⟪φ, res H ψ⟫_[H]` (MathComp
+- [x] **Frobenius reciprocity** `⟪ind H φ, ψ⟫_[G] = ⟪φ, res H ψ⟫_[H]` (MathComp
       `cfdot_ind` / `Frobenius_reciprocity`) — double-sum interchange; the Task 9
       `cfInnerₗ` + reindexing lemmas carry it.
-- [ ] `IsChar.ind : IsChar φ → IsChar (ind H φ)` — **via reciprocity, not representations**:
+- [x] `IsChar.ind : IsChar φ → IsChar (ind H φ)` — **via reciprocity, not representations**:
       expand `ind φ` in `Irr.basis`; coefficients `⟪ind φ, χ⟫ = ⟪φ, res χ⟫ ∈ ℕ` since
       `res χ` is a character of `H` (needs `IsChar.res`, which *does* need "restriction of
       a character is a character": restrict the module along `MonoidAlgebra.mapDomainAlgHom`
       of `H.subtype` — check Mathlib for `MonoidAlgebra` functoriality; fallback: restrict
       the `Representation` and use `moduleCharacter` on the asModule).
-- [ ] `res` and `ind` interaction with `supportedOn` (`'CF(G, A)` calculus): minimal now —
+- [ ] (deliberately skipped in the Task-2 pass per the do-not-gold-plate clause) `res` and `ind` interaction with `supportedOn` (`'CF(G, A)` calculus): minimal now —
       only `ind_supportedOn : φ ∈ supportedOn H A → ind H φ ∈ supportedOn G (⋃ x, x • A • x⁻¹-ish)`
       shaped lemma *when PF1 planning fixes the exact form*; do not gold-plate.
 
@@ -117,15 +117,17 @@ Degrees; the trivial character; pointwise ring structure.
 **Interfaces:** the explicit class-sum elements deferred from Task 9(d); needed for the
 central-character integrality argument.
 
-- [ ] `MonoidAlgebra.classSum (c : ConjClasses G) : MonoidAlgebra ℂ G`
+- [x] `MonoidAlgebra.classSum (c : ConjClasses G) : MonoidAlgebra ℂ G`
       (`∑ x ∈ carrier, single x 1`; use `Finsupp.equivFunOnFinite`-style indicator like
       Task 9's `centralOfClassFunction` to dodge Finsupp-sum-application pain).
-- [ ] `classSum_mem_center`; `classSum` is the `centerEquivClassFunction`-preimage of the
+- [x] `classSum_mem_center`; `classSum` is the `centerEquivClassFunction`-preimage of the
       indicator; the class sums are a **basis** of the center (transport `Irr.basis`-style
       argument through `centerEquivClassFunction`).
-- [ ] Structure constants: `classSum c * classSum d = ∑ e, (a c d e : ℕ) • classSum e`
+- [x] Structure constants: `classSum c * classSum d = ∑ e, (a c d e : ℕ) • classSum e`
       with **natural-number** coefficients (count solutions `x * y = z`) — this is the
       integrality workhorse. (MathComp: `gring` structure constants.)
+
+*Done in `ClassSum.lean` (standalone file, not `CharacterArith.lean` — parallel-work isolation + the plan's split clause). Structure constants: `classMulCoeff` (Nat.card of the solution set for the canonical rep `e.out`), `classMulCoeff_eq` (rep-independence), `classSum_mul`. Bonus: `classSum_mk_one`.*
 
 ### Task 4: algebraic integrality
 
