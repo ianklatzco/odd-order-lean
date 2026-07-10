@@ -98,6 +98,20 @@ files (master plan §7, milestone M4).
 - [ ] Upstream PRs to Mathlib: the Hall theorems, SZ conjugacy, `fitting`,
       π-cores are PR-ready modulo review polish (ordering in STATUS.md)
 
+## lean-eval submissions
+
+[`leaneval/`](leaneval/) contains self-contained lake workspaces packaging
+results from this repo as submissions to the lean-eval benchmark. Each
+subdirectory is its own lake project (own `lakefile.toml`, `lean-toolchain`,
+and vendored dependencies under `Submission/`) so it can be pointed at
+independently — the benchmark's CI walks any pointed-at content for
+matching lakefile names, rather than requiring this repo's own build.
+Currently:
+
+- [`finite_group_isSolvable_of_card_eq_prime_pow_mul_prime_pow`](leaneval/finite_group_isSolvable_of_card_eq_prime_pow_mul_prime_pow)
+  — Burnside's `p^a q^b` theorem, proved from `burnside_solvable`
+  (`OddOrder/Mathlib/RepresentationTheory/Burnside.lean`).
+
 ## Contributing (humans and agents)
 
 1. Read [`STATUS.md`](docs/superpowers/plans/STATUS.md) — state,
