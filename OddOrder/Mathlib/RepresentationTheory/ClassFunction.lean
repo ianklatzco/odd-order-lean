@@ -262,7 +262,7 @@ def cfInner (φ ψ : ClassFunction G) : ℂ :=
   (Fintype.card G : ℂ)⁻¹ * ∑ g : G, φ g * starRingEnd ℂ (ψ g)
 
 @[inherit_doc]
-scoped notation "⟪" φ ", " ψ "⟫_[" G "]" => ClassFunction.cfInner (G := G) φ ψ
+scoped notation "⟪" φ ", " ψ "⟫_[" G "]" => ClassFunction.cfInner (φ : ClassFunction G) ψ
 
 theorem cfInner_def (φ ψ : ClassFunction G) :
     ⟪φ, ψ⟫_[G] = (Fintype.card G : ℂ)⁻¹ * ∑ g : G, φ g * starRingEnd ℂ (ψ g) :=

@@ -1,7 +1,7 @@
 /-
-Copyright (c) 2026 Ian Klatzco. All rights reserved.
+Copyright (c) 2026 Rado Kirov. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Ian Klatzco
+Authors: Rado Kirov
 -/
 import OddOrder.Mathlib.RepresentationTheory.CharacterArith
 
@@ -192,16 +192,13 @@ namespace ClassFunction
 variable [Fintype G] {H : Subgroup G} [Fintype H]
 
 open scoped Classical in
-/-- **Frobenius reciprocity**: `⟪ind H φ, ψ⟫_[G] = ⟪φ, res H ψ⟫_[H]` (the right-hand side is
-spelled as a direct `cfInner` application rather than through the `⟪·,·⟫_[G]` notation, since
-that scoped notation's bracket slot only supports the literal identifier `G` it was declared
-with, not an arbitrary subgroup-coercion term). The proof swaps the order of a double sum over
-`G × G`, reindexes the inner sum by left multiplication (showing it is independent of the
-outer variable, using that `ψ` is a class function), and then restricts the resulting single
-sum over `G` to a sum over `↥H` (the extension-by-zero killing the rest). MathComp:
-`cfdot_cfInd` / `Frobenius_reciprocity`. -/
+/-- **Frobenius reciprocity**: `⟪ind H φ, ψ⟫_[G] = ⟪φ, res H ψ⟫_[H]`. The proof swaps the
+order of a double sum over `G × G`, reindexes the inner sum by left multiplication (showing
+it is independent of the outer variable, using that `ψ` is a class function), and then
+restricts the resulting single sum over `G` to a sum over `↥H` (the extension-by-zero killing
+the rest). MathComp: `cfdot_cfInd` / `Frobenius_reciprocity`. -/
 theorem cfInner_ind_eq_cfInner_res (φ : ClassFunction H) (ψ : ClassFunction G) :
-    ⟪ind H φ, ψ⟫_[G] = ClassFunction.cfInner φ (res H ψ) := by
+    ⟪ind H φ, ψ⟫_[G] = ⟪φ, res H ψ⟫_[H] := by
   classical
   have hG0 : (Fintype.card G : ℂ) ≠ 0 := Nat.cast_ne_zero.mpr Fintype.card_ne_zero
   -- Step 1: unfold `cfInner` and `ind`, and swap the order of summation.
@@ -252,11 +249,11 @@ theorem cfInner_ind_eq_cfInner_res (φ : ClassFunction H) (ψ : ClassFunction G)
 
 /-- The flipped form of Frobenius reciprocity, via conjugate-symmetry of `cfInner`. -/
 theorem cfInner_flip_res_eq_cfInner_flip_ind (ψ : ClassFunction G) (φ : ClassFunction H) :
-    ClassFunction.cfInner ψ (ind H φ) = ClassFunction.cfInner (res H ψ) φ := by
-  have h1 : ClassFunction.cfInner ψ (ind H φ)
-      = starRingEnd ℂ (ClassFunction.cfInner (ind H φ) ψ) := cfInner_conj_symm (ind H φ) ψ
-  have h2 : ClassFunction.cfInner (res H ψ) φ
-      = starRingEnd ℂ (ClassFunction.cfInner φ (res H ψ)) := cfInner_conj_symm φ (res H ψ)
+    ⟪ψ, ind H φ⟫_[G] = ⟪res H ψ, φ⟫_[H] := by
+  have h1 : ⟪ψ, ind H φ⟫_[G]
+      = starRingEnd ℂ ⟪ind H φ, ψ⟫_[G] := cfInner_conj_symm (ind H φ) ψ
+  have h2 : ⟪res H ψ, φ⟫_[H]
+      = starRingEnd ℂ ⟪φ, res H ψ⟫_[H] := cfInner_conj_symm φ (res H ψ)
   rw [h1, h2, cfInner_ind_eq_cfInner_res]
 
 end ClassFunction
