@@ -1,6 +1,8 @@
 # Port Status & Continuation Guide
 
 > **This is the resume point.** Any fresh session or subagent continuing the port reads this file first, then the plan it points to. Update this file (and commit) whenever a task completes.
+>
+> Newcomer-facing setup instructions and the top-level punchlist live in the repo [README](../../../README.md) — keep the two in sync: README carries the what/checkboxes, this file carries the how/conventions/detail.
 
 ## Current state (as of 2026-07-07, commit `72346a5`)
 
