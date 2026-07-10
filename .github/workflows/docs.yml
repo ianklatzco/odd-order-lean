@@ -1,0 +1,27 @@
+name: Documentation
+
+# doc-gen4 builds HTML docs for the project and its full dependency tree
+# (including Mathlib), which takes an hour or more of runner time — far too
+# slow for per-push CI. Run it on demand or on the weekly schedule.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * 1" # Mondays 04:00 UTC
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: docs
+  cancel-in-progress: false
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: leanprover/lean-action@v1
+      - uses: leanprover-community/docgen-action@v1

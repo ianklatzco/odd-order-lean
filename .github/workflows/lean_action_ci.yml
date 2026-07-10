@@ -2,14 +2,18 @@ name: Lean Action CI
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+# Docs generation lives in docs.yml (manual/weekly) — it is far too slow to
+# run per push. This workflow is the fast gate: sorry budget + build.
 permissions:
-  contents: read # Read access to repository contents
-  pages: write # Write access to GitHub Pages
-  id-token: write # Write access to ID tokens
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -27,4 +31,3 @@ jobs:
             exit 1
           fi
       - uses: leanprover/lean-action@v1
-      - uses: leanprover-community/docgen-action@v1
