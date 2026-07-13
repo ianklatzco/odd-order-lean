@@ -29,7 +29,7 @@ shows only `[propext, Classical.choice, Quot.sound]`.
 
 | theorem | location | statement |
 |---|---|---|
-| **Burnside `p^a q^b`** | `burnside_solvable` (`OddOrder/Mathlib/RepresentationTheory/Burnside.lean`) | a finite group of order `p^a·q^b` is solvable (no `p ≠ q` needed); concurrent with an independent GPT-5.6 lean-eval solution (2026-07-10 — see `formalization.yaml`) |
+| **Burnside `p^a q^b`** | `burnside_solvable` (`OddOrder/Mathlib/RepresentationTheory/Burnside.lean`) | a finite group of order `p^a·q^b` is solvable (no `p ≠ q` needed); not in Mathlib, though prior automated solutions exist on the lean-eval leaderboard since 2026-05 (see `formalization.yaml`) |
 | **P. Hall's theorems** | `Subgroup.exists_isHall`, `isHall_conj`, `IsPiGroup.le_isHall_conj` (`…/GroupTheory/Hall.lean`) | Hall π-subgroups of finite solvable groups exist, are conjugate, and cover π-subgroups; believed first in Lean |
 | **Schur–Zassenhaus, conjugacy half** | `IsComplement'.exists_conj_of_coprime` (`…/GroupTheory/SchurZassenhaus.lean`) | complements of a normal solvable Hall subgroup are conjugate (Mathlib has existence only) |
 | **Fitting subgroup** | `fitting_isNilpotent`, `fitting_centralizer_le` (`…/GroupTheory/Fitting.lean`) | Fitting's theorem and `C_G(F(G)) ≤ F(G)` for solvable `G` (B&G 1.3) |
