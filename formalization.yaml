@@ -59,7 +59,13 @@ sources:
     type: "specification / eval problem"
     license: "Apache-2.0"
     author_contacted: "no"
-    prior_work: ""
+    prior_work: >
+      An independent GPT-5.6 solution (Morgan-Griffiths, public gist, single-file
+      benchmark-targeted proof) passed the lean-eval comparator on 2026-07-10T08:59Z — the same
+      day this repo's proof landed. The two developments are independent: this one was produced
+      as reusable library infrastructure for the Feit–Thompson port (class-function/class-sum/
+      central-character stack shared with the port), not as a benchmark one-off, and no external
+      Lean solution was consulted.
   - title: "lean-eval Feit–Thompson problem (feit_thompson)"
     authors: ["Kim Morrison (submitter); Lean FRO (leanprover/lean-eval)"]
     id: "https://lean-lang.org/eval/problems/feit_thompson/ — statement identical to this repo's target theorem odd_order_solvable"
