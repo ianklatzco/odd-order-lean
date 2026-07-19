@@ -4,9 +4,15 @@
 >
 > Newcomer-facing setup instructions and the top-level punchlist live in the repo [README](../../../README.md) — keep the two in sync: README carries the what/checkboxes, this file carries the how/conventions/detail.
 
-## Current state (as of 2026-07-10, M2 Tasks 1–6 done — headline theorem landed)
+## Current state (as of 2026-07-19 — **M2 COMPLETE**)
 
-**M2 nearly complete** — Tasks 1, 2, 3, 4, 5, 6 of the [M2 plan](2026-07-07-m2-character-theory.md) are done, each by a Sonnet implementer + driving-session review (per-task reports in `.superpowers/sdd/`):
+**M2 is closed.** Task 7 (`cfAut`, commit `aefedd9`, Fable implementer + adversarial review, approved) delivered `ClassFunction.conjC` + `Irr.conj`/`conjEquiv` + the real-valuedness fixed-point lemma, and the coprime power twist `Irr.powTwist` (coprime-to-exponent), via a general σ-twisting engine on simple `MonoidAlgebra` submodules (MathComp's `map_repr` route — the dispatch's inner-product route was refuted, see `.superpowers/sdd/m2-task7-report.md`). All five earlier-reviewed M2 files plus CharAut.lean have now passed the adversarial gate (2026-07-13 review round + fixes in `e1044cf`).
+
+Milestone progress: M0 ✅ · M1 ~85% · **M2 ✅** · M3–M8 not started. Next up, in order: pre-BG gates (internal-action transfer layer, AbelemRepr D9 bridge, deferred consolidations), then the M3 plan (Frobenius groups + Wielandt — note: Frobenius' kernel theorem carries no novelty claim, six lean-eval systems have solved the eval statement; we build it as reusable port API). After M3, the two tracks (BG local analysis / PF character theory) run in parallel. Also on the record: `burnside_solvable`'s lean-eval submission comparator-passed 2026-07-14 (first Claude entry on that problem); the `feit_thompson` eval problem remains unsolved by all automated systems.
+
+## M2 state (as of 2026-07-10, Tasks 1–6)
+
+Tasks 1–6 of the [M2 plan](2026-07-07-m2-character-theory.md), each by a Sonnet implementer + driving-session review, subsequently all adversarially gate-reviewed (per-task reports in `.superpowers/sdd/`):
 
 | M2 task | Result | Commits |
 |---|---|---|
@@ -20,7 +26,7 @@
 
 Read `.superpowers/sdd/m2-task5-report.md` before touching `Burnside.lean` or attempting a similar analytic-number-theory argument elsewhere: it documents the Kronecker-vs-norm-product route choice, a `set`-on-`Type`-hides-instance-search gotcha, an `Algebra ℤ K` diamond on `CyclotomicField`, and the deliberate local duplication of the eigen-projection kit (kept out of `ClassFunction.lean` this round to keep the commit scoped).
 
-Next: **Task 7 (`cfAut`)** is the only M2 task left (closes M2 entirely).
+Task 7 (`cfAut`) closed 2026-07-19 — see Current state above.
 
 Environment note (this machine, `/home/rado/odd-order-lean`): disk is tight; the Mathlib olean cache was fetched **targeted** (`lake exe cache get .lake/packages/mathlib/Mathlib/<file>.lean …` for the project's transitive imports) rather than in full. If a new import pulls uncached Mathlib files, extend the fetch the same way instead of running a bare `lake exe cache get` (full cache + archives may not fit). The Coq checkout is *not* present here; use `docs/audit/survey-digest.md` for MathComp reference.
 
@@ -41,11 +47,11 @@ Environment note (this machine, `/home/rado/odd-order-lean`): disk is tight; the
 | 9. **Class functions, #Irr = #classes, 2nd orthogonality** | done | `4b9eedd`..`573a6aa`, fix `fc70f80` |
 | Phase-1 polish (final review fixes) | done | `72346a5` |
 
-Milestone progress: M0 ✅ · M1 ~85% · M2 ~95% (Tasks 9 + M2-1/2/3/4/5/6 done; remaining: cfAut) · M3–M8 not started. None of the 34 Coq theory files is ported yet — everything so far is Layer-0 prerequisites, per plan sequencing.
+None of the 34 Coq theory files is ported yet — everything so far is Layer-0 prerequisites, per plan sequencing. (Milestone tally lives in Current state at the top.)
 
 ## What to work on next (in order)
 
-1. **M2 completion** — [2026-07-07-m2-character-theory.md](2026-07-07-m2-character-theory.md): **Task 7 (cfAut)** is the last task and closes M2. Read the `.superpowers/sdd/m2-task*-report.md` friction notes before starting (if the scratch files are gone, the key points: `rfl`-bridge `restrictScalars`-ed equivs; `Representation.trivial_apply` and `Module.finrank_prod` need explicit `ℂ`; keep `[Fintype G]` scoped tightly or the unused-Fintype linter fires; prefer `MonoidAlgebra`-namespaced lemmas over `Finsupp` ones to dodge type-synonym `rw` failures; use `change` not `show` for definitional steps; `refine LinearMap.ext fun x => ?_` instead of bare `ext` near `Finsupp`-backed types; `set` on a `Type` hides it from typeclass search — don't alias cyclotomic-field-style types with `set`; dot notation can fail on `def`-unfolded Pi/Exists types, use prefix form like `IsPGroup.isNilpotent h` instead of `h.isNilpotent`).
+1. **Pre-BG gates** — internal-action transfer layer (`FixedPoints.subgroup`/`actionCommutator` ↔ centralizers/commutators for conjugation actions; Phase-1 final review rec 4), the `AbelemRepr.lean` D9 bridge, and the deferred consolidation list below. Then write the **M3 plan** (Frobenius groups + Wielandt) and execute it. Lean-proof friction notes from M2 (still apply to all future tasks: `rfl`-bridge `restrictScalars`-ed equivs; `Representation.trivial_apply` and `Module.finrank_prod` need explicit `ℂ`; keep `[Fintype G]` scoped tightly or the unused-Fintype linter fires; prefer `MonoidAlgebra`-namespaced lemmas over `Finsupp` ones to dodge type-synonym `rw` failures; use `change` not `show` for definitional steps; `refine LinearMap.ext fun x => ?_` instead of bare `ext` near `Finsupp`-backed types; `set` on a `Type` hides it from typeclass search — don't alias cyclotomic-field-style types with `set`; dot notation can fail on `def`-unfolded Pi/Exists types, use prefix form like `IsPGroup.isNilpotent h` instead of `h.isNilpotent`).
 2. **M1 remainder** — the D9 bridge (`AbelemRepr.lean`: G-stable elementary abelian section ⇝ `ZMod p`-module with G-action); remaining p-group material lands with M4 per plan.
 3. **Internal-action transfer layer** (final review, rec 4) — lemmas identifying `FixedPoints.subgroup A H` with centralizer intersections and `actionCommutator` with `⁅H,A⁆` for internal (conjugation) actions. **Do this before starting BG1**; it is the first M4-adjacent task.
 4. **M3** (Frobenius groups + Wielandt) — needs M2's induced-character formula for the kernel theorem.
@@ -65,7 +71,7 @@ Milestone progress: M0 ✅ · M1 ~85% · M2 ~95% (Tasks 9 + M2-1/2/3/4/5/6 done;
 - Coq statements mirrored at statement granularity for FT-specific parts; **follow the Coq file, not the book**, where they differ.
 - ℂ is the character coefficient field. Sums over elements use `[Fintype G]`; exported counting statements use `Nat.card` (policy paragraph in the M2 plan).
 - Conjugation spelling: `H.map (MulAut.conj g).toMonoidHom` everywhere. Coprime actions: external `[MulDistribMulAction A G]` + explicit coprimality (see CoprimeAction.lean module docstring).
-- Every new `.lean` file: standard 2026 **Rado Kirov** / Apache 2.0 header (per Rado, 2026-07-10; older files keep their existing headers); Mathlib style linters must pass; docstrings cite MathComp counterparts; update `docs/NAME_MAP.md`.
+- Every new `.lean` file: standard 2026 / Apache 2.0 header carrying **the driving collaborator's name** (Ian Klatzco or Rado Kirov — whoever's session created the file; amended 2026-07-19 to resolve the Ian-vs-Rado header conflict flagged in the Task-7 review; existing files keep their headers); Mathlib style linters must pass; docstrings cite MathComp counterparts; update `docs/NAME_MAP.md`.
 - Sorry budget: `.sorry-budget` (currently 1). Never weaken a statement to close a sorry; use the DONE_WITH_CONCERNS protocol (bump budget + `-- TODO(task-N):` + NAME_MAP "(stated)") only as documented in the plan.
 - Commit trailers: `Co-Authored-By: Claude ...` per session harness; do not push unless the driving session says to.
 

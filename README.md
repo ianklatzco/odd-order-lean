@@ -18,8 +18,12 @@ the formalization itself is agent-produced — see
 automation setup, and review status.
 
 **Status:** the target theorem is stated (and is the repo's single
-permitted `sorry`, enforced by CI). None of the 34 Coq theory files is
-ported yet — current work is the infrastructure layer. Live progress:
+permitted `sorry`, enforced by CI). The arithmetic character-theory
+milestone (M2) is **complete** — through Burnside `p^a q^b`, virtual
+characters, and the Galois action on characters — alongside the Phase-1
+solvable-group infrastructure. None of the 34 Coq theory files is ported
+yet; next up are the pre-BG gates and the Frobenius/Wielandt milestone.
+Live progress:
 [`docs/superpowers/plans/STATUS.md`](docs/superpowers/plans/STATUS.md).
 
 ## Main results so far
