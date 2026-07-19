@@ -191,6 +191,13 @@ theorem fixedPoints_conjAction_map_subtype (hA : A ≤ normalizer (H : Set G)) :
 
 /-!
 #### The action commutator of the conjugation action
+
+Convention note: Mathlib's commutator element is `⁅x, y⁆ = x * y * x⁻¹ * y⁻¹`
+(`commutatorElement_def`) while MathComp's is `[~ x, y] = x⁻¹ * y⁻¹ * x * y`
+(inverse convention). Both generate the *same* subgroup `⁅H, A⁆` (each generating set
+is the inverse-closure of the other, `⁅y, x⁆ = ⁅x, y⁆⁻¹`), so the NAME_MAP
+identification of `⁅H, A⁆` with `[~: H, A]` above is convention-safe: it is an
+identification of subgroups, not of the individual generators.
 -/
 
 open scoped commutatorElement in
@@ -255,7 +262,7 @@ variable {G : Type*} [Group G] {H A : Subgroup G}
 the finite solvable subgroup `H` and `|A|` is coprime to `|H|`, then
 `H = ⁅H, A⁆ * C_H(A)`, stated as a join (see `coprime_cent_prod_set_internal` for the
 setwise product).  MathComp: `coprime_cent_prod` (`[~: G, A] * 'C_G(A) = G`). -/
-theorem coprime_cent_prod_internal [Finite G] [IsSolvable H]
+theorem coprime_cent_prod_internal [Finite A] [Finite H] [IsSolvable H]
     (hA : A ≤ normalizer (H : Set G)) (hco : (Nat.card A).Coprime (Nat.card H)) :
     ⁅H, A⁆ ⊔ centralizer (A : Set G) ⊓ H = H := by
   letI := normalizerMulDistribMulAction hA
@@ -266,7 +273,7 @@ theorem coprime_cent_prod_internal [Finite G] [IsSolvable H]
 /-- Setwise-product form of `coprime_cent_prod_internal`, matching MathComp's
 `[~: G, A] * 'C_G(A) = G` verbatim (the join is a product because `C_H(A)` normalizes
 `⁅H, A⁆`). -/
-theorem coprime_cent_prod_set_internal [Finite G] [IsSolvable H]
+theorem coprime_cent_prod_set_internal [Finite A] [Finite H] [IsSolvable H]
     (hA : A ≤ normalizer (H : Set G)) (hco : (Nat.card A).Coprime (Nat.card H)) :
     ((⁅H, A⁆ : Subgroup G) : Set G) * ((centralizer (A : Set G) ⊓ H : Subgroup G) : Set G)
       = (H : Set G) := by
@@ -277,7 +284,7 @@ theorem coprime_cent_prod_set_internal [Finite G] [IsSolvable H]
 /-- **Coprime actions are commutator-stable, internal form** (B&G 1.6(b)): if `A`
 normalizes the finite solvable subgroup `H` coprimely, then `⁅⁅H, A⁆, A⁆ = ⁅H, A⁆`.
 MathComp: `coprime_commGid` (`[~: G, A, A] = [~: G, A]`). -/
-theorem coprime_commutator_eq_internal [Finite G] [IsSolvable H]
+theorem coprime_commutator_eq_internal [Finite A] [Finite H] [IsSolvable H]
     (hA : A ≤ normalizer (H : Set G)) (hco : (Nat.card A).Coprime (Nat.card H)) :
     ⁅⁅H, A⁆, A⁆ = ⁅H, A⁆ := by
   letI := normalizerMulDistribMulAction hA
@@ -290,7 +297,14 @@ theorem coprime_commutator_eq_internal [Finite G] [IsSolvable H]
 solvable of order coprime to `|A|`.  Then every `A`-fixed point of `H ⧸ N` (for the
 induced conjugation action) lifts to an element of `H` centralizing `A`.
 MathComp: `coprime_quotient_cent`, surjectivity direction of
-`'C_G(A) / H = 'C_(G / H)(A / H)`. -/
+`'C_G(A) / H = 'C_(G / H)(A / H)`.
+
+Caveat: unlike MathComp's `coprime_quotient_cent`, this internal form carries the extra
+hypothesis `hA : A ≤ normalizer (H : Set G)` (needed only to make sense of `'C_H(A)` as a
+subgroup of `H` at all, since the ambient MulDistribMulAction is `A` on `H`, not on `G`).
+Every BG call site has `hA` ambient already, but a porter of BGsection1:283/769 should
+double-check that the coprimality/normalizer rewrites at those lines still line up once
+weakened to this shape. -/
 theorem coprime_fixedPoints_quotient_surjective_internal [Finite A]
     (hA : A ≤ normalizer (H : Set G)) {N : Subgroup G} [Finite N] [IsSolvable N]
     (hNH : N ≤ H) (hHN : H ≤ normalizer (N : Set G)) (hAN : A ≤ normalizer (N : Set G))
@@ -345,7 +359,7 @@ theorem coprime_fixedPoints_quotient_eq_internal [Finite A]
 /-- **Existence of `A`-invariant Hall subgroups, internal form** (B&G 1.5(a)): if `A`
 normalizes the finite solvable subgroup `H` coprimely, then for every `π` there is a
 Hall π-subgroup `P` of `H` with `A ≤ 'N(P)`.  MathComp: `coprime_Hall_exists`. -/
-theorem coprime_hall_exists_internal (π : Set ℕ) [Finite G] [IsSolvable H]
+theorem coprime_hall_exists_internal (π : Set ℕ) [Finite A] [Finite H] [IsSolvable H]
     (hA : A ≤ normalizer (H : Set G)) (hco : (Nat.card A).Coprime (Nat.card H)) :
     ∃ P : Subgroup G, P ≤ H ∧ (P.subgroupOf H).IsHall π ∧ A ≤ normalizer (P : Set G) := by
   letI := normalizerMulDistribMulAction hA
@@ -359,7 +373,7 @@ theorem coprime_hall_exists_internal (π : Set ℕ) [Finite G] [IsSolvable H]
 `A`-invariant Hall π-subgroups of a finite solvable `H` normalized coprimely by `A`
 are conjugate by an element of `'C_H(A)`.  MathComp: `coprime_Hall_trans`
 (`exists2 x, x \in 'C_G(A) & H1 :=: H2 :^ x`). -/
-theorem coprime_hall_trans_internal {π : Set ℕ} [Finite G] [IsSolvable H]
+theorem coprime_hall_trans_internal {π : Set ℕ} [Finite A] [Finite H] [IsSolvable H]
     (hA : A ≤ normalizer (H : Set G)) (hco : (Nat.card A).Coprime (Nat.card H))
     {P Q : Subgroup G} (hPH : P ≤ H) (hP : (P.subgroupOf H).IsHall π)
     (hPA : A ≤ normalizer (P : Set G)) (hQH : Q ≤ H) (hQ : (Q.subgroupOf H).IsHall π)
@@ -387,8 +401,12 @@ example [Finite G] [IsSolvable H] (hA : A ≤ normalizer (H : Set G))
   rw [← coprime_cent_prod_internal hA hco]
   exact sup_le h1 h2
 
--- BGsection1, proof of 1.8 (`-{1}(coprime_cent_prod _ coGA) ... mulSg`): every
--- element of `H` factors as a commutator part times a centralizing part.
+-- BGsection1, proof of 1.8 (`-{1}(coprime_cent_prod _ coGA) ...`): every element of
+-- `H` factors as a commutator part times a centralizing part, via `Set.mem_mul` on
+-- the setwise-product form. (Not `mulSg`: that MathComp lemma is set-product
+-- *monotonicity*, `A \subset A' -> A * B \subset A' * B` — mirrored on the Mathlib
+-- side by `Set.mul_subset_mul_right`/`_left`, not by this element-factorization
+-- example.)
 example [Finite G] [IsSolvable H] (hA : A ≤ normalizer (H : Set G))
     (hco : (Nat.card A).Coprime (Nat.card H)) {g : G} (hg : g ∈ H) :
     ∃ x ∈ ⁅H, A⁆, ∃ c ∈ centralizer (A : Set G) ⊓ H, x * c = g := by
