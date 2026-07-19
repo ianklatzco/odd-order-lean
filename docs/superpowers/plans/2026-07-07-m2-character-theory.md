@@ -196,15 +196,38 @@ task plan (they need the PF context to state well).
 
 ### Task 7: `cfAut` (Galois action on class functions)
 
-- [ ] `ClassFunction.cfAut (σ : ℂ ≃+* ℂ)`-shaped action — MathComp uses ring
+- [x] `ClassFunction.cfAut (σ : ℂ ≃+* ℂ)`-shaped action — MathComp uses ring
       automorphisms of the *algebraics*; decision: act by `σ : ℂ →+* ℂ` with the
-      restriction that it fixes… **resolve at task start**: PF usage is `φ^*` (complex
-      conjugation) and `(φ^u)` for cyclotomic Galois elements. Minimal honest version:
-      (i) conjugation `ClassFunction.conj` (uses `char_inv` to show it permutes Irr), and
-      (ii) the `ZMod`-power twist `φ^(u) g := φ (g ^ u)` for `u` coprime to the exponent,
-      with "permutes Irr" via integrality (Task 4). State only what PF1 consumes.
-- [ ] `Irr.conj : Irr G ≃ Irr G` (the permutation) + fixed-point lemma
-      (`χ = χ.conj ↔ ∀ g, χ g ∈ ℝ`-form).
+      restriction that it fixes… **RESOLVED at task start (2026-07-19): minimal honest
+      version, no bundled `cfAut σ` framework** — exactly (i) conjugation and (ii) the
+      coprime power twist, as below. *Route deviation (documented in `CharAut.lean`'s
+      design notes): "permutes Irr via integrality (Task 4)" is **not** how it landed —
+      the inner-product coefficient `⟪χ^(u), ψ⟫ = |G|⁻¹ ∑ …` is `|G|⁻¹` times an algebraic
+      integer, not an algebraic integer on the nose, and no orthogonality-only closure of
+      that gap is known (the analogous integrality in first orthogonality itself comes from
+      `dim Hom`). Instead both actions go through MathComp's own `map_repr` route, adapted
+      from matrices to the module setting: the engine
+      `MonoidAlgebra.exists_isSimpleModule_moduleCharacter_comp` applies any `σ : ℂ ≃+* ℂ`
+      coefficientwise to the regular module (`mapRingEquiv`), carrying simple submodules to
+      simple submodules with `σ`-twisted character. For the twist, the needed automorphism
+      (`ζ ↦ ζ^u` on exponent-order roots of unity, extended to `ℂ`) is produced by
+      `Complex.exists_ringEquiv_pow_of_coprime` (cyclotomic `autEquivPow` + transcendence-
+      basis extension `IsAlgClosure.equivOfEquiv`), and `Irr.apply_pow` identifies
+      `g ↦ χ (g^u)` with the valuewise `σ`-image via the Task-4/Task-9 eigenvalue
+      decomposition `trace_eq_sum_zeta_pow_mul_natCast`. Twist hypothesis: coprime to
+      `Monoid.exponent G` (weaker than `Nat.card G`; converter
+      `Nat.Coprime.of_natCard_group`). Delivered in
+      `OddOrder/Mathlib/RepresentationTheory/CharAut.lean`: `ClassFunction.conjC`
+      (MathComp `cfConjC`; named `conjC` since `ClassFunction.conj_apply` is the Task-9
+      invariance lemma), `ClassFunction.powTwist` (class function for every `u : ℕ`),
+      `Irr.powTwist` + `Irr.powTwist_bijective` + `Irr.powTwist_powTwist`.*
+- [x] `Irr.conj : Irr G ≃ Irr G` (the permutation) + fixed-point lemma
+      (`χ = χ.conj ↔ ∀ g, χ g ∈ ℝ`-form). *Delivered as `Irr.conj : Irr G → Irr G` (a plain
+      function, so the fixed-point lemma keeps the dot-notation shape `χ.conj = χ`) plus
+      the packaged permutation `Irr.conjEquiv : Equiv.Perm (Irr G)` (via `conj_conj`
+      involutivity — MathComp `conjC_IirrK`); fixed-point lemma `Irr.conj_eq_self_iff :
+      χ.conj = χ ↔ ∀ g, ∃ r : ℝ, χ g = r`, with sanity fact `Irr.conj_one` (PF (1.1)
+      `odd_eq_conj_irr1` is stateable as `χ.conj = χ ↔ χ = Irr.one`).*
 
 ---
 
