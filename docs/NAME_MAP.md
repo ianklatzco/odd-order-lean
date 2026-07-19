@@ -30,14 +30,23 @@ Lean/Mathlib ports, per `docs/superpowers/plans/2026-07-06-odd-order-port.md` §
 | `pcore_char` | `Subgroup.pcore_characteristic` | `OddOrder/Mathlib/GroupTheory/PiGroup.lean` |
 | `pcore_max` | `Subgroup.pcore_max` | `OddOrder/Mathlib/GroupTheory/PiGroup.lean` |
 | `A \subset 'N(H)` (A-invariance, external form) | `Subgroup.SMulInvariant` | `OddOrder/Mathlib/GroupTheory/CoprimeAction.lean` |
+| `A \subset 'N(H)` (A-invariance, internal form; canonical spelling) | `A ≤ normalizer (H : Set G)`; bridges `Subgroup.subgroupOf_smulInvariant_iff`, `Subgroup.le_normalizer_iff_forall_map_conj_eq` | `OddOrder/Mathlib/GroupTheory/CoprimeActionInternal.lean` |
+| `[~: H, A]` (internal action commutator dictionary) | `Subgroup.actionCommutator_conjAction_eq`, `Subgroup.actionCommutator_conjAction_map_subtype` | `OddOrder/Mathlib/GroupTheory/CoprimeActionInternal.lean` |
+| `'C_H(A)` (internal fixed-point dictionary) | `Subgroup.fixedPoints_conjAction_eq` (`= (centralizer ↑A ⊓ H).subgroupOf H`), `Subgroup.mem_fixedPoints_conjAction_iff`, `Subgroup.fixedPoints_conjAction_map_subtype` | `OddOrder/Mathlib/GroupTheory/CoprimeActionInternal.lean` |
+| `commg_subl`-for-normalizing-`A` (`[~: H, A] \subset H`) | `Subgroup.commutator_le_of_le_normalizer` (alias of Mathlib's `le_normalizer_iff_commutator_le_left`) | `OddOrder/Mathlib/GroupTheory/CoprimeActionInternal.lean` |
 | `[~: H, A]` (commutator with an action, external form) | `Subgroup.actionCommutator` | `OddOrder/Mathlib/GroupTheory/CoprimeAction.lean` |
 | `'C_G(A)` / `gacent` (external action) | `FixedPoints.subgroup` | Mathlib (`Mathlib/GroupTheory/GroupAction/Defs.lean`) |
 | `coprime_quotient_cent` | `coprime_fixedPoints_quotient_surjective`, `coprime_fixedPoints_quotient_eq` | `OddOrder/Mathlib/GroupTheory/CoprimeAction.lean` |
+| `coprime_quotient_cent` (internal form) | `coprime_fixedPoints_quotient_surjective_internal`, `coprime_fixedPoints_quotient_eq_internal` | `OddOrder/Mathlib/GroupTheory/CoprimeActionInternal.lean` |
 | `coprime_cent_prod` | `coprime_cent_prod` | `OddOrder/Mathlib/GroupTheory/CoprimeAction.lean` |
+| `coprime_cent_prod` (internal form) | `coprime_cent_prod_internal` (join), `coprime_cent_prod_set_internal` (setwise product) | `OddOrder/Mathlib/GroupTheory/CoprimeActionInternal.lean` |
 | `coprime_commGid` | `coprime_commutator_eq` | `OddOrder/Mathlib/GroupTheory/CoprimeAction.lean` |
+| `coprime_commGid` (internal form) | `coprime_commutator_eq_internal` | `OddOrder/Mathlib/GroupTheory/CoprimeActionInternal.lean` |
 | `coprime_abelian_cent_dprod` | `coprime_abelian_cent_dprod` | `OddOrder/Mathlib/GroupTheory/CoprimeAction.lean` |
 | `coprime_Hall_exists` | `coprime_hall_exists` | `OddOrder/Mathlib/GroupTheory/CoprimeAction.lean` |
+| `coprime_Hall_exists` (internal form) | `coprime_hall_exists_internal` | `OddOrder/Mathlib/GroupTheory/CoprimeActionInternal.lean` |
 | `coprime_Hall_trans` | `coprime_hall_trans` | `OddOrder/Mathlib/GroupTheory/CoprimeAction.lean` |
+| `coprime_Hall_trans` (internal form) | `coprime_hall_trans_internal` | `OddOrder/Mathlib/GroupTheory/CoprimeActionInternal.lean` |
 | `p_natP` (`{p}`-number is a `p`-power) | `Nat.IsPiNumber.exists_eq_pow` | `OddOrder/Mathlib/GroupTheory/PiGroup.lean` |
 | `Fitting` (`'F(G)`) | `fitting` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
 | `Fitting_max` | `fitting_max` | `OddOrder/Mathlib/GroupTheory/Fitting.lean` |
