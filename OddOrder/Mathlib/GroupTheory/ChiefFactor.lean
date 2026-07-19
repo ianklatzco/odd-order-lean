@@ -29,8 +29,14 @@ group is elementary abelian for some prime `p`.
   normal subgroup.
 * `Subgroup.exists_isMinNormal_le`: every nontrivial normal subgroup of a
   finite group contains a minimal normal subgroup of the ambient group.
+* `Subgroup.isElementaryAbelian_of_minimal`: the predicate-parameterized core of
+  the minimality argument: a nontrivial finite solvable subgroup that is minimal
+  among nontrivial subgroups satisfying a predicate `P` (closed under the derived
+  subgroup and under prime-torsion subgroups) is elementary abelian.
 * `Subgroup.IsMinNormal.isElementaryAbelian`: every minimal normal subgroup of
-  a finite solvable group is elementary abelian for some prime `p`.
+  a finite solvable group is elementary abelian for some prime `p` (the core
+  lemma with `P := Subgroup.Normal`; `CoprimeAction.lean` instantiates the core
+  with `P := fun M => M.Normal ∧ M.SMulInvariant A`).
 
 These correspond to MathComp's `minnormal`, `p.-abelem` and
 `minnormal_solvable_abelem` (`minnormal_solvable`).
@@ -104,6 +110,72 @@ theorem exists_isMinNormal_le [Finite G] {H : Subgroup G} (hH : H.Normal) (hne :
   exact ⟨N, ⟨hnorm, hbot,
     fun M hM hleM hbotM ↦ le_antisymm hleM (hmin ⟨⟨hM, hbotM⟩, hleM.trans hle⟩ hleM)⟩, hle⟩
 
+/-- The commutator subgroup of a nontrivial solvable subgroup is a proper subgroup:
+`⁅N, N⁆ < N` when `N ≠ ⊥` and `N` is solvable *as a group* (Mathlib's
+`IsSolvable.commutator_lt_of_ne_bot` requires the ambient group to be solvable).
+
+This corresponds to MathComp's `sol_der1_proper`. -/
+theorem commutator_lt_of_isSolvable {N : Subgroup G} [IsSolvable N] (hbot : N ≠ ⊥) :
+    ⁅N, N⁆ < N := by
+  rw [← N.nontrivial_iff_ne_bot] at hbot
+  rw [← N.range_subtype, MonoidHom.range_eq_map, ← map_commutator,
+    map_subtype_lt_map_subtype]
+  exact IsSolvable.commutator_lt_top_of_nontrivial N
+
+/-- **Predicate-parameterized core of the "minimal ⇒ elementary abelian" argument**
+(the engine of MathComp's `minnormal_solvable_abelem`): let `M` be a nontrivial
+finite solvable subgroup, minimal among nontrivial subgroups of `M` satisfying a
+predicate `P`.  If `P` holds for the derived subgroup `⁅M, M⁆` and for every
+prime-torsion subgroup `{g ∈ M | g ^ q = 1}` (specified by its membership
+predicate, since it is only a subgroup once `M` is known to be abelian), then `M`
+is elementary abelian for some prime `p`.
+
+Consumers: `Subgroup.IsMinNormal.isElementaryAbelian` below (`P := Normal`) and
+`isElementaryAbelian_of_min_smulInvariant` in `CoprimeAction.lean`
+(`P := fun M ↦ M.Normal ∧ M.SMulInvariant A`). -/
+theorem isElementaryAbelian_of_minimal {P : Subgroup G → Prop} {M : Subgroup G}
+    [Finite M] [IsSolvable M] (hbot : M ≠ ⊥)
+    (hmin : ∀ M' : Subgroup G, P M' → M' ≠ ⊥ → M' ≤ M → M' = M)
+    (hder : P ⁅M, M⁆)
+    (htor : ∀ q : ℕ, q.Prime → ∀ K : Subgroup G,
+      (∀ g, g ∈ K ↔ g ∈ M ∧ g ^ q = 1) → P K) :
+    ∃ p, p.Prime ∧ IsElementaryAbelian p M := by
+  -- Step 1: `M` is abelian, since `⁅M, M⁆` is a proper (by solvability) subgroup
+  -- of `M` satisfying `P`, hence trivial by minimality.
+  have hcomm : ∀ a ∈ M, ∀ b ∈ M, a * b = b * a := by
+    have hlt : ⁅M, M⁆ < M := commutator_lt_of_isSolvable hbot
+    have hcb : ⁅M, M⁆ = ⊥ := by
+      by_contra h
+      exact hlt.ne (hmin _ hder h hlt.le)
+    intro a ha b hb
+    have h1 : ⁅a, b⁆ ∈ (⊥ : Subgroup G) := hcb ▸ commutator_mem_commutator ha hb
+    rwa [mem_bot, commutatorElement_eq_one_iff_mul_comm] at h1
+  -- Step 2: pick a prime `p` dividing the order of `M`.
+  obtain ⟨p, hp, hpdvd⟩ := Nat.exists_prime_and_dvd (M.one_lt_card_iff_ne_bot.mpr hbot).ne'
+  haveI : Fact p.Prime := ⟨hp⟩
+  -- Step 3: the elements of `M` killed by `p` form a subgroup of `G` (as `M` is
+  -- abelian), satisfying `P` by `htor`, and nontrivial by Cauchy's theorem;
+  -- by minimality it is all of `M`, so `M` has exponent `p`.
+  let Ω : Subgroup G :=
+    { carrier := {g | g ∈ M ∧ g ^ p = 1}
+      one_mem' := ⟨M.one_mem, one_pow p⟩
+      mul_mem' := fun {a b} ha hb ↦ ⟨M.mul_mem ha.1 hb.1, by
+        rw [Commute.mul_pow (hcomm a ha.1 b hb.1), ha.2, hb.2, one_mul]⟩
+      inv_mem' := fun {a} ha ↦ ⟨M.inv_mem ha.1, by rw [inv_pow, ha.2, inv_one]⟩ }
+  have hΩP : P Ω := htor p hp Ω fun g ↦ Iff.rfl
+  obtain ⟨x, hx⟩ := exists_prime_orderOf_dvd_card' (G := M) p hpdvd
+  have hxΩ : (x : G) ∈ Ω := ⟨x.2, by rw [← hx]; exact_mod_cast pow_orderOf_eq_one x⟩
+  have hΩbot : Ω ≠ ⊥ := by
+    intro hbot'
+    have hx1 : (x : G) = 1 := by rwa [hbot', mem_bot] at hxΩ
+    have : x = 1 := by exact_mod_cast hx1
+    rw [this, orderOf_one] at hx
+    exact hp.ne_one hx.symm
+  have hΩM : Ω = M := hmin Ω hΩP hΩbot fun g hg ↦ hg.1
+  refine ⟨p, hp, fun a b ↦ Subtype.ext (hcomm a a.2 b b.2), fun g ↦ ?_⟩
+  have hg : (g : G) ∈ Ω := hΩM.symm ▸ g.2
+  exact Subtype.ext (by push_cast; exact hg.2)
+
 /-- **Minimal normal subgroups of finite solvable groups are elementary
 abelian**: if `N` is a minimal normal subgroup of a finite solvable group `G`,
 then there is a prime `p` such that `N` is commutative and every element of
@@ -114,42 +186,10 @@ theorem IsMinNormal.isElementaryAbelian [Finite G] [IsSolvable G] {N : Subgroup 
     (hN : N.IsMinNormal) : ∃ p, p.Prime ∧ IsElementaryAbelian p N := by
   obtain ⟨hnorm, hbot, hmin⟩ := hN
   haveI := hnorm
-  -- Step 1: `N` is abelian, since `⁅N, N⁆` is a proper (by solvability) normal
-  -- subgroup of `G` contained in `N`, hence trivial by minimality.
-  have hcomm : ∀ a ∈ N, ∀ b ∈ N, a * b = b * a := by
-    have hlt : ⁅N, N⁆ < N := IsSolvable.commutator_lt_of_ne_bot hbot
-    have hcb : ⁅N, N⁆ = ⊥ := by
-      by_contra h
-      exact hlt.ne (hmin _ inferInstance hlt.le h)
-    intro a ha b hb
-    have h1 : ⁅a, b⁆ ∈ (⊥ : Subgroup G) := hcb ▸ commutator_mem_commutator ha hb
-    rwa [mem_bot, commutatorElement_eq_one_iff_mul_comm] at h1
-  -- Step 2: pick a prime `p` dividing the order of `N`.
-  obtain ⟨p, hp, hpdvd⟩ := Nat.exists_prime_and_dvd (N.one_lt_card_iff_ne_bot.mpr hbot).ne'
-  haveI : Fact p.Prime := ⟨hp⟩
-  -- Step 3: the elements of `N` killed by `p` form a subgroup of `G` (as `N` is
-  -- abelian), normal in `G` (as `N` is), and nontrivial by Cauchy's theorem;
-  -- by minimality it is all of `N`, so `N` has exponent `p`.
-  let Ω : Subgroup G :=
-    { carrier := {g | g ∈ N ∧ g ^ p = 1}
-      one_mem' := ⟨N.one_mem, one_pow p⟩
-      mul_mem' := fun {a b} ha hb ↦ ⟨N.mul_mem ha.1 hb.1, by
-        rw [Commute.mul_pow (hcomm a ha.1 b hb.1), ha.2, hb.2, one_mul]⟩
-      inv_mem' := fun {a} ha ↦ ⟨N.inv_mem ha.1, by rw [inv_pow, ha.2, inv_one]⟩ }
-  have hΩnorm : Ω.Normal :=
-    ⟨fun a ha g ↦ ⟨hnorm.conj_mem a ha.1 g, by
-      rw [conj_pow, ha.2, mul_one, mul_inv_cancel]⟩⟩
-  obtain ⟨x, hx⟩ := exists_prime_orderOf_dvd_card' (G := N) p hpdvd
-  have hxΩ : (x : G) ∈ Ω := ⟨x.2, by rw [← hx]; exact_mod_cast pow_orderOf_eq_one x⟩
-  have hΩbot : Ω ≠ ⊥ := by
-    intro hbot'
-    have hx1 : (x : G) = 1 := by rwa [hbot', mem_bot] at hxΩ
-    have : x = 1 := by exact_mod_cast hx1
-    rw [this, orderOf_one] at hx
-    exact hp.ne_one hx.symm
-  have hΩN : Ω = N := hmin Ω hΩnorm (fun g hg ↦ hg.1) hΩbot
-  refine ⟨p, hp, fun a b ↦ Subtype.ext (hcomm a a.2 b b.2), fun g ↦ ?_⟩
-  have hg : (g : G) ∈ Ω := hΩN.symm ▸ g.2
-  exact Subtype.ext (by push_cast; exact hg.2)
+  refine isElementaryAbelian_of_minimal (P := fun M ↦ M.Normal) hbot
+    (fun M' h1 h2 h3 ↦ hmin M' h1 h3 h2) inferInstance fun q _hq K hK ↦ ?_
+  refine ⟨fun a ha g ↦ ?_⟩
+  rw [hK] at ha ⊢
+  exact ⟨hnorm.conj_mem a ha.1 g, by rw [conj_pow, ha.2, mul_one, mul_inv_cancel]⟩
 
 end Subgroup

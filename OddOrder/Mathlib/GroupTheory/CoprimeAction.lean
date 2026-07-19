@@ -518,16 +518,6 @@ private theorem exists_mul_mem_fixedPoints_of_isMulCommutative [Finite A]
     _ = (a • g) * ((g⁻¹ * (a • g))⁻¹ * (τ : G)) := by rw [hsmulτ a]; push_cast; rfl
     _ = g * (τ : G) := by group
 
-/-- The commutator subgroup of a solvable subgroup is strictly smaller (the ambient
-group need not be solvable).  This is `IsSolvable.commutator_lt_of_ne_bot` with the
-solvability hypothesis on the subgroup itself. -/
-private theorem commutator_lt_of_isSolvable {N : Subgroup G} [IsSolvable N]
-    (hbot : N ≠ ⊥) : ⁅N, N⁆ < N := by
-  rw [← N.nontrivial_iff_ne_bot] at hbot
-  rw [← N.range_subtype, MonoidHom.range_eq_map, ← map_commutator,
-    map_subtype_lt_map_subtype]
-  exact IsSolvable.commutator_lt_top_of_nontrivial N
-
 universe u v
 
 /-- Auxiliary strong induction on `Nat.card N` for
@@ -814,49 +804,25 @@ private theorem exists_min_normal_smulInvariant (A : Type v) (G : Type u) [Group
     fun M' h1 h2 h3 hle => le_antisymm hle (hmin ⟨h1, h2, h3⟩ hle)⟩
 
 /-- A minimal `A`-invariant normal subgroup that is itself solvable is elementary
-abelian (`Subgroup.IsMinNormal.isElementaryAbelian` decorated with invariance). -/
+abelian (`Subgroup.IsMinNormal.isElementaryAbelian` decorated with invariance; both
+are instances of the predicate-parameterized core
+`Subgroup.isElementaryAbelian_of_minimal`). -/
 private theorem isElementaryAbelian_of_min_smulInvariant {A G : Type*} [Group A]
     [Group G] [MulDistribMulAction A G] [Finite G] {M : Subgroup G} [M.Normal]
     [M.SMulInvariant A] [IsSolvable M] (hbot : M ≠ ⊥)
     (hmin : ∀ M' : Subgroup G, M'.Normal → M'.SMulInvariant A → M' ≠ ⊥ → M' ≤ M →
       M' = M) :
     ∃ p, p.Prime ∧ IsElementaryAbelian p M := by
-  -- Step 1: `M` is abelian, since `⁅M, M⁆` is normal, invariant and proper.
-  have hcomm : ∀ a ∈ M, ∀ b ∈ M, a * b = b * a := by
-    have hlt : ⁅M, M⁆ < M := commutator_lt_of_isSolvable hbot
-    have hcb : ⁅M, M⁆ = ⊥ := by
-      by_contra h
-      exact hlt.ne (hmin _ inferInstance inferInstance h hlt.le)
-    intro a ha b hb
-    have h1 : ⁅a, b⁆ ∈ (⊥ : Subgroup G) := hcb ▸ commutator_mem_commutator ha hb
-    rwa [mem_bot, commutatorElement_eq_one_iff_mul_comm] at h1
-  -- Step 2: pick a prime `p` dividing the order of `M`.
-  obtain ⟨p, hp, hpdvd⟩ := Nat.exists_prime_and_dvd (M.one_lt_card_iff_ne_bot.mpr hbot).ne'
-  haveI : Fact p.Prime := ⟨hp⟩
-  -- Step 3: the `p`-torsion subgroup is normal, invariant and nontrivial, hence `M`.
-  let Ω : Subgroup G :=
-    { carrier := {g | g ∈ M ∧ g ^ p = 1}
-      one_mem' := ⟨M.one_mem, one_pow p⟩
-      mul_mem' := fun {a b} ha hb => ⟨M.mul_mem ha.1 hb.1, by
-        rw [Commute.mul_pow (hcomm a ha.1 b hb.1), ha.2, hb.2, one_mul]⟩
-      inv_mem' := fun {a} ha => ⟨M.inv_mem ha.1, by rw [inv_pow, ha.2, inv_one]⟩ }
-  have hΩnorm : Ω.Normal :=
-    ⟨fun a ha g => ⟨‹M.Normal›.conj_mem a ha.1 g, by
-      rw [conj_pow, ha.2, mul_one, mul_inv_cancel]⟩⟩
-  have hΩinv : Ω.SMulInvariant A :=
-    ⟨fun a g hg => ⟨SMulInvariant.smul_mem a hg.1, by rw [← smul_pow', hg.2, smul_one]⟩⟩
-  obtain ⟨x, hx⟩ := exists_prime_orderOf_dvd_card' (G := M) p hpdvd
-  have hxΩ : (x : G) ∈ Ω := ⟨x.2, by rw [← hx]; exact_mod_cast pow_orderOf_eq_one x⟩
-  have hΩbot : Ω ≠ ⊥ := by
-    intro hbot'
-    have hx1 : (x : G) = 1 := by rwa [hbot', mem_bot] at hxΩ
-    have hx1' : x = 1 := by exact_mod_cast hx1
-    rw [hx1', orderOf_one] at hx
-    exact hp.ne_one hx.symm
-  have hΩM : Ω = M := hmin Ω hΩnorm hΩinv hΩbot fun g hg => hg.1
-  refine ⟨p, hp, fun a b => Subtype.ext (hcomm a a.2 b b.2), fun g => ?_⟩
-  have hg : (g : G) ∈ Ω := hΩM.symm ▸ g.2
-  exact Subtype.ext (by push_cast; exact hg.2)
+  refine Subgroup.isElementaryAbelian_of_minimal
+    (P := fun M' => M'.Normal ∧ M'.SMulInvariant A) hbot
+    (fun M' h1 h2 h3 => hmin M' h1.1 h1.2 h2 h3) ⟨inferInstance, inferInstance⟩
+    fun q _hq K hK => ⟨?_, ?_⟩
+  · refine ⟨fun a ha g => ?_⟩
+    rw [hK] at ha ⊢
+    exact ⟨‹M.Normal›.conj_mem a ha.1 g, by rw [conj_pow, ha.2, mul_one, mul_inv_cancel]⟩
+  · refine ⟨fun a g hg => ?_⟩
+    rw [hK] at hg ⊢
+    exact ⟨SMulInvariant.smul_mem a hg.1, by rw [← smul_pow', hg.2, smul_one]⟩
 
 open SemidirectProduct in
 /-- In the coprime, `G`-solvable setting, an `A`-invariant normal Hall
