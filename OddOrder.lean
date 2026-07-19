@@ -9,6 +9,7 @@ import OddOrder.Mathlib.GroupTheory.ChiefFactor
 import OddOrder.Mathlib.GroupTheory.CoprimeAction
 import OddOrder.Mathlib.GroupTheory.CoprimeActionInternal
 import OddOrder.Mathlib.GroupTheory.Fitting
+import OddOrder.Mathlib.GroupTheory.Frobenius
 import OddOrder.Mathlib.GroupTheory.Hall
 import OddOrder.Mathlib.GroupTheory.PiGroup
 import OddOrder.Mathlib.GroupTheory.SchurZassenhaus

@@ -125,6 +125,39 @@ Lean/Mathlib ports, per `docs/superpowers/plans/2026-07-06-odd-order-port.md` §
 | `abelem_mx_irrP` (approximate; minimal normal ↔ irreducible) | `Subgroup.isMinNormal_iff_isIrreducible`, `Subgroup.isMinNormal_iff_isSimpleModule` (internal); `IsElementaryAbelian.isIrreducible_repr_iff` (abstract actor); surjective-precomposition bridge `Representation.isIrreducible_comp_iff` | `OddOrder/Mathlib/GroupTheory/AbelemRepr.lean` |
 | `rker_abelem` (kernel is the centralizer) | `IsElementaryAbelian.conjRepr_ker` (`= centralizer ↑V`); subgroup-actor form `IsElementaryAbelian.repr_ker_of_le_normalizer` (`'C_A(E)` shape of BGsection1); abstract membership `IsElementaryAbelian.mem_ker_repr_iff` | `OddOrder/Mathlib/GroupTheory/AbelemRepr.lean` |
 | `abelem_mx_faithful` / `kquo_mx_faithful` (approximate; `mx_faithful` of the quotient representation) | `IsElementaryAbelian.conjQuotientRepr` (representation of `G ⧸ centralizer ↑V`), `IsElementaryAbelian.conjQuotientRepr_injective` | `OddOrder/Mathlib/GroupTheory/AbelemRepr.lean` |
+| `semiregular K H` (`frobenius.v`) | `Subgroup.IsSemiregular` (mem forms `IsSemiregular.eq_one_of_commute`, `isSemiregular_iff`) | `OddOrder/Mathlib/GroupTheory/Frobenius.lean` |
+| `semiprime K H` (`frobenius.v`) | `Subgroup.IsSemiprime` (mem form `IsSemiprime.commute_iff`) | `OddOrder/Mathlib/GroupTheory/Frobenius.lean` |
+| `semiregular1l` / `semiregular1r` | `Subgroup.isSemiregular_bot_left` / `Subgroup.isSemiregular_bot_right` | `OddOrder/Mathlib/GroupTheory/Frobenius.lean` |
+| `semiregular_sym` | `Subgroup.IsSemiregular.symm` | `OddOrder/Mathlib/GroupTheory/Frobenius.lean` |
+| `semiregularS` | `Subgroup.IsSemiregular.mono` | `OddOrder/Mathlib/GroupTheory/Frobenius.lean` |
+| `semiprime_regular` | `Subgroup.IsSemiprime.isSemiregular` (converse `IsSemiregular.isSemiprime` holds unconditionally; bundled `isSemiregular_iff_isSemiprime`) | `OddOrder/Mathlib/GroupTheory/Frobenius.lean` |
+| `cent_semiregular` | `Subgroup.IsSemiregular.centralizer_inf_eq_bot` | `OddOrder/Mathlib/GroupTheory/Frobenius.lean` |
+| `cent_semiprime` | `Subgroup.IsSemiprime.centralizer_inf_eq` (subgroup-restriction corollary `IsSemiprime.of_le`) | `OddOrder/Mathlib/GroupTheory/Frobenius.lean` |
+| `[Frobenius G = K ><| H]` (`Frobenius_group_with_kernel_and_complement`; the `><|` bundles `K <| G` — see the module docstring for the counterexample showing the counting facts are false without it) | `Subgroup.IsFrobenius` (Prop structure: `isComplement'`, `normal`, `ker_ne_bot`, `compl_ne_bot`, `semiregular`) | `OddOrder/Mathlib/GroupTheory/Frobenius.lean` |
+| `Frobenius_semiregularP` (B&G 3.1) | definitional: `Subgroup.IsFrobenius.mk` / `.semiregular` | `OddOrder/Mathlib/GroupTheory/Frobenius.lean` |
+| `Frobenius_context` | `Subgroup.IsFrobenius.context` (plus field projections and `ker_ne_top`/`compl_ne_top`) | `OddOrder/Mathlib/GroupTheory/Frobenius.lean` |
+| `prime_FrobeniusP` | `Subgroup.isFrobenius_iff_of_prime_card` | `OddOrder/Mathlib/GroupTheory/Frobenius.lean` |
+| `Frobenius_reg_ker` / `Frobenius_reg_compl` | `Subgroup.IsFrobenius.semiregular` / `Subgroup.IsFrobenius.semiregular_compl` | `OddOrder/Mathlib/GroupTheory/Frobenius.lean` |
+| `Frobenius_dvd_ker1` | `Subgroup.IsFrobenius.card_compl_dvd_card_ker_sub_one` | `OddOrder/Mathlib/GroupTheory/Frobenius.lean` |
+| `Frobenius_coprime` | `Subgroup.IsFrobenius.coprime_card_ker_card_compl` | `OddOrder/Mathlib/GroupTheory/Frobenius.lean` |
+| `Frobenius_ker_Hall` / `Frobenius_compl_Hall` | `Subgroup.IsFrobenius.ker_isHall` / `.compl_isHall` (π-indexed; unbundled coprime forms `coprime_card_ker_index` / `coprime_card_compl_index`) | `OddOrder/Mathlib/GroupTheory/Frobenius.lean` |
+| `normedTI H^# G H` (malnormality component of `[Frobenius G with complement H]`) | `Subgroup.isFrobenius_iff_inf_map_conj_eq_bot`, directions `IsSemiregular.inf_map_conj_eq_bot` (needs complement + normality) and `isSemiregular_of_forall_inf_map_conj_eq_bot` (hypothesis-free) | `OddOrder/Mathlib/GroupTheory/Frobenius.lean` |
+| `FrobeniusJ`-style conjugation invariance | `Subgroup.IsFrobenius.conj` (and `.map` for isomorphisms; likewise `IsSemiregular.conj`/`.map`, `IsSemiprime.conj`/`.map`) | `OddOrder/Mathlib/GroupTheory/Frobenius.lean` |
+
+Future work (not ported yet, Frobenius theory): `Frobenius_partition` (the partition of
+`G` into `K` and the conjugates of `H^#`) and `Frobenius_quotient` /
+`Frobenius_proper_quotient` / `Frobenius_normal_proper_ker` — these are proved in
+`BGsection3.v` and port with the M4/BG3 task; `Frobenius_ker_dvd_ker1` /
+`Frobenius_index_dvd_ker1` (variants of the counting fact, add on demand); the kernel
+theorem (`Frobenius_kerP`-adjacent; M3 Task 4). Frobenius-complement *structure* facts:
+`odd_regular_pgroup_cyclic` (BGsection3.v:1571, B&G 3.9 — odd p-groups acting
+semiregularly are cyclic, the input making odd Frobenius complements Z-groups; M4) and
+the `p = 2` cyclic-or-generalized-quaternion classification (no Mathlib analogue;
+irrelevant at odd order). Once "all Sylow cyclic" is available, Mathlib's `IsZGroup`
+covers the rest (solvability, metacyclic structure via `isZGroup_iff_exists_mulEquiv`,
+`IsZGroup.isCyclic_commutator`, `IsZGroup.coprime_commutator_index`,
+`IsZGroup.exponent_eq_card`) — see the audit section in
+`OddOrder/Mathlib/GroupTheory/Frobenius.lean`.
 
 Note: `ClassSum.lean` is Task 3 of the M2 plan (class sums, center basis, structure
 constants). The plan files this material inside `CharacterArith.lean`; it was split into a
