@@ -574,3 +574,73 @@ theorem isLinear_of_comm (hcomm : ∀ a b : G, a * b = b * a) (χ : Irr G) : χ.
   exact lt_irrefl _ hlt
 
 end Irr
+
+/-! ### Pullback of class functions along an arbitrary group homomorphism (`cfMorph`)
+
+Added with M6 Task 3 (PFsection2): the Dade restriction `'aa_B` is the pullback of a class
+function of `'N_L(B)` along the projection `'M(B) → 'N_L(B)`, i.e. `cfMorph` for a
+homomorphism that is neither injective nor a quotient map, so neither `res` nor `cfMod`
+covers it. -/
+
+section CompHom
+
+variable {K : Type u} {H : Type v} [Group K] [Group H]
+
+/-- Pullback of a class function along a group homomorphism `f : K →* H`:
+`(compHom f φ) k = φ (f k)`.  Conjugation-invariance is inherited pointwise, so no
+injectivity, surjectivity, or kernel hypothesis is needed.  MathComp: `cfMorph`
+(`classfun.v`); `ClassFunction.cfMod` is the special case `f = QuotientGroup.mk' N`, and
+`ClassFunction.res` the special case `f = H.subtype`. -/
+def ClassFunction.compHom (f : K →* H) : ClassFunction H →ₗ[ℂ] ClassFunction K where
+  toFun φ :=
+    ⟨fun k => φ (f k), fun k h => by
+      have harg : f (h * k * h⁻¹) = f h * f k * (f h)⁻¹ := by
+        rw [map_mul, map_mul, map_inv]
+      rw [harg, conj_apply]⟩
+  map_add' φ ψ := ext fun k => rfl
+  map_smul' c φ := ext fun k => rfl
+
+@[simp]
+theorem ClassFunction.compHom_apply (f : K →* H) (φ : ClassFunction H) (k : K) :
+    ClassFunction.compHom f φ k = φ (f k) :=
+  rfl
+
+/-- Pullback along a group homomorphism sends characters to characters: an irreducible
+character realized by the representation `ρ` of a simple submodule pulls back to the
+character of `ρ.comp f`, a module character (`ClassFunction.isChar_moduleCharacter'`);
+extend by `ℕ`-linearity.  MathComp: `cfMorph_char` (`character.v`). -/
+theorem ClassFunction.IsChar.compHom [Fintype K] [Fintype H] {φ : ClassFunction H}
+    (hφ : φ.IsChar) (f : K →* H) : (ClassFunction.compHom f φ).IsChar := by
+  classical
+  have hstep : ∀ χ : Irr H, (ClassFunction.compHom f (χ : ClassFunction H)).IsChar := by
+    intro χ
+    obtain ⟨N, hN, hχ⟩ := χ.exists_simple'
+    haveI := hN
+    set ρ := Representation.ofModule' (k := ℂ) (G := H) N with hρdef
+    have hχ' : (χ : ClassFunction H) = ρ.classFunction := by
+      rw [show (χ : ClassFunction H) = χ.toClassFunction from rfl, hχ]
+      ext g
+      rw [MonoidAlgebra.moduleCharacter_eq_ofModule'_character,
+        Representation.classFunction_apply]
+    set ρ' : Representation ℂ K N := ρ.comp f with hρ'def
+    have hres : ClassFunction.compHom f (χ : ClassFunction H) = ρ'.classFunction := by
+      ext k
+      have hg := congrArg (fun ψ : ClassFunction H => ψ (f k)) hχ'
+      simp only [ClassFunction.compHom_apply, Representation.classFunction_apply] at hg ⊢
+      rw [hg]
+      rfl
+    rw [hres, ← MonoidAlgebra.moduleCharacter_asModule ρ']
+    exact ClassFunction.isChar_moduleCharacter' (G := K)
+  obtain ⟨c, hc⟩ := hφ
+  rw [hc, map_sum]
+  have hterm : ∀ χ : Irr H, ClassFunction.compHom f ((c χ : ℂ) • (χ : ClassFunction H))
+      = (c χ : ℂ) • ClassFunction.compHom f (χ : ClassFunction H) := fun χ => map_smul _ _ _
+  rw [Finset.sum_congr rfl fun χ _ => hterm χ]
+  refine ClassFunction.isChar_sum Finset.univ _ fun χ _ => ?_
+  obtain ⟨d, hd⟩ := hstep χ
+  refine ⟨fun ψ => c χ * d ψ, ?_⟩
+  rw [hd, Finset.smul_sum]
+  refine Finset.sum_congr rfl fun ψ _ => ?_
+  rw [smul_smul, Nat.cast_mul]
+
+end CompHom

@@ -168,6 +168,21 @@ theorem conjC_apply (φ : ClassFunction G) (g : G) : φ.conjC g = starRingEnd �
 theorem conjC_conjC (φ : ClassFunction G) : φ.conjC.conjC = φ :=
   ext fun g => Complex.conj_conj (φ g)
 
+/-- The image of a class function under a ring endomorphism of `ℂ`, applied pointwise to
+its values.  MathComp: `cfAut` (`classfun.v`); `ClassFunction.conjC` is the case
+`u = starRingEnd ℂ` (`ClassFunction.aut_starRingEnd`).  Added with M6 Task 3: PFsection2's
+`Dade_aut` is stated for an arbitrary `{rmorphism algC -> algC}`. -/
+def aut (u : ℂ →+* ℂ) (φ : ClassFunction G) : ClassFunction G :=
+  ⟨fun g => u (φ g), fun g h => by rw [conj_apply]⟩
+
+@[simp]
+theorem aut_apply (u : ℂ →+* ℂ) (φ : ClassFunction G) (g : G) : φ.aut u g = u (φ g) :=
+  rfl
+
+/-- Complex conjugation of class functions is the `aut` of `starRingEnd ℂ`. -/
+theorem aut_starRingEnd (φ : ClassFunction G) : φ.aut (starRingEnd ℂ) = φ.conjC :=
+  rfl
+
 /-- The power twist of a class function: `powTwist u φ = fun g => φ (g ^ u)`.  A class
 function for *every* `u : ℕ` (powers commute with conjugation); only the `Irr`-permutation
 statements need `u` coprime to the exponent.  MathComp: the `cfAut` image of a character
