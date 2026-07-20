@@ -829,6 +829,441 @@ theorem dade_conjC (ddA : DadeHypothesis G L A) (α : ClassFunction ↥L) :
 
 end DadeDef
 
+/-! ### (2.7) Dade reciprocity and (2.6)(a) the isometry property
+
+The Coq proof partitions `Atau` into class supports over a transversal of `A / L` and
+each class support into `G`-conjugates of the coset `(H a) * a`.  Here the same counts
+are extracted as three lemmas — the conjugator count `card_filter_conj_mem_coset`
+(`|{g : g⁻¹ug ∈ (H a) a}| = |C_G(a)|`), the coset-sum collapse `sum_conj_coset`, and the
+orbit-weight identity `sum_card_inf_centralizer` (`∑_{a' ∈ a^L} |C_L(a')| = |L|`) — and
+the inner products are compared through one weighted double count. -/
+
+section Reciprocity
+
+variable [Fintype G]
+
+open scoped Classical in
+/-- The conjugator count behind (2.7): for `u ∈ support1 a` there are exactly `|C_G(a)|`
+elements `g ∈ G` with `g⁻¹ u g ∈ (H a) * a`.  Coq: the
+`card_orbit`/`astab1Js`/`norm_Dade_cover` step of `general_Dade_reciprocity`, powered by
+the strengthened (2.4)(c). -/
+theorem card_filter_conj_mem_coset (ddA : DadeHypothesis G L A) {a : G} (ha : a ∈ A)
+    {u : G} (hu : u ∈ ddA.support1 a) :
+    ({g ∈ (Finset.univ : Finset G) | (g⁻¹ * u * g) * a⁻¹ ∈ ddA.signalizer a}).card
+      = Nat.card (Subgroup.centralizer ({a} : Set G)) := by
+  obtain ⟨x₀, hx₀, g₀, hg₀⟩ := mem_support1.mp hu
+  have hbase : (x₀ * a) * a⁻¹ ∈ ddA.signalizer a := by
+    rwa [mul_inv_cancel_right]
+  have hcard : ({g ∈ (Finset.univ : Finset G) | (g⁻¹ * u * g) * a⁻¹ ∈ ddA.signalizer a}).card
+      = ({z ∈ (Finset.univ : Finset G) | z ∈ Subgroup.centralizer ({a} : Set G)}).card := by
+    refine Finset.card_bij' (fun g _ => g₀⁻¹ * g) (fun z _ => g₀ * z) ?_ ?_ ?_ ?_
+    · -- forward membership: `g₀⁻¹ g` centralizes `a`
+      intro g hg
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hg ⊢
+      have hkey : ((g₀⁻¹ * g)⁻¹ * (x₀ * a) * (g₀⁻¹ * g)) * a⁻¹ ∈ ddA.signalizer a := by
+        have harg : (g₀⁻¹ * g)⁻¹ * (x₀ * a) * (g₀⁻¹ * g) = g⁻¹ * u * g := by
+          rw [← hg₀]; group
+        rwa [harg]
+      have hinv := ddA.mem_centralizer_of_conj_coset ha hbase (w := (g₀⁻¹ * g)⁻¹) (by
+        have harg : (g₀⁻¹ * g)⁻¹ * (x₀ * a) * ((g₀⁻¹ * g)⁻¹)⁻¹
+            = (g₀⁻¹ * g)⁻¹ * (x₀ * a) * (g₀⁻¹ * g) := by rw [inv_inv]
+        rw [harg]
+        exact hkey)
+      simpa using inv_mem hinv
+    · -- backward membership: `g₀ z ∈` the conjugator set for `z ∈ C_G(a)`
+      intro z hz
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hz ⊢
+      have hza : z⁻¹ * a * z = a := by
+        have hcomm := Subgroup.mem_centralizer_singleton_iff.mp hz
+        calc z⁻¹ * a * z = z⁻¹ * (a * z) := by group
+          _ = z⁻¹ * (z * a) := by rw [← hcomm]
+          _ = a := by group
+      have harg : ((g₀ * z)⁻¹ * u * (g₀ * z)) * a⁻¹ = z⁻¹ * x₀ * z := by
+        have h1 : (g₀ * z)⁻¹ * u * (g₀ * z) = z⁻¹ * (x₀ * a) * z := by
+          rw [← hg₀]; group
+        calc ((g₀ * z)⁻¹ * u * (g₀ * z)) * a⁻¹ = (z⁻¹ * (x₀ * a) * z) * a⁻¹ := by rw [h1]
+          _ = (z⁻¹ * x₀ * z) * ((z⁻¹ * a * z) * a⁻¹) := by group
+          _ = z⁻¹ * x₀ * z := by rw [hza, mul_inv_cancel, mul_one]
+      rw [harg]
+      have := ddA.signalizer_conj_mem a ha z⁻¹ (inv_mem hz) x₀ hx₀
+      simpa using this
+    · intro g _; group
+    · intro z _; group
+  rw [hcard]
+  calc ({z ∈ (Finset.univ : Finset G) | z ∈ Subgroup.centralizer ({a} : Set G)}).card
+      = Fintype.card {z : G // z ∈ Subgroup.centralizer ({a} : Set G)} :=
+        (Fintype.card_subtype _).symm
+    _ = Nat.card {z : G // z ∈ Subgroup.centralizer ({a} : Set G)} :=
+        Nat.card_eq_fintype_card.symm
+    _ = Nat.card (Subgroup.centralizer ({a} : Set G)) := rfl
+
+open scoped Classical in
+/-- The coset-sum collapse: summing any function over all `G`-conjugates of all elements
+of the coset `(H a) * a` counts each element of `support1 a` exactly `|C_G(a)|` times.
+Coq: the `partition_class_support` step of `general_Dade_reciprocity`. -/
+theorem sum_conj_coset (ddA : DadeHypothesis G L A) {a : G} (ha : a ∈ A) (h : G → ℂ) :
+    ∑ x ∈ {x ∈ (Finset.univ : Finset G) | x ∈ ddA.signalizer a},
+        ∑ g : G, h (g * (x * a) * g⁻¹)
+      = (Nat.card (Subgroup.centralizer ({a} : Set G)) : ℂ)
+        * ∑ u ∈ {u ∈ (Finset.univ : Finset G) | u ∈ ddA.support1 a}, h u := by
+  set HF : Finset G := {x ∈ (Finset.univ : Finset G) | x ∈ ddA.signalizer a} with hHF
+  set dd1F : Finset G := {u ∈ (Finset.univ : Finset G) | u ∈ ddA.support1 a} with hdd1F
+  set key : G × G → G := fun p => p.2 * (p.1 * a) * p.2⁻¹ with hkey
+  have hmaps : ∀ p ∈ HF ×ˢ (Finset.univ : Finset G), key p ∈ dd1F := by
+    rintro ⟨x, g⟩ hp
+    rw [Finset.mem_product, hHF, Finset.mem_filter] at hp
+    rw [hdd1F, Finset.mem_filter]
+    exact ⟨Finset.mem_univ _, mem_support1.mpr ⟨x, hp.1.2, g, rfl⟩⟩
+  have hfib := Finset.sum_fiberwise_of_maps_to' hmaps h
+  -- each fiber has `|C_G(a)|` elements, via the conjugator count
+  have hfibcard : ∀ u ∈ dd1F,
+      ((HF ×ˢ (Finset.univ : Finset G)).filter fun p => key p = u).card
+        = Nat.card (Subgroup.centralizer ({a} : Set G)) := by
+    intro u hu
+    rw [hdd1F, Finset.mem_filter] at hu
+    rw [← ddA.card_filter_conj_mem_coset ha hu.2]
+    refine Finset.card_bij (fun p _ => p.2) ?_ ?_ ?_
+    · rintro ⟨x, g⟩ hp
+      rw [Finset.mem_filter, Finset.mem_product, hHF, Finset.mem_filter] at hp
+      obtain ⟨⟨⟨-, hx⟩, -⟩, hkeyp⟩ := hp
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+      have harg : (g⁻¹ * u * g) * a⁻¹ = x := by
+        rw [← hkeyp, hkey]
+        show (g⁻¹ * (g * (x * a) * g⁻¹) * g) * a⁻¹ = x
+        group
+      rwa [harg]
+    · rintro ⟨x₁, g₁⟩ hp₁ ⟨x₂, g₂⟩ hp₂ heq
+      rw [Finset.mem_filter] at hp₁ hp₂
+      dsimp only at heq
+      subst heq
+      have hval : g₁ * (x₁ * a) * g₁⁻¹ = g₁ * (x₂ * a) * g₁⁻¹ := hp₁.2.trans hp₂.2.symm
+      have : x₁ = x₂ := by
+        have h1 : x₁ * a = x₂ * a := mul_left_cancel (mul_right_cancel hval)
+        exact mul_right_cancel h1
+      rw [this]
+    · intro g hg
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hg
+      refine ⟨((g⁻¹ * u * g) * a⁻¹, g), ?_, rfl⟩
+      rw [Finset.mem_filter, Finset.mem_product, hHF, Finset.mem_filter]
+      refine ⟨⟨⟨Finset.mem_univ _, hg⟩, Finset.mem_univ _⟩, ?_⟩
+      show g * ((g⁻¹ * u * g) * a⁻¹ * a) * g⁻¹ = u
+      group
+  calc ∑ x ∈ HF, ∑ g : G, h (g * (x * a) * g⁻¹)
+      = ∑ p ∈ HF ×ˢ (Finset.univ : Finset G), h (key p) := by
+        rw [Finset.sum_product]
+    _ = ∑ u ∈ dd1F, ∑ _p ∈ (HF ×ˢ (Finset.univ : Finset G)).filter fun p => key p = u,
+          h u := hfib.symm
+    _ = ∑ u ∈ dd1F, (Nat.card (Subgroup.centralizer ({a} : Set G)) : ℂ) * h u := by
+        refine Finset.sum_congr rfl fun u hu => ?_
+        rw [Finset.sum_const, hfibcard u hu, nsmul_eq_mul]
+    _ = (Nat.card (Subgroup.centralizer ({a} : Set G)) : ℂ) * ∑ u ∈ dd1F, h u := by
+        rw [Finset.mul_sum]
+
+open scoped Classical in
+/-- The orbit-weight identity: for `u` in the Dade support with witness `a₀`, the
+`A`-points whose local support contains `u` are the `L`-orbit of `a₀`, and their
+centralizer orders sum to `|L|`: `∑_{a ∈ a₀^L} |C_L(a)| = |L|`.  Coq: the
+`index_cent1`/`Lagrange` bookkeeping inside `general_Dade_reciprocity`. -/
+theorem sum_card_inf_centralizer (ddA : DadeHypothesis G L A) {a₀ u : G} (ha₀ : a₀ ∈ A)
+    (hu : u ∈ ddA.support1 a₀) :
+    ∑ a ∈ {a ∈ (Finset.univ : Finset G) | a ∈ A ∧ u ∈ ddA.support1 a},
+        (Nat.card ↥(L ⊓ Subgroup.centralizer {a}) : ℂ)
+      = (Nat.card ↥L : ℂ) := by
+  letI : Fintype ↥L := Fintype.ofFinite ↥L
+  set orbF : Finset G :=
+    (Finset.univ : Finset ↥L).image (fun y : ↥L => ↑y * a₀ * (↑y)⁻¹) with horbF
+  -- the fiber Finset is the `L`-orbit of `a₀`
+  have hset : {a ∈ (Finset.univ : Finset G) | a ∈ A ∧ u ∈ ddA.support1 a} = orbF := by
+    ext b
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and, horbF, Finset.mem_image]
+    constructor
+    · rintro ⟨hb, hub⟩
+      obtain ⟨x, hx, hconj⟩ := ddA.exists_conj_of_mem_support1 ha₀ hb hu hub
+      exact ⟨⟨x, hx⟩, by simpa using hconj⟩
+    · rintro ⟨y, rfl⟩
+      refine ⟨ddA.conj_mem ↑y y.2 a₀ ha₀, ?_⟩
+      rwa [ddA.support1_conj y.2 ha₀]
+  -- centralizer orders are constant along the orbit
+  have hconst : ∀ y : ↥L,
+      Nat.card ↥(L ⊓ Subgroup.centralizer {↑y * a₀ * (↑y)⁻¹})
+        = Nat.card ↥(L ⊓ Subgroup.centralizer {a₀}) := by
+    intro y
+    refine Nat.card_congr ⟨fun w => ⟨(↑y)⁻¹ * ↑w * ↑y, ?_⟩, fun v => ⟨↑y * ↑v * (↑y)⁻¹, ?_⟩,
+      fun w => ?_, fun v => ?_⟩
+    · obtain ⟨hwL, hwC⟩ := Subgroup.mem_inf.mp w.2
+      exact Subgroup.mem_inf.mpr
+        ⟨mul_mem (mul_mem (inv_mem y.2) hwL) y.2, mem_centralizer_conj_iff.mp hwC⟩
+    · obtain ⟨hvL, hvC⟩ := Subgroup.mem_inf.mp v.2
+      refine Subgroup.mem_inf.mpr ⟨mul_mem (mul_mem y.2 hvL) (inv_mem y.2), ?_⟩
+      rw [mem_centralizer_conj_iff]
+      have harg : (↑y)⁻¹ * (↑y * ↑v * (↑y)⁻¹) * ↑y = (v : G) := by group
+      rwa [harg]
+    · ext; push_cast; group
+    · ext; push_cast; group
+  -- the orbit-stabilizer count `|orbit| * |C_L(a₀)| = |L|`
+  have horb : orbF.card * Nat.card ↥(L ⊓ Subgroup.centralizer {a₀}) = Nat.card ↥L := by
+    have hfibcard : ∀ b ∈ orbF,
+        ((Finset.univ : Finset ↥L).filter fun y : ↥L => ↑y * a₀ * (↑y)⁻¹ = b).card
+          = Nat.card ↥(L ⊓ Subgroup.centralizer {a₀}) := by
+      intro b hb
+      rw [horbF, Finset.mem_image] at hb
+      obtain ⟨y₀, -, rfl⟩ := hb
+      calc ((Finset.univ : Finset ↥L).filter
+              fun y : ↥L => ↑y * a₀ * (↑y)⁻¹ = ↑y₀ * a₀ * (↑y₀)⁻¹).card
+          = Fintype.card {y : ↥L // ↑y * a₀ * (↑y)⁻¹ = ↑y₀ * a₀ * (↑y₀)⁻¹} :=
+            (Fintype.card_subtype _).symm
+        _ = Nat.card {y : ↥L // ↑y * a₀ * (↑y)⁻¹ = ↑y₀ * a₀ * (↑y₀)⁻¹} :=
+            Nat.card_eq_fintype_card.symm
+        _ = Nat.card ↥(L ⊓ Subgroup.centralizer {a₀}) := by
+            refine Nat.card_congr ⟨fun y => ⟨(↑y₀)⁻¹ * ↑y.1, ?_⟩,
+              fun c => ⟨⟨↑y₀ * ↑c, mul_mem y₀.2 (Subgroup.mem_inf.mp c.2).1⟩, ?_⟩,
+              fun y => ?_, fun c => ?_⟩
+            · obtain ⟨y, hy⟩ := y
+              refine Subgroup.mem_inf.mpr ⟨mul_mem (inv_mem y₀.2) y.2, ?_⟩
+              rw [Subgroup.mem_centralizer_singleton_iff]
+              have h1 : (↑y : G) * a₀ * (↑y)⁻¹ = ↑y₀ * a₀ * (↑y₀)⁻¹ := hy
+              calc (↑y₀)⁻¹ * ↑y * a₀ = (↑y₀)⁻¹ * (↑y * a₀ * (↑y)⁻¹) * ↑y := by group
+                _ = (↑y₀)⁻¹ * (↑y₀ * a₀ * (↑y₀)⁻¹) * ↑y := by rw [h1]
+                _ = a₀ * ((↑y₀)⁻¹ * ↑y) := by group
+            · have hcC := (Subgroup.mem_inf.mp c.2).2
+              have hcomm := Subgroup.mem_centralizer_singleton_iff.mp hcC
+              show ((y₀ : G) * (c : G)) * a₀ * ((y₀ : G) * (c : G))⁻¹
+                  = (y₀ : G) * a₀ * (y₀ : G)⁻¹
+              have hca : (c : G) * a₀ * (c : G)⁻¹ = a₀ := by
+                rw [hcomm, mul_inv_cancel_right]
+              calc ((y₀ : G) * (c : G)) * a₀ * ((y₀ : G) * (c : G))⁻¹
+                  = (y₀ : G) * ((c : G) * a₀ * (c : G)⁻¹) * (y₀ : G)⁻¹ := by group
+                _ = (y₀ : G) * a₀ * (y₀ : G)⁻¹ := by rw [hca]
+            · ext; push_cast; group
+            · ext; push_cast; group
+    have hL := Finset.card_eq_sum_card_image (fun y : ↥L => ↑y * a₀ * (↑y)⁻¹)
+      (Finset.univ : Finset ↥L)
+    rw [← horbF] at hL
+    rw [Finset.sum_congr rfl hfibcard, Finset.sum_const, smul_eq_mul] at hL
+    rw [← hL, Finset.card_univ, Nat.card_eq_fintype_card]
+  -- assemble in `ℂ`
+  rw [hset]
+  have hconst' : ∀ b ∈ orbF, (Nat.card ↥(L ⊓ Subgroup.centralizer {b}) : ℂ)
+      = (Nat.card ↥(L ⊓ Subgroup.centralizer {a₀}) : ℂ) := by
+    intro b hb
+    rw [horbF, Finset.mem_image] at hb
+    obtain ⟨y, -, rfl⟩ := hb
+    exact congrArg (fun n : ℕ => (n : ℂ)) (hconst y)
+  rw [Finset.sum_congr rfl hconst', Finset.sum_const, nsmul_eq_mul, ← Nat.cast_mul, horb]
+
+open scoped Classical in
+/-- **Peterfalvi (2.7), main part** (`general_Dade_reciprocity`): for `α ∈ 'CF(L, A)`
+and `φ ∈ CF(G)`, if `ψ ∈ CF(L)` satisfies `ψ a = |H a|⁻¹ ∑_{x ∈ H a} φ(x a)` on `A`,
+then `⟪α^τ, φ⟫_G = ⟪α, ψ⟫_L`. -/
+theorem general_dade_reciprocity [Fintype L] (ddA : DadeHypothesis G L A)
+    {α : ClassFunction ↥L}
+    (hα : α ∈ ClassFunction.supportedOn ↥L (((↑) : ↥L → G) ⁻¹' A)) (φ : ClassFunction G)
+    (ψ : ClassFunction ↥L)
+    (hψ : ∀ (a : G) (ha : a ∈ A),
+      ψ ⟨a, ddA.mem_of_mem_set ha⟩ = (Nat.card (ddA.signalizer a) : ℂ)⁻¹
+        * ∑ x : ↥(ddA.signalizer a), φ (↑x * a)) :
+    ⟪ddA.dade α, φ⟫_[G] = ⟪α, ψ⟫_[↥L] := by
+  classical
+  set AF : Finset G := {a ∈ (Finset.univ : Finset G) | a ∈ A} with hAF
+  set AtF : Finset G := {u ∈ (Finset.univ : Finset G) | u ∈ ddA.support} with hAtF
+  have hG0 : (Fintype.card G : ℂ) ≠ 0 := Nat.cast_ne_zero.mpr Fintype.card_ne_zero
+  have hL0 : (Fintype.card ↥L : ℂ) ≠ 0 := Nat.cast_ne_zero.mpr Fintype.card_ne_zero
+  -- abbreviations for the two per-`a` partial sums
+  set P : G → ℂ := fun a => ∑ u ∈ {u ∈ (Finset.univ : Finset G) | u ∈ ddA.support1 a},
+    starRingEnd ℂ (φ u) with hP
+  set Q : G → ℂ := fun a => ∑ x ∈ {x ∈ (Finset.univ : Finset G) | x ∈ ddA.signalizer a},
+    starRingEnd ℂ (φ (x * a)) with hQ
+  -- the coset-sum collapse relates `P` and `Q`
+  have hPQ : ∀ a ∈ AF, (Fintype.card G : ℂ) * Q a
+      = (Nat.card (Subgroup.centralizer ({a} : Set G)) : ℂ) * P a := by
+    intro a haF
+    rw [hAF, Finset.mem_filter] at haF
+    have := ddA.sum_conj_coset haF.2 (fun u => starRingEnd ℂ (φ u))
+    rw [hP, hQ, ← this, Finset.mul_sum]
+    refine Finset.sum_congr rfl fun x _ => ?_
+    have hval : ∀ g : G, starRingEnd ℂ (φ (g * (x * a) * g⁻¹)) = starRingEnd ℂ (φ (x * a)) :=
+      fun g => by rw [φ.conj_apply]
+    rw [Finset.sum_congr rfl fun g _ => hval g, Finset.sum_const, Finset.card_univ,
+      nsmul_eq_mul]
+  -- Step 1: expand the left inner product over the Dade support
+  have hL1 : ⟪ddA.dade α, φ⟫_[G] = (Fintype.card G : ℂ)⁻¹
+      * ∑ u ∈ AtF, ddA.dade α u * starRingEnd ℂ (φ u) := by
+    rw [ClassFunction.cfInner_def]
+    congr 1
+    refine (Finset.sum_subset (Finset.filter_subset _ _) fun u _ hu => ?_).symm
+    have hu' : u ∉ ddA.support := fun hmem =>
+      hu (Finset.mem_filter.mpr ⟨Finset.mem_univ u, hmem⟩)
+    rw [ddA.dade_apply_of_notMem_support α hu', zero_mul]
+  -- Step 2: the support sum decomposes over `A` with weights `|C_L(a)|`
+  have hL2 : (Nat.card ↥L : ℂ) * ∑ u ∈ AtF, ddA.dade α u * starRingEnd ℂ (φ u)
+      = ∑ a ∈ AF, (Nat.card ↥(L ⊓ Subgroup.centralizer {a}) : ℂ)
+          * (ClassFunction.extendZero α a * P a) := by
+    have hswap : ∑ a ∈ AF, ∑ u ∈ {u ∈ (Finset.univ : Finset G) | u ∈ ddA.support1 a},
+          (Nat.card ↥(L ⊓ Subgroup.centralizer {a}) : ℂ)
+            * (ddA.dade α u * starRingEnd ℂ (φ u))
+        = ∑ u ∈ AtF, ∑ a ∈ {a ∈ (Finset.univ : Finset G) | a ∈ A ∧ u ∈ ddA.support1 a},
+            (Nat.card ↥(L ⊓ Subgroup.centralizer {a}) : ℂ)
+              * (ddA.dade α u * starRingEnd ℂ (φ u)) := by
+      refine Finset.sum_comm' fun a u => ?_
+      simp only [hAF, hAtF, Finset.mem_filter, Finset.mem_univ, true_and]
+      constructor
+      · rintro ⟨ha, hua⟩
+        exact ⟨⟨ha, hua⟩, ⟨a, ha, hua⟩⟩
+      · rintro ⟨⟨ha, hua⟩, -⟩
+        exact ⟨ha, hua⟩
+    calc (Nat.card ↥L : ℂ) * ∑ u ∈ AtF, ddA.dade α u * starRingEnd ℂ (φ u)
+        = ∑ u ∈ AtF, (Nat.card ↥L : ℂ) * (ddA.dade α u * starRingEnd ℂ (φ u)) := by
+          rw [Finset.mul_sum]
+      _ = ∑ u ∈ AtF, ∑ a ∈ {a ∈ (Finset.univ : Finset G) | a ∈ A ∧ u ∈ ddA.support1 a},
+            (Nat.card ↥(L ⊓ Subgroup.centralizer {a}) : ℂ)
+              * (ddA.dade α u * starRingEnd ℂ (φ u)) := by
+          refine Finset.sum_congr rfl fun u hu => ?_
+          rw [hAtF, Finset.mem_filter] at hu
+          obtain ⟨-, a₀, ha₀, hua₀⟩ := hu
+          rw [← Finset.sum_mul, ddA.sum_card_inf_centralizer ha₀ hua₀]
+      _ = ∑ a ∈ AF, ∑ u ∈ {u ∈ (Finset.univ : Finset G) | u ∈ ddA.support1 a},
+            (Nat.card ↥(L ⊓ Subgroup.centralizer {a}) : ℂ)
+              * (ddA.dade α u * starRingEnd ℂ (φ u)) := hswap.symm
+      _ = ∑ a ∈ AF, (Nat.card ↥(L ⊓ Subgroup.centralizer {a}) : ℂ)
+            * (ClassFunction.extendZero α a * P a) := by
+          refine Finset.sum_congr rfl fun a haF => ?_
+          rw [hAF, Finset.mem_filter] at haF
+          rw [hP, Finset.mul_sum, Finset.mul_sum]
+          refine Finset.sum_congr rfl fun u hu => ?_
+          rw [Finset.mem_filter] at hu
+          rw [ddA.dade_apply_of_mem_support1 α haF.2 hu.2,
+            ClassFunction.extendZero_apply_of_mem α (ddA.mem_of_mem_set haF.2)]
+  -- Step 3: the right inner product over `A`, with `conj ψ` expanded by `hψ`
+  have hR1 : ⟪α, ψ⟫_[↥L] = (Fintype.card ↥L : ℂ)⁻¹
+      * ∑ a ∈ AF, ClassFunction.extendZero α a
+          * ((Nat.card (ddA.signalizer a) : ℂ)⁻¹ * Q a) := by
+    rw [ClassFunction.cfInner_def]
+    congr 1
+    have hsub : ∑ l : ↥L, α l * starRingEnd ℂ (ψ l)
+        = ∑ l ∈ (Finset.univ : Finset ↥L).filter (fun l : ↥L => (l : G) ∈ A),
+            α l * starRingEnd ℂ (ψ l) := by
+      refine (Finset.sum_subset (Finset.filter_subset _ _) fun l _ hl => ?_).symm
+      have hl' : (l : G) ∉ A := fun hmem =>
+        hl (Finset.mem_filter.mpr ⟨Finset.mem_univ l, hmem⟩)
+      rw [hα l hl', zero_mul]
+    rw [hsub]
+    refine Finset.sum_bij (fun l _ => (l : G)) ?_ ?_ ?_ ?_
+    · intro l hl
+      rw [Finset.mem_filter] at hl
+      rw [hAF, Finset.mem_filter]
+      exact ⟨Finset.mem_univ _, hl.2⟩
+    · intro l₁ h₁ l₂ h₂ h
+      exact Subtype.ext h
+    · intro a haF
+      rw [hAF, Finset.mem_filter] at haF
+      exact ⟨⟨a, ddA.mem_of_mem_set haF.2⟩, Finset.mem_filter.mpr
+        ⟨Finset.mem_univ _, haF.2⟩, rfl⟩
+    · intro l hl
+      rw [Finset.mem_filter] at hl
+      have hl' : (l : G) ∈ A := hl.2
+      have hle : ClassFunction.extendZero α (l : G) = α l := by
+        rw [ClassFunction.extendZero_apply_of_mem α l.2]
+      have hψl : starRingEnd ℂ (ψ l)
+          = (Nat.card (ddA.signalizer (l : G)) : ℂ)⁻¹ * Q (l : G) := by
+        have h1 : ψ l = (Nat.card (ddA.signalizer (l : G)) : ℂ)⁻¹
+            * ∑ x : ↥(ddA.signalizer (l : G)), φ (↑x * (l : G)) := by
+          have := hψ (l : G) hl'
+          have hsubty : (⟨(l : G), ddA.mem_of_mem_set hl'⟩ : ↥L) = l := Subtype.ext rfl
+          rwa [hsubty] at this
+        rw [h1, map_mul, map_inv₀, map_natCast, map_sum, hQ]
+        congr 1
+        rw [← Finset.sum_subtype (p := fun x => x ∈ ddA.signalizer (l : G))
+          {x ∈ (Finset.univ : Finset G) | x ∈ ddA.signalizer (l : G)} (by simp)
+          (fun x => starRingEnd ℂ (φ (x * (l : G))))]
+      rw [hle, hψl]
+  -- Step 4: match the two expansions termwise
+  have hterm : ∀ a ∈ AF,
+      (Nat.card ↥(L ⊓ Subgroup.centralizer {a}) : ℂ) * (ClassFunction.extendZero α a * P a)
+        = (Fintype.card G : ℂ) * (ClassFunction.extendZero α a
+            * ((Nat.card (ddA.signalizer a) : ℂ)⁻¹ * Q a)) := by
+    intro a haF
+    have haA : a ∈ A := by
+      rw [hAF, Finset.mem_filter] at haF
+      exact haF.2
+    have hHa0 : (Nat.card (ddA.signalizer a) : ℂ) ≠ 0 :=
+      Nat.cast_ne_zero.mpr Nat.card_pos.ne'
+    have hcards : (Nat.card (ddA.signalizer a) : ℂ)
+        * (Nat.card ↥(L ⊓ Subgroup.centralizer {a}) : ℂ)
+        = (Nat.card (Subgroup.centralizer ({a} : Set G)) : ℂ) := by
+      rw [← Nat.cast_mul, ddA.card_signalizer_mul_card haA]
+    have hQP := hPQ a haF
+    refine mul_left_cancel₀ hHa0 ?_
+    calc (Nat.card (ddA.signalizer a) : ℂ)
+          * ((Nat.card ↥(L ⊓ Subgroup.centralizer {a}) : ℂ)
+            * (ClassFunction.extendZero α a * P a))
+        = ClassFunction.extendZero α a
+            * ((Nat.card (ddA.signalizer a) : ℂ)
+              * (Nat.card ↥(L ⊓ Subgroup.centralizer {a}) : ℂ) * P a) := by ring
+      _ = ClassFunction.extendZero α a
+            * ((Nat.card (Subgroup.centralizer ({a} : Set G)) : ℂ) * P a) := by
+          rw [hcards]
+      _ = ClassFunction.extendZero α a * ((Fintype.card G : ℂ) * Q a) := by rw [← hQP]
+      _ = (Nat.card (ddA.signalizer a) : ℂ)
+            * ((Fintype.card G : ℂ) * (ClassFunction.extendZero α a
+              * ((Nat.card (ddA.signalizer a) : ℂ)⁻¹ * Q a))) := by
+          field_simp
+  -- assemble
+  rw [hL1, hR1]
+  have hsum := hL2
+  rw [Finset.sum_congr rfl hterm, ← Finset.mul_sum] at hsum
+  set S₁ : ℂ := ∑ u ∈ AtF, ddA.dade α u * starRingEnd ℂ (φ u) with hS₁
+  set S₂ : ℂ := ∑ a ∈ AF, ClassFunction.extendZero α a
+      * ((Nat.card (ddA.signalizer a) : ℂ)⁻¹ * Q a) with hS₂
+  have hkey : (Fintype.card ↥L : ℂ) * S₁ = (Fintype.card G : ℂ) * S₂ := by
+    rw [← Nat.card_eq_fintype_card (α := ↥L)]
+    exact hsum
+  calc (Fintype.card G : ℂ)⁻¹ * S₁
+      = (Fintype.card G : ℂ)⁻¹
+          * ((Fintype.card ↥L : ℂ)⁻¹ * ((Fintype.card ↥L : ℂ) * S₁)) := by
+        rw [← mul_assoc ((Fintype.card ↥L : ℂ)⁻¹), inv_mul_cancel₀ hL0, one_mul]
+    _ = (Fintype.card G : ℂ)⁻¹
+          * ((Fintype.card ↥L : ℂ)⁻¹ * ((Fintype.card G : ℂ) * S₂)) := by
+        rw [hkey]
+    _ = (Fintype.card ↥L : ℂ)⁻¹ * S₂ := by
+        field_simp
+
+open scoped Classical in
+/-- **Peterfalvi (2.7), second part** (`Dade_reciprocity`): if `φ ∈ CF(G)` is constant
+on each coset `(H a) * a`, then `⟪α^τ, φ⟫_G = ⟪α, Res_L φ⟫_L`. -/
+theorem dade_reciprocity [Fintype L] (ddA : DadeHypothesis G L A) {α : ClassFunction ↥L}
+    (hα : α ∈ ClassFunction.supportedOn ↥L (((↑) : ↥L → G) ⁻¹' A)) (φ : ClassFunction G)
+    (hφ : ∀ a ∈ A, ∀ x ∈ ddA.signalizer a, φ (x * a) = φ a) :
+    ⟪ddA.dade α, φ⟫_[G] = ⟪α, ClassFunction.res L φ⟫_[↥L] := by
+  classical
+  refine ddA.general_dade_reciprocity hα φ _ fun a ha => ?_
+  have hHa0 : (Nat.card (ddA.signalizer a) : ℂ) ≠ 0 :=
+    Nat.cast_ne_zero.mpr Nat.card_pos.ne'
+  rw [ClassFunction.res_apply]
+  have hval : ∀ x : ↥(ddA.signalizer a), φ (↑x * a) = φ a := fun x => hφ a ha ↑x x.2
+  rw [Finset.sum_congr rfl fun x _ => hval x, Finset.sum_const, Finset.card_univ,
+    ← Nat.card_eq_fintype_card, nsmul_eq_mul, ← mul_assoc, inv_mul_cancel₀ hHa0, one_mul]
+
+/-- **Peterfalvi (2.6)(a)** (`Dade_isometry`): the Dade lift is an isometry on
+`'CF(L, A)`: `⟪α^τ, β^τ⟫_G = ⟪α, β⟫_L`.  Only the *first* argument needs to be supported
+on `A` (the Coq states the symmetric special case `{in 'CF(L, A) &, isometry Dade}`);
+the one-sided form matches the seed TI isometry
+`ClassFunction.cfInner_ind_ind_of_malnormal`. -/
+theorem dade_isometry [Fintype L] (ddA : DadeHypothesis G L A) {α : ClassFunction ↥L}
+    (hα : α ∈ ClassFunction.supportedOn ↥L (((↑) : ↥L → G) ⁻¹' A))
+    (β : ClassFunction ↥L) :
+    ⟪ddA.dade α, ddA.dade β⟫_[G] = ⟪α, β⟫_[↥L] := by
+  classical
+  refine ddA.general_dade_reciprocity hα (ddA.dade β) β fun a ha => ?_
+  have hHa0 : (Nat.card (ddA.signalizer a) : ℂ) ≠ 0 :=
+    Nat.cast_ne_zero.mpr Nat.card_pos.ne'
+  have hval : ∀ x : ↥(ddA.signalizer a),
+      ddA.dade β (↑x * a) = β ⟨a, ddA.mem_of_mem_set ha⟩ := fun x =>
+    ddA.dade_apply_of_mem_support1 β ha (ddA.mul_mem_support1 x.2)
+  rw [Finset.sum_congr rfl fun x _ => hval x, Finset.sum_const, Finset.card_univ,
+    ← Nat.card_eq_fintype_card, nsmul_eq_mul, ← mul_assoc, inv_mul_cancel₀ hHa0, one_mul]
+
+end Reciprocity
+
 end DadeHypothesis
 
 end PF2
