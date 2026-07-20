@@ -36,9 +36,16 @@ corollary of the second orthogonality relation was not confirmed against a Coq c
   is a character in the `IsChar` sense — the semisimple-decomposition direction of the
   MathComp equivalence between `character` and "trace of a representation". This is the
   direction downstream tasks (restriction/induction, Task 2) consume.
-* `ClassFunction.IsChar.add`, `ClassFunction.IsChar.cfInner_mem_nat`.
+* `ClassFunction.IsChar.add`, `ClassFunction.IsChar.natCast_smul`,
+  `ClassFunction.IsChar.cfInner_mem_nat`.
 * `Irr.exists_degree`: `∃ d : ℕ, 0 < d ∧ χ 1 = d`.
 * `Irr.sum_sq_degree`: `∑ χ : Irr G, (χ 1)^2 = Nat.card G`.
+* `Irr.ker` (with `Irr.mem_ker_iff`, `Irr.eq_one_of_ker_eq_top`): character kernels, promoted
+  from `Burnside.lean` (M3 Task 4, per the M2 deferred-consolidation list) together with the
+  eigen-projection kit and the scalar-action lemma
+  (`Module.End.eq_smul_one_of_trace_eq_mul_finrank`) they rest on. MathComp: `cfker`.
+* `Irr.exists_ne_one_apply_ne`: a nonidentity element is separated from `1` by some
+  nonprincipal irreducible character (the column argument at `(g, 1)`).
 
 ## Design notes
 
@@ -170,6 +177,12 @@ theorem Irr.one_spec [Fintype G] :
 theorem Irr.one_apply [Fintype G] (g : G) : (Irr.one : Irr G) g = 1 := by
   have h := congrArg (fun φ : ClassFunction G => φ g) Irr.one_spec
   simpa [Representation.classFunction_apply, Representation.trivial_character] using h
+
+/-- The class function of the trivial irreducible character is the ring unit of
+`ClassFunction G` (the constant function `1`). -/
+@[simp]
+theorem Irr.coe_one [Fintype G] : ((Irr.one : Irr G) : ClassFunction G) = 1 :=
+  ClassFunction.ext fun g => by rw [Irr.coe_apply, Irr.one_apply, ClassFunction.one_apply]
 
 end IrrOne
 
@@ -323,6 +336,15 @@ theorem ClassFunction.IsChar.add {φ ψ : ClassFunction G} (hφ : φ.IsChar) (h�
   rw [hcφ, hcψ, ← Finset.sum_add_distrib]
   refine Finset.sum_congr rfl fun χ _ => ?_
   rw [Nat.cast_add, add_smul]
+
+/-- A `ℕ`-multiple of a character is a character (with the scalar spelled as the `ℂ`-cast,
+matching the `IsChar` convention). -/
+theorem ClassFunction.IsChar.natCast_smul {φ : ClassFunction G} (hφ : φ.IsChar) (n : ℕ) :
+    ((n : ℂ) • φ).IsChar := by
+  obtain ⟨c, hc⟩ := hφ
+  refine ⟨fun χ => n * c χ, ?_⟩
+  rw [hc, Finset.smul_sum]
+  exact Finset.sum_congr rfl fun χ _ => by rw [smul_smul, ← Nat.cast_mul]
 
 /-- The multiplicity of an irreducible character `ψ` in a character `φ` is a natural number
 (realized as the inner product `⟪φ, ψ⟫`). MathComp: (character multiplicities are natural
@@ -828,3 +850,377 @@ theorem Irr.exists_degree_dvd_card (χ : Irr G) :
   exact ⟨k, hkdN.symm.trans (mul_comm k d)⟩
 
 end DegreeDvdCard
+
+/-! ### Eigen-projections and the scalar-action lemma
+
+The *operator* identity behind `Module.End.trace_eq_sum_zeta_pow_mul_natCast`
+(`ClassFunction.lean`): a finite-order operator decomposes along the projections `Q j` onto
+its `ζ ^ j`-eigenspaces, and equality in the resulting trace bound forces the operator to be
+a scalar. Promoted here from `Burnside.lean` (where it was a deliberately local duplicate —
+see the M2 Task 5 report) as part of the M3 Task 4 `Irr.ker` promotion: the kernel
+characterization `Irr.mem_ker_iff` below is the `target = 1` instance of the scalar-action
+lemma, and `Burnside.lean` keeps consuming the general-`target` form for its class-size
+lemma. -/
+
+section EigenKit
+
+variable {V : Type*} [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
+
+omit [FiniteDimensional ℂ V] in
+/-- **Eigen-projections of a finite-order operator.** If `f ^ n = 1` and `ζ` is a primitive
+`n`-th root of unity, there are idempotents `Q j` (`j < n`) summing to `1`, with
+`f * Q j = ζ ^ j • Q j` and `Q j` a projection onto its range. -/
+private theorem Module.End.exists_zeta_pow_eigenProjections {f : Module.End ℂ V} {n : ℕ}
+    (hn : n ≠ 0) (hf : f ^ n = 1) {ζ : ℂ} (hζ : IsPrimitiveRoot ζ n) :
+    ∃ Q : ℕ → Module.End ℂ V,
+      (∑ j ∈ range n, Q j = 1) ∧
+      (∀ j, f * Q j = ζ ^ j • Q j) ∧
+      (∀ j, LinearMap.IsProj (LinearMap.range (Q j)) (Q j)) := by
+  have hn0 : (n : ℂ) ≠ 0 := Nat.cast_ne_zero.mpr hn
+  have hζn : ζ ^ n = 1 := hζ.pow_eq_one
+  have hζ0 : ζ ≠ 0 := by
+    intro h
+    rw [h, zero_pow hn] at hζn
+    exact zero_ne_one hζn
+  set Q : ℕ → Module.End ℂ V := fun j => (n : ℂ)⁻¹ • ∑ i ∈ range n, ζ⁻¹ ^ (i * j) • f ^ i
+    with hQdef
+  have hQsum : ∑ j ∈ range n, Q j = 1 := by
+    have key : ∀ i ∈ range n, (∑ j ∈ range n, ζ⁻¹ ^ (i * j)) • f ^ i
+        = if i = 0 then (n : ℂ) • 1 else 0 := by
+      intro i hi
+      rcases eq_or_ne i 0 with rfl | hi0
+      · simp
+      · have hne1 : ζ⁻¹ ^ i ≠ 1 :=
+          hζ.inv.pow_ne_one_of_pos_of_lt hi0 (mem_range.mp hi)
+        have hpow1 : (ζ⁻¹ ^ i) ^ n = 1 := by
+          rw [← pow_mul, mul_comm i n, pow_mul, inv_pow, hζn, inv_one, one_pow]
+        rw [if_neg hi0]
+        have : ∑ j ∈ range n, ζ⁻¹ ^ (i * j) = 0 := by
+          have := geom_sum_eq hne1 n
+          simp only [hpow1, sub_self, zero_div] at this
+          simpa only [pow_mul] using this
+        rw [this, zero_smul]
+    calc ∑ j ∈ range n, Q j
+        = (n : ℂ)⁻¹ • ∑ j ∈ range n, ∑ i ∈ range n, ζ⁻¹ ^ (i * j) • f ^ i := by
+          rw [Finset.smul_sum]
+      _ = (n : ℂ)⁻¹ • ∑ i ∈ range n, (∑ j ∈ range n, ζ⁻¹ ^ (i * j)) • f ^ i := by
+          rw [Finset.sum_comm]
+          congr 1
+          exact Finset.sum_congr rfl fun i _ => (Finset.sum_smul).symm
+      _ = (n : ℂ)⁻¹ • ((n : ℂ) • 1) := by
+          rw [Finset.sum_congr rfl key, Finset.sum_ite_eq' (range n) 0,
+            if_pos (mem_range.mpr (Nat.pos_of_ne_zero hn))]
+      _ = 1 := by rw [smul_smul, inv_mul_cancel₀ hn0, one_smul]
+  have hfQ : ∀ j, f * Q j = ζ ^ j • Q j := by
+    intro j
+    have expand : f * Q j = (n : ℂ)⁻¹ • ∑ i ∈ range n, ζ⁻¹ ^ (i * j) • f ^ (i + 1) := by
+      rw [hQdef, mul_smul_comm, Finset.mul_sum]
+      congr 1
+      exact Finset.sum_congr rfl fun i _ => by rw [mul_smul_comm, ← pow_succ']
+    set h : ℕ → Module.End ℂ V := fun i => (ζ ^ j * ζ⁻¹ ^ (i * j)) • f ^ i with hh
+    have hstep : ∀ i, ζ⁻¹ ^ (i * j) • f ^ (i + 1) = h (i + 1) := by
+      intro i
+      rw [hh]
+      congr 1
+      rw [add_mul, one_mul, pow_add, ← mul_assoc, mul_comm (ζ ^ j), mul_assoc, ← mul_pow,
+        mul_inv_cancel₀ hζ0, one_pow, mul_one]
+    have hshift : ∑ i ∈ range n, h (i + 1) = ∑ i ∈ range n, h i := by
+      have h1 : ∑ i ∈ range (n + 1), h i = ∑ i ∈ range n, h (i + 1) + h 0 :=
+        Finset.sum_range_succ' h n
+      have h2 : ∑ i ∈ range (n + 1), h i = ∑ i ∈ range n, h i + h n :=
+        Finset.sum_range_succ h n
+      have hn' : h n = h 0 := by
+        rw [hh]
+        simp only [Nat.zero_mul, pow_zero, mul_one]
+        rw [pow_mul, inv_pow, hζn, inv_one, one_pow, mul_one, hf]
+      have := h1.symm.trans h2
+      rw [hn'] at this
+      exact add_right_cancel this
+    calc f * Q j
+        = (n : ℂ)⁻¹ • ∑ i ∈ range n, h (i + 1) := by
+          rw [expand]
+          exact congrArg _ (Finset.sum_congr rfl fun i _ => hstep i)
+      _ = (n : ℂ)⁻¹ • ∑ i ∈ range n, h i := by rw [hshift]
+      _ = ζ ^ j • Q j := by
+          rw [hQdef]
+          simp only [hh, mul_smul, ← Finset.smul_sum]
+          rw [smul_comm]
+  have hfpowQ : ∀ j k, f ^ k * Q j = (ζ ^ j) ^ k • Q j := by
+    intro j k
+    induction k with
+    | zero => simp
+    | succ k ih =>
+      rw [pow_succ, mul_assoc, hfQ j, mul_smul_comm, ih, smul_smul, pow_succ,
+        mul_comm (ζ ^ j)]
+  have hQQ : ∀ j, Q j * Q j = Q j := by
+    intro j
+    have expand : Q j * Q j = (n : ℂ)⁻¹ • ∑ i ∈ range n, ζ⁻¹ ^ (i * j) • (f ^ i * Q j) := by
+      conv_lhs => rw [hQdef]
+      rw [smul_mul_assoc, Finset.sum_mul]
+      congr 1
+    rw [expand]
+    have : ∀ i ∈ range n, ζ⁻¹ ^ (i * j) • (f ^ i * Q j) = Q j := by
+      intro i _
+      rw [hfpowQ j i, smul_smul, ← pow_mul, mul_comm j i, ← mul_pow, inv_mul_cancel₀ hζ0,
+        one_pow, one_smul]
+    rw [Finset.sum_congr rfl this, Finset.sum_const, card_range, ← Nat.cast_smul_eq_nsmul ℂ,
+      smul_smul, inv_mul_cancel₀ hn0, one_smul]
+  have hproj : ∀ j, LinearMap.IsProj (LinearMap.range (Q j)) (Q j) := by
+    intro j
+    refine ⟨fun x => LinearMap.mem_range_self _ x, fun x hx => ?_⟩
+    obtain ⟨y, rfl⟩ := hx
+    have := congrArg (fun T : Module.End ℂ V => T y) (hQQ j)
+    simpa [Module.End.mul_apply] using this
+  exact ⟨Q, hQsum, hfQ, hproj⟩
+
+end EigenKit
+
+/-- Real part of a `ℕ`-weighted sum of complex numbers, term by term. Helper for the
+equality case of the triangle inequality below. -/
+private theorem Complex.re_natCast_mul_finset_sum {ι : Type*} (s : Finset ι) (m : ι → ℕ)
+    (z : ι → ℂ) : (∑ i ∈ s, (m i : ℂ) * z i).re = ∑ i ∈ s, (m i : ℝ) * (z i).re := by
+  induction s using Finset.cons_induction with
+  | empty => simp
+  | cons a t ha ih =>
+    rw [Finset.sum_cons, Finset.sum_cons, Complex.add_re, ih, Complex.mul_re]
+    simp
+
+/-- Real part of a sum of `ℕ`-casts. Helper for the equality case of the triangle
+inequality below; public because `Burnside.lean`'s nonvanishing dichotomy also consumes
+it. -/
+theorem Complex.re_natCast_finset_sum {ι : Type*} (s : Finset ι) (m : ι → ℕ) :
+    (∑ i ∈ s, (m i : ℂ) : ℂ).re = ∑ i ∈ s, (m i : ℝ) := by
+  induction s using Finset.cons_induction with
+  | empty => simp
+  | cons a t ha ih => rw [Finset.sum_cons, Finset.sum_cons, Complex.add_re, ih]; simp
+
+/-- If `z i` (for `i` in a finite set `s`) all have norm `1`, `m : ι → ℕ` are weights, and the
+weighted sum `∑ m i • z i` equals the real total weight `∑ m i`, then every `z i` with nonzero
+weight equals `1`. The "equality case of the triangle inequality," isolated as a standalone
+complex-number fact (no operator theory): taking real parts turns the hypothesis into a sum of
+nonpositive terms equal to zero, forcing each term to vanish. -/
+private theorem Complex.eq_one_of_natCast_smul_sum_eq_natCast_sum {ι : Type*} (s : Finset ι)
+    (m : ι → ℕ) (z : ι → ℂ) (hz : ∀ i ∈ s, ‖z i‖ = 1)
+    (heq : ∑ i ∈ s, (m i : ℂ) * z i = (∑ i ∈ s, (m i : ℂ))) {i₀ : ι} (hi₀ : i₀ ∈ s)
+    (hm : m i₀ ≠ 0) : z i₀ = 1 := by
+  have hre : ∑ i ∈ s, ((m i : ℝ) * (z i).re - (m i : ℝ)) = 0 := by
+    have hre_eq : (∑ i ∈ s, (m i : ℂ) * z i).re = (∑ i ∈ s, (m i : ℂ) : ℂ).re :=
+      congrArg Complex.re heq
+    rw [Complex.re_natCast_mul_finset_sum, Complex.re_natCast_finset_sum] at hre_eq
+    have hsplit : ∑ i ∈ s, ((m i : ℝ) * (z i).re - (m i : ℝ))
+        = ∑ i ∈ s, (m i : ℝ) * (z i).re - ∑ i ∈ s, (m i : ℝ) := by
+      rw [Finset.sum_sub_distrib]
+    rw [hsplit, hre_eq, sub_self]
+  have hnonpos : ∀ i ∈ s, (m i : ℝ) * (z i).re - (m i : ℝ) ≤ 0 := by
+    intro i hi
+    have hzre : (z i).re ≤ 1 := by
+      have hb : (z i).re * (z i).re ≤ Complex.normSq (z i) := Complex.re_sq_le_normSq (z i)
+      rw [Complex.normSq_eq_norm_sq, hz i hi, one_pow] at hb
+      nlinarith [sq_nonneg ((z i).re - 1)]
+    nlinarith [Nat.cast_nonneg (α := ℝ) (m i)]
+  have hall0 := (Finset.sum_eq_zero_iff_of_nonpos hnonpos).mp hre i₀ hi₀
+  have hmi0 : (m i₀ : ℝ) ≠ 0 := Nat.cast_ne_zero.mpr hm
+  have hre1 : (z i₀).re = 1 := by
+    have : (m i₀ : ℝ) * ((z i₀).re - 1) = 0 := by linarith [hall0]
+    rcases mul_eq_zero.mp this with h | h
+    · exact absurd h hmi0
+    · linarith
+  have hnorm1 : ‖z i₀‖ = 1 := hz i₀ hi₀
+  have hnormSq : Complex.normSq (z i₀) = 1 := by
+    rw [Complex.normSq_eq_norm_sq, hnorm1, one_pow]
+  rw [Complex.normSq_apply, hre1] at hnormSq
+  have himsq : (z i₀).im * (z i₀).im = 0 := by linarith
+  have him0 : (z i₀).im = 0 := by
+    rcases mul_eq_zero.mp himsq with h | h <;> exact h
+  exact Complex.ext hre1 him0
+
+/-- **Scalar-action lemma.** If `f ^ n = 1` and `trace f = target * finrank V` for a unimodular
+`target`, then `f` is literally the scalar map `target • 1`. Specializes (`target = 1`) to the
+kernel characterization `Irr.mem_ker_iff` below, and (general `target`) to the scalar-action
+fact behind `Burnside.lean`'s class-size lemma. -/
+theorem Module.End.eq_smul_one_of_trace_eq_mul_finrank {V : Type*} [AddCommGroup V]
+    [Module ℂ V] [FiniteDimensional ℂ V] [Nontrivial V] {f : Module.End ℂ V} {n : ℕ} (hn : n ≠ 0)
+    (hf : f ^ n = 1) {ζ : ℂ} (hζ : IsPrimitiveRoot ζ n) {target : ℂ} (htarget : ‖target‖ = 1)
+    (htrace : trace ℂ V f = target * (Module.finrank ℂ V : ℂ)) :
+    f = target • (1 : Module.End ℂ V) := by
+  obtain ⟨Q, hQsum, hfQ, hproj⟩ := Module.End.exists_zeta_pow_eigenProjections hn hf hζ
+  set m : ℕ → ℕ := fun j => Module.finrank ℂ (LinearMap.range (Q j)) with hmdef
+  have hfsum : f = ∑ j ∈ range n, ζ ^ j • Q j := by
+    conv_lhs => rw [← mul_one f, ← hQsum, Finset.mul_sum]
+    exact Finset.sum_congr rfl fun j _ => hfQ j
+  have htraceQ : ∀ j, trace ℂ V (Q j) = (m j : ℂ) := fun j => (hproj j).trace
+  have htrace2 : trace ℂ V f = ∑ j ∈ range n, ζ ^ j * (m j : ℂ) := by
+    rw [hfsum, map_sum]
+    exact Finset.sum_congr rfl fun j _ => by rw [map_smul, htraceQ, smul_eq_mul]
+  have htrace1 : (Module.finrank ℂ V : ℂ) = ∑ j ∈ range n, (m j : ℂ) := by
+    have h1 : trace ℂ V (1 : Module.End ℂ V) = (Module.finrank ℂ V : ℂ) :=
+      LinearMap.trace_one ℂ V
+    rw [← h1, ← hQsum, map_sum]
+    exact Finset.sum_congr rfl fun j _ => htraceQ j
+  have hcombine : ∑ j ∈ range n, (m j : ℂ) * ζ ^ j = ∑ j ∈ range n, (m j : ℂ) * target := by
+    have hstep : ∑ j ∈ range n, (m j : ℂ) * ζ ^ j = target * (Module.finrank ℂ V : ℂ) := by
+      rw [← htrace, htrace2]
+      exact Finset.sum_congr rfl fun j _ => mul_comm _ _
+    rw [hstep, htrace1, Finset.mul_sum]
+    exact Finset.sum_congr rfl fun j _ => mul_comm _ _
+  have htarget0 : target ≠ 0 := fun h => by simp [h] at htarget
+  have hkey : ∀ j ∈ range n, m j ≠ 0 → ζ ^ j = target := by
+    intro j hj hmj
+    have hz : ∀ i ∈ range n, ‖ζ ^ i * target⁻¹‖ = 1 := by
+      intro i _
+      rw [norm_mul, norm_inv]
+      have hζnorm : ‖ζ‖ = 1 := Complex.norm_eq_one_of_pow_eq_one hζ.pow_eq_one hn
+      rw [norm_pow, hζnorm, one_pow, htarget, inv_one, mul_one]
+    have heq2 : ∑ i ∈ range n, (m i : ℂ) * (ζ ^ i * target⁻¹) = ∑ i ∈ range n, (m i : ℂ) := by
+      have hstep : ∀ i ∈ range n, (m i : ℂ) * (ζ ^ i * target⁻¹) = ((m i : ℂ) * ζ ^ i) * target⁻¹ :=
+        fun i _ => by ring
+      rw [Finset.sum_congr rfl hstep, ← Finset.sum_mul, hcombine, Finset.sum_mul]
+      refine Finset.sum_congr rfl fun i _ => ?_
+      rw [mul_assoc, mul_inv_cancel₀ htarget0, mul_one]
+    have hthis := Complex.eq_one_of_natCast_smul_sum_eq_natCast_sum (range n) m
+      (fun i => ζ ^ i * target⁻¹) hz heq2 hj hmj
+    rw [← div_eq_mul_inv] at hthis
+    exact (div_eq_one_iff_eq htarget0).mp hthis
+  have hQ0 : ∀ j ∈ range n, m j = 0 → Q j = 0 := by
+    intro j _ hmj
+    have hrange0 : LinearMap.range (Q j) = ⊥ :=
+      Submodule.finrank_eq_zero.mp hmj
+    refine LinearMap.ext fun x => ?_
+    have hx := (hproj j).map_mem x
+    rw [hrange0] at hx
+    simpa using hx
+  by_cases hexists : ∃ j ∈ range n, m j ≠ 0
+  · obtain ⟨j₀, hj₀mem, hj₀ne⟩ := hexists
+    have hother0 : ∀ j ∈ range n, j ≠ j₀ → Q j = 0 := by
+      intro j hj hjne
+      apply hQ0 j hj
+      by_contra hmj
+      have h1 := hkey j hj hmj
+      have h2 := hkey j₀ hj₀mem hj₀ne
+      have hinjcast : ζ ^ j = ζ ^ j₀ := h1.trans h2.symm
+      have := hζ.pow_inj (mem_range.mp hj) (mem_range.mp hj₀mem) hinjcast
+      exact hjne this
+    have hQj0 : Q j₀ = 1 := by
+      have : ∑ j ∈ range n, Q j = Q j₀ := by
+        rw [Finset.sum_eq_single j₀]
+        · intro j hj hjne; exact hother0 j hj hjne
+        · intro h; exact absurd hj₀mem h
+      rw [← this, hQsum]
+    rw [hfsum]
+    rw [Finset.sum_eq_single j₀]
+    · rw [hQj0, hkey j₀ hj₀mem hj₀ne]
+    · intro j hj hjne
+      rw [hother0 j hj hjne, smul_zero]
+    · intro h; exact absurd hj₀mem h
+  · exfalso
+    push Not at hexists
+    have : (∑ j ∈ range n, (m j : ℂ)) = 0 := by
+      refine Finset.sum_eq_zero fun j hj => ?_
+      rw [hexists j hj]; simp
+    rw [← htrace1] at this
+    have hVpos : 0 < Module.finrank ℂ V := Module.finrank_pos
+    exact absurd this (Nat.cast_ne_zero.mpr hVpos.ne')
+
+/-! ### Character kernels
+
+`Irr.ker` is the kernel of the associated representation (a genuine `MonoidHom.ker`, hence
+automatically normal); `Irr.mem_ker_iff` identifies it with `{g | χ g = χ 1}` via the scalar-
+action lemma at `target = 1`. Promoted here from `Burnside.lean` (M3 Task 4, per the M2
+deferred-consolidation list), statements unchanged; the separation lemma
+`Irr.exists_ne_one_apply_ne` (the intersection of all character kernels is trivial, in
+element form) is new with M3 Task 4, feeding the Frobenius kernel theorem. -/
+
+section Kernel
+
+variable {G : Type u} [Group G] [Fintype G]
+
+/-- The kernel of an irreducible character: the kernel of (a witnessing) associated
+representation, as a genuine `MonoidHom.ker` — hence automatically a normal subgroup. -/
+noncomputable def Irr.ker (χ : Irr G) : Subgroup G :=
+  MonoidHom.ker (Representation.ofModule' (k := ℂ) (G := G) χ.exists_simple'.choose)
+
+instance Irr.ker.normal (χ : Irr G) : χ.ker.Normal := MonoidHom.normal_ker _
+
+/-- **Kernel characterization.** `g ∈ χ.ker ↔ χ g = χ 1`: the equality case of the trace bound,
+via the scalar-action lemma at `target = 1`. -/
+theorem Irr.mem_ker_iff (χ : Irr G) (g : G) : g ∈ χ.ker ↔ χ g = χ 1 := by
+  set N := χ.exists_simple'.choose with hNdef
+  haveI hN : IsSimpleModule (MonoidAlgebra ℂ G) N := χ.exists_simple'.choose_spec.1
+  have hχ : χ.toClassFunction = MonoidAlgebra.moduleCharacter G N :=
+    χ.exists_simple'.choose_spec.2
+  have hχg : χ g = trace ℂ N (MonoidAlgebra.actionEnd N g) := by
+    have := congrArg (fun φ : ClassFunction G => φ g) hχ
+    simpa [MonoidAlgebra.moduleCharacter_apply] using this
+  have hχ1 : χ 1 = (Module.finrank ℂ N : ℂ) := by
+    have := congrArg (fun φ : ClassFunction G => φ 1) hχ
+    simpa [MonoidAlgebra.moduleCharacter_one] using this
+  have hkeriff : g ∈ χ.ker
+      ↔ Representation.ofModule' (k := ℂ) (G := G) N g = 1 := Iff.rfl
+  rw [hkeriff]
+  constructor
+  · intro hg
+    rw [MonoidAlgebra.ofModule'_eq_actionEnd] at hg
+    rw [hχg, hg, LinearMap.trace_one, hχ1]
+  · intro heq
+    haveI : Nontrivial N := IsSimpleModule.nontrivial (MonoidAlgebra ℂ G) N
+    have hn : orderOf g ≠ 0 := (orderOf_pos g).ne'
+    have hpow1 : (MonoidAlgebra.actionEnd N g) ^ orderOf g = 1 := by
+      rw [← MonoidAlgebra.ofModule'_eq_actionEnd, ← map_pow, pow_orderOf_eq_one, map_one]
+    set ζ : ℂ := Complex.exp (2 * Real.pi * Complex.I / orderOf g) with hζdef
+    have hζ : IsPrimitiveRoot ζ (orderOf g) := Complex.isPrimitiveRoot_exp (orderOf g) hn
+    have htrace : trace ℂ N (MonoidAlgebra.actionEnd N g)
+        = (1 : ℂ) * (Module.finrank ℂ N : ℂ) := by
+      rw [one_mul, ← hχ1, ← hχg, heq]
+    have hscalar := Module.End.eq_smul_one_of_trace_eq_mul_finrank hn hpow1 hζ
+      (by norm_num) htrace
+    rw [MonoidAlgebra.ofModule'_eq_actionEnd, hscalar, one_smul]
+
+/-- A character whose kernel is everything is trivial: `g` acting as `1` for every `g` forces
+`⟪χ, 1⟫ = χ 1 ≠ 0`, and distinct irreducible characters are orthogonal. -/
+theorem Irr.eq_one_of_ker_eq_top (χ : Irr G) (htop : χ.ker = ⊤) : χ = Irr.one := by
+  classical
+  by_contra hne
+  have hall : ∀ g : G, χ g = χ 1 := fun g =>
+    (Irr.mem_ker_iff χ g).mp (htop ▸ Subgroup.mem_top g)
+  have hval : ⟪χ.toClassFunction, (Irr.one : Irr G).toClassFunction⟫_[G] = χ 1 := by
+    rw [ClassFunction.cfInner_def]
+    have hterm : ∀ g : G, χ.toClassFunction g
+        * starRingEnd ℂ ((Irr.one : Irr G).toClassFunction g) = χ 1 := fun g => by
+      rw [Irr.coe_toClassFunction, Irr.coe_toClassFunction, Irr.one_apply, map_one, mul_one,
+        hall g]
+    rw [Finset.sum_congr rfl fun g _ => hterm g, Finset.sum_const, Finset.card_univ,
+      nsmul_eq_mul, ← mul_assoc, inv_mul_cancel₀ (Nat.cast_ne_zero.mpr Fintype.card_ne_zero),
+      one_mul]
+  have hzero := Irr.cfInner_eq χ Irr.one
+  rw [if_neg hne, hval] at hzero
+  obtain ⟨d, hd0, hd⟩ := χ.exists_degree
+  rw [hd] at hzero
+  exact (Nat.cast_ne_zero.mpr hd0.ne') hzero
+
+/-- **Separation**: a nonidentity element is detected by some nonprincipal irreducible
+character — equivalently, the intersection of the kernels of the nonprincipal irreducible
+characters is trivial. Column argument: if `χ g = χ 1` for every `χ`, the second
+orthogonality relation at `(g, 1)` reads `∑ χ, (χ 1)^2 = 0`, contradicting
+`∑ χ, (χ 1)^2 = |G|`. Feeds the kernel extraction step of Frobenius' kernel theorem
+(`FrobeniusKernel.lean`). -/
+theorem Irr.exists_ne_one_apply_ne {g : G} (hg : g ≠ 1) :
+    ∃ χ : Irr G, χ ≠ Irr.one ∧ χ g ≠ χ 1 := by
+  classical
+  by_contra hcon
+  push Not at hcon
+  have hall : ∀ χ : Irr G, χ g = χ 1 := by
+    intro χ
+    rcases eq_or_ne χ Irr.one with rfl | hne
+    · rw [Irr.one_apply, Irr.one_apply]
+    · exact hcon χ hne
+  have h2 := Irr.second_orthogonality g 1
+  have hgconj : ¬ IsConj g 1 := fun hc => hg (isConj_one_left.mp hc)
+  rw [if_neg hgconj] at h2
+  have hterm : ∀ χ : Irr G, χ g * starRingEnd ℂ (χ 1) = (χ 1 : ℂ) ^ 2 := by
+    intro χ
+    obtain ⟨d, -, hd⟩ := χ.exists_degree
+    rw [hall χ, hd, map_natCast, sq]
+  rw [Finset.sum_congr rfl fun χ _ => hterm χ, Irr.sum_sq_degree] at h2
+  exact (Nat.cast_ne_zero.mpr Nat.card_pos.ne') h2
+
+end Kernel

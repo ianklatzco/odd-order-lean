@@ -318,6 +318,15 @@ theorem cfInner_sum_right {ι : Type*} (s : Finset ι) (φ : ClassFunction G)
   rw [cfInner_conj_symm, cfInner_sum_left, map_sum]
   exact Finset.sum_congr rfl fun i _ => (cfInner_conj_symm (ψ i) φ).symm
 
+theorem cfInner_sub_left (φ φ' ψ : ClassFunction G) :
+    ⟪φ - φ', ψ⟫_[G] = ⟪φ, ψ⟫_[G] - ⟪φ', ψ⟫_[G] :=
+  map_sub (cfInnerₗ ψ) φ φ'
+
+theorem cfInner_sub_right (φ ψ₁ ψ₂ : ClassFunction G) :
+    ⟪φ, ψ₁ - ψ₂⟫_[G] = ⟪φ, ψ₁⟫_[G] - ⟪φ, ψ₂⟫_[G] := by
+  rw [cfInner_conj_symm, cfInner_sub_left, map_sub, ← cfInner_conj_symm ψ₁ φ,
+    ← cfInner_conj_symm ψ₂ φ]
+
 end CfInner
 
 end ClassFunction

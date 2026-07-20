@@ -93,6 +93,12 @@ def res : ClassFunction G →ₗ[ℂ] ClassFunction H where
 theorem res_apply (φ : ClassFunction G) (h : H) : res H φ h = φ (h : G) :=
   rfl
 
+/-- Restriction sends the constant function `1` on `G` to the constant function `1` on `H`
+(the `One` of `CharacterArith.lean`'s ring structure). -/
+@[simp]
+theorem res_one : res H (1 : ClassFunction G) = 1 :=
+  rfl
+
 end ClassFunction
 
 /-! ### The zero-extension of a class function on `H` to `G` -/
