@@ -501,4 +501,249 @@ private theorem card_invariants_eq_pow_finrank_of_lift {p e : ℕ} (hp : p.Prime
 
 end Representation
 
+private theorem MonoidAlgebra.ext_coeff {R M : Type*} [Semiring R]
+    {x y : MonoidAlgebra R M} (h : x.coeff = y.coeff) : x = y := by
+  rw [← MonoidAlgebra.ofCoeff_coeff x, ← MonoidAlgebra.ofCoeff_coeff y, h]
+
+namespace Representation
+
+/-- **The Wielandt lifting theorem**, module form of Coq
+`iso_quotient_homocyclic_sdprod` (with the `Variant`
+`is_iso_quotient_homocyclic_sdprod` packaging): a simple `(ZMod p)[G]`-module `V`
+with `p ∤ |G|` lifts, for every `e ≠ 0`, to a **free** `ZMod (p ^ e)`-module
+direct summand `W` of the regular module of `G` over `ZMod (p ^ e)` — free =
+"homocyclic of exponent `p ^ e`", the summand `W` = the Coq `U ≤ L`, the regular
+module = the Coq `'rV['Z_q]_#|G|` — such that for *every* subgroup `A ≤ G` the
+fixed space of `V` under `A` has order `p ^ rank (fixed space of W under A)`.
+
+Statement-shape note: the Coq packages `W ⋊ G` with a morphism `f` with
+`'ker f = 'Mho^1(W)`, `f @* W = V`, `f @* G1 = G`; here the reduction map, its
+kernel `p • W` and the `G`-equivariance live inside the proof, and the conclusion
+exports exactly the fixed-point data consumed by `solvable_Wielandt_fixpoint`
+(the `rCW`/`rW_V` step there).  The auxiliary homocyclic decomposition
+`coprime_act_abelian_pgroup_structure` is not needed on this route: freeness of
+the summand comes from idempotent lifting plus projectivity over the local ring
+`ZMod (p ^ e)`. -/
+theorem exists_wielandt_lift {p : ℕ} (hp : p.Prime) {e : ℕ} (he : e ≠ 0)
+    {G : Type*} [Group G] [Finite G] (hG : ¬ p ∣ Nat.card G)
+    {V : Type*} [AddCommGroup V] [Module (ZMod p) V] [Finite V]
+    (ρ : Representation (ZMod p) G V)
+    (hsimple : IsSimpleModule (MonoidAlgebra (ZMod p) G) ρ.asModule) :
+    ∃ W : Submodule (MonoidAlgebra (ZMod (p ^ e)) G) (MonoidAlgebra (ZMod (p ^ e)) G),
+      Module.Free (ZMod (p ^ e)) ↥W ∧
+        ∀ A : Subgroup G,
+          Nat.card ↥(Representation.invariants (ρ.comp A.subtype))
+            = p ^ Module.finrank (ZMod (p ^ e))
+                (Representation.invariants
+                  ((MonoidAlgebra.submoduleRepr W).comp A.subtype)) := by
+  classical
+  haveI : Fact p.Prime := ⟨hp⟩
+  haveI : NeZero (p ^ e) := ⟨pow_ne_zero e hp.ne_zero⟩
+  haveI : NeZero p := ⟨hp.ne_zero⟩
+  haveI : Fintype G := Fintype.ofFinite G
+  have hloc : IsLocalRing (ZMod (p ^ e)) := ZMod.isLocalRing_prime_pow hp he
+  set red : ZMod (p ^ e) →+* ZMod p := ZMod.castHom (dvd_pow_self p he) (ZMod p)
+    with hreddef
+  set F : MonoidAlgebra (ZMod (p ^ e)) G →+* MonoidAlgebra (ZMod p) G :=
+    MonoidAlgebra.mapRingHom G red with hFdef
+  -- `F` computes coefficientwise as `red`
+  have hFcoeff : ∀ (x : MonoidAlgebra (ZMod (p ^ e)) G) (g : G),
+      (F x).coeff g = red (x.coeff g) := fun x g => rfl
+  -- `F` is surjective
+  have hF_surj : Function.Surjective F := by
+    intro t
+    obtain ⟨s₀, hs₀⟩ := Finsupp.mapRange_surjective (red : ZMod (p ^ e) → ZMod p)
+      (map_zero red) (ZMod.castHom_surjective _) t.coeff
+    refine ⟨MonoidAlgebra.ofCoeff s₀, MonoidAlgebra.ext_coeff (Finsupp.ext fun g => ?_)⟩
+    have h1 := DFunLike.congr_fun hs₀ g
+    rw [Finsupp.mapRange_apply] at h1
+    rw [hFcoeff, MonoidAlgebra.coeff_ofCoeff]
+    exact h1
+  -- division by `p` in the kernel of `red`
+  have hdiv : ∀ c : ZMod (p ^ e), red c = 0 →
+      c = (p : ZMod (p ^ e)) * ((c.val / p : ℕ) : ZMod (p ^ e)) := by
+    intro c hc
+    have h2 : ((c.val : ℕ) : ZMod p) = 0 := by
+      rw [ZMod.natCast_val]
+      exact hc
+    have h1 : p ∣ c.val := (ZMod.natCast_eq_zero_iff _ _).mp h2
+    calc c = ((c.val : ℕ) : ZMod (p ^ e)) := (ZMod.natCast_rightInverse c).symm
+      _ = ((p * (c.val / p) : ℕ) : ZMod (p ^ e)) := by rw [Nat.mul_div_cancel' h1]
+      _ = (p : ZMod (p ^ e)) * ((c.val / p : ℕ) : ZMod (p ^ e)) := by push_cast; ring
+  -- elements of the kernel of `F` are multiples of `p`, hence nilpotent
+  have hkerF_smul : ∀ x : MonoidAlgebra (ZMod (p ^ e)) G, F x = 0 →
+      ∃ y, x = (p : ZMod (p ^ e)) • y := by
+    intro x hx
+    have hcoeff : ∀ g : G, red (x.coeff g) = 0 := by
+      intro g
+      rw [← hFcoeff, hx, MonoidAlgebra.coeff_zero, Finsupp.zero_apply]
+    refine ⟨MonoidAlgebra.ofCoeff (x.coeff.mapRange
+      (fun c => ((c.val / p : ℕ) : ZMod (p ^ e))) (by simp)), ?_⟩
+    refine MonoidAlgebra.ext_coeff (Finsupp.ext fun g => ?_)
+    rw [MonoidAlgebra.coeff_smul, Finsupp.smul_apply, MonoidAlgebra.coeff_ofCoeff,
+      Finsupp.mapRange_apply, smul_eq_mul]
+    exact hdiv _ (hcoeff g)
+  have hkerF_nil : ∀ x ∈ RingHom.ker F, IsNilpotent x := by
+    intro x hx
+    obtain ⟨y, hy⟩ := hkerF_smul x (RingHom.mem_ker.mp hx)
+    refine ⟨e, ?_⟩
+    rw [hy, smul_pow]
+    have h0 : (p : ZMod (p ^ e)) ^ e = 0 := by
+      rw [← Nat.cast_pow, ZMod.natCast_self]
+    rw [h0, zero_smul]
+  -- the simple module downstairs is a quotient of the regular module,
+  -- with a Maschke complement of the kernel
+  haveI := hsimple
+  haveI : Nontrivial ρ.asModule := IsSimpleModule.nontrivial (MonoidAlgebra (ZMod p) G) _
+  obtain ⟨v₀, hv₀⟩ := exists_ne (0 : ρ.asModule)
+  set θ := LinearMap.toSpanSingleton (MonoidAlgebra (ZMod p) G) ρ.asModule v₀ with hθdef
+  have hθ_surj : Function.Surjective θ :=
+    IsSimpleModule.toSpanSingleton_surjective (MonoidAlgebra (ZMod p) G) hv₀
+  haveI : NeZero ((Nat.card G : ZMod p)) :=
+    ⟨fun h0 => hG ((ZMod.natCast_eq_zero_iff _ _).mp h0)⟩
+  obtain ⟨C, hC⟩ := MonoidAlgebra.Submodule.exists_isCompl (LinearMap.ker θ)
+  set π := C.projection (LinearMap.ker θ) hC.symm with hπdef
+  set ebar := π 1 with hebar
+  have hπ_mul : ∀ x, π x = x * ebar := by
+    intro x
+    have h1 : π (x • (1 : MonoidAlgebra (ZMod p) G)) = x • π 1 := map_smul π x 1
+    rw [smul_eq_mul, mul_one] at h1
+    rw [h1, smul_eq_mul]
+  have hebar_mem : ebar ∈ C := Submodule.projection_apply_mem hC.symm 1
+  have hebar_idem : IsIdempotentElem ebar := by
+    have h1 : π ebar = ebar := Submodule.projection_apply_of_mem_left hC.symm hebar_mem
+    have h2 : ebar * ebar = ebar := by rw [← hπ_mul ebar]; exact h1
+    exact h2
+  have hθ_mul_ebar : ∀ x, θ (x * ebar) = θ x := by
+    intro x
+    have h2 : π (π x) = π x :=
+      Submodule.projection_apply_of_mem_left hC.symm
+        (Submodule.projection_apply_mem hC.symm x)
+    have h3 : π (x - π x) = 0 := by rw [map_sub, h2, sub_self]
+    have hmemK : x - π x ∈ LinearMap.ker θ :=
+      (Submodule.projection_apply_eq_zero_iff hC.symm).mp h3
+    have h4 : θ (x - π x) = 0 := LinearMap.mem_ker.mp hmemK
+    rw [map_sub, sub_eq_zero] at h4
+    rw [← hπ_mul x]
+    exact h4.symm
+  -- lift the idempotent along the nilpotent kernel
+  obtain ⟨ε, hε_idem, hFε⟩ := exists_isIdempotentElem_eq_of_ker_isNilpotent F hkerF_nil
+    ebar (RingHom.mem_range.mpr (hF_surj ebar)) hebar_idem
+  -- the lifted summand
+  set W : Submodule (MonoidAlgebra (ZMod (p ^ e)) G) (MonoidAlgebra (ZMod (p ^ e)) G) :=
+    LinearMap.range (LinearMap.toSpanSingleton (MonoidAlgebra (ZMod (p ^ e)) G)
+      (MonoidAlgebra (ZMod (p ^ e)) G) ε) with hWdef
+  have hW_mem : ∀ w, w ∈ W ↔ w * ε = w := by
+    intro w
+    constructor
+    · rintro ⟨x, rfl⟩
+      rw [LinearMap.toSpanSingleton_apply, smul_eq_mul, mul_assoc, hε_idem.eq]
+    · intro hw
+      exact ⟨w, by rw [LinearMap.toSpanSingleton_apply, smul_eq_mul, hw]⟩
+  -- finiteness and freeness of the summand
+  haveI hSfin : Finite (G →₀ ZMod (p ^ e)) :=
+    Finite.of_equiv (G → ZMod (p ^ e)) Finsupp.equivFunOnFinite.symm
+  haveI : Finite (MonoidAlgebra (ZMod (p ^ e)) G) := hSfin
+  set iW : ↥W →ₗ[ZMod (p ^ e)] MonoidAlgebra (ZMod (p ^ e)) G :=
+    LinearMap.restrictScalars (ZMod (p ^ e)) W.subtype with hiWdef
+  set sW : MonoidAlgebra (ZMod (p ^ e)) G →ₗ[ZMod (p ^ e)] ↥W :=
+    { toFun := fun x => ⟨x * ε, (hW_mem _).mpr (by rw [mul_assoc, hε_idem.eq])⟩
+      map_add' := fun x y => Subtype.ext (by simp [add_mul])
+      map_smul' := fun c x => Subtype.ext (by simp) } with hsWdef
+  haveI : Module.Projective (ZMod (p ^ e)) ↥W :=
+    Module.Projective.of_split iW sW
+      (LinearMap.ext fun w => Subtype.ext ((hW_mem _).mp w.2))
+  haveI : Module.Free (ZMod (p ^ e)) ↥W := by
+    haveI := hloc
+    exact Module.free_of_flat_of_isLocalRing
+  -- the equivariant reduction `φ : W → V` with kernel `p • W`
+  set φ₀ : ↥W → V := fun w =>
+    ρ.asModuleEquiv (θ (F (w : MonoidAlgebra (ZMod (p ^ e)) G))) with hφ₀def
+  have hφ₀_add : ∀ x y : ↥W, φ₀ (x + y) = φ₀ x + φ₀ y := by
+    intro x y
+    rw [hφ₀def]
+    simp only [Submodule.coe_add, map_add]
+  set φ : ↥W →+ V := AddMonoidHom.mk' φ₀ hφ₀_add with hφdef
+  have hφ_apply : ∀ w : ↥W,
+      φ w = ρ.asModuleEquiv (θ (F (w : MonoidAlgebra (ZMod (p ^ e)) G))) := fun _ => rfl
+  -- single-smul computes through `θ` and `asModuleEquiv`
+  have hsingle_smul : ∀ (g : G) (c : ZMod p) (y : MonoidAlgebra (ZMod p) G),
+      ρ.asModuleEquiv (θ (MonoidAlgebra.single g c * y))
+        = c • ρ g (ρ.asModuleEquiv (θ y)) := by
+    intro g c y
+    rw [← smul_eq_mul, map_smul, ρ.asModuleEquiv_map_smul, ρ.asAlgebraHom_single,
+      LinearMap.smul_apply]
+  -- scalar compatibility
+  have hφ_smul : ∀ (c : ZMod (p ^ e)) (w : ↥W), φ (c • w) = red c • φ w := by
+    intro c w
+    have hcoe2 : ((c • w : ↥W) : MonoidAlgebra (ZMod (p ^ e)) G)
+        = MonoidAlgebra.single (1 : G) c * (w : MonoidAlgebra (ZMod (p ^ e)) G) := by
+      have h0 : ((c • w : ↥W) : MonoidAlgebra (ZMod (p ^ e)) G) = c • (w : _) := rfl
+      rw [h0, Algebra.smul_def]
+      congr 1
+    rw [hφ_apply, hφ_apply, hcoe2, map_mul]
+    have hFsingle : F (MonoidAlgebra.single (1 : G) c)
+        = MonoidAlgebra.single (1 : G) (red c) := MonoidAlgebra.mapRingHom_single red 1 c
+    rw [hFsingle, hsingle_smul, map_one, Module.End.one_apply]
+  -- equivariance
+  have hφ_equiv : ∀ (g : G) (w : ↥W),
+      φ (MonoidAlgebra.submoduleRepr W g w) = ρ g (φ w) := by
+    intro g w
+    rw [hφ_apply, hφ_apply, MonoidAlgebra.coe_submoduleRepr_apply, map_mul]
+    have hFsingle : F (MonoidAlgebra.single g (1 : ZMod (p ^ e)))
+        = MonoidAlgebra.single g (1 : ZMod p) := by
+      rw [MonoidAlgebra.mapRingHom_single, map_one]
+    rw [hFsingle, hsingle_smul]
+    rw [one_smul]
+  -- surjectivity
+  have hφ_surj : Function.Surjective φ := by
+    intro v
+    obtain ⟨x, hx⟩ := hθ_surj (ρ.asModuleEquiv.symm v)
+    obtain ⟨y, hy⟩ := hF_surj x
+    refine ⟨sW y, ?_⟩
+    have h1 : ((sW y : ↥W) : MonoidAlgebra (ZMod (p ^ e)) G) = y * ε := rfl
+    rw [hφ_apply, h1, map_mul, hFε, hθ_mul_ebar, hy, hx, LinearEquiv.apply_symm_apply]
+  -- kernel is `p • W`
+  have hred_p : red ((p : ℕ) : ZMod (p ^ e)) = 0 := by
+    rw [map_natCast red, ZMod.natCast_self]
+  have hφ_ker : ∀ w : ↥W, φ w = 0 ↔
+      ∃ u : ↥W, w = (p : ZMod (p ^ e)) • u := by
+    intro w
+    constructor
+    · intro hw
+      have hFw_ker : F (w : MonoidAlgebra (ZMod (p ^ e)) G) ∈ LinearMap.ker θ := by
+        rw [LinearMap.mem_ker]
+        have h1 : ρ.asModuleEquiv (θ (F (w : MonoidAlgebra (ZMod (p ^ e)) G))) = 0 := hw
+        have h2 : ρ.asModuleEquiv (θ (F (w : MonoidAlgebra (ZMod (p ^ e)) G)))
+            = ρ.asModuleEquiv 0 := by rw [h1, map_zero]
+        exact ρ.asModuleEquiv.injective h2
+      have hFw_C : F (w : MonoidAlgebra (ZMod (p ^ e)) G) ∈ C := by
+        have h1 : (w : MonoidAlgebra (ZMod (p ^ e)) G) * ε = w := (hW_mem _).mp w.2
+        have h2 : F (w : MonoidAlgebra (ZMod (p ^ e)) G)
+            = F (w : MonoidAlgebra (ZMod (p ^ e)) G) * ebar := by
+          rw [← hFε, ← map_mul, h1]
+        rw [h2, ← hπ_mul]
+        exact Submodule.projection_apply_mem hC.symm _
+      have hFw0 : F (w : MonoidAlgebra (ZMod (p ^ e)) G) = 0 :=
+        (Submodule.disjoint_def.mp hC.disjoint) _ hFw_ker hFw_C
+      obtain ⟨y, hy⟩ := hkerF_smul _ hFw0
+      refine ⟨sW y, Subtype.ext ?_⟩
+      have hcoe : ((((p : ZMod (p ^ e)) • sW y) : ↥W) : MonoidAlgebra (ZMod (p ^ e)) G)
+          = (p : ZMod (p ^ e)) • (y * ε) := rfl
+      rw [hcoe, ← smul_mul_assoc, ← hy]
+      exact ((hW_mem _).mp w.2).symm
+    · rintro ⟨u, rfl⟩
+      rw [hφ_smul]
+      rw [show red ((p : ℕ) : ZMod (p ^ e)) = 0 from hred_p, zero_smul]
+  -- conclude, subgroup by subgroup
+  refine ⟨W, inferInstance, fun A => ?_⟩
+  have hA : ¬ p ∣ Nat.card ↥A := fun hdvd =>
+    hG (hdvd.trans (Subgroup.card_subgroup_dvd_card A))
+  exact card_invariants_eq_pow_finrank_of_lift hp he hA
+    ((MonoidAlgebra.submoduleRepr W).comp A.subtype) (ρ.comp A.subtype)
+    φ hφ_surj (fun c w => hφ_smul c w) (fun a w => hφ_equiv (↑a) w)
+    (fun w => hφ_ker w)
+
+end Representation
+
 end Lift
