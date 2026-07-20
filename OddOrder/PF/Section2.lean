@@ -1266,4 +1266,494 @@ end Reciprocity
 
 end DadeHypothesis
 
+/-! ### (2.8)–(2.10) The expansion of the Dade lift into induced class functions
+
+For a nonempty subset `B ⊆ A` (a `Finset`, so that (2.10)'s alternating sums are finite),
+the Coq defines `'H(B) = ⋂_{b ∈ B} H b` (`Dade_set_signalizer`), `'N_L(B)`
+(`setNormalizer L B` below), `'M(B) = 'H(B) ⋊ 'N_L(B)` (`Dade_set_normalizer`), and the
+restriction `'aa_B` of `α ∈ 'CF(L, A)` to `'M(B)` along the projection killing `'H(B)`
+(`Dade_cfun_restriction`).  (2.10) expands `α^τ` as
+`-∑_{B ∈ calB} (-1)^{|B|} Ind_{M(B)}^G 'aa_B` over a transversal `calB` of the
+`L`-orbits of such `B`. -/
+
+section SetSignalizer
+
+/-- `'N_L(B)`: the stabilizer in `L` of a `Finset` `B` under conjugation.
+Coq: `'N_L(B)` in `PFsection2.v` (the `Dade_set_normalizer` factor). -/
+def setNormalizer (L : Subgroup G) (B : Finset G) : Subgroup G :=
+  L ⊓ Subgroup.normalizer (↑B : Set G)
+
+theorem mem_setNormalizer {L : Subgroup G} {B : Finset G} {x : G} :
+    x ∈ setNormalizer L B ↔ x ∈ L ∧ ∀ b : G, b ∈ B ↔ x * b * x⁻¹ ∈ B := by
+  rw [setNormalizer, Subgroup.mem_inf, Subgroup.mem_set_normalizer_iff]
+  simp only [Finset.mem_coe]
+
+theorem setNormalizer_le {L : Subgroup G} {B : Finset G} : setNormalizer L B ≤ L :=
+  inf_le_left
+
+open scoped Classical in
+/-- A `Finset` is fixed by conjugation exactly by the members of the normalizer of its
+coercion. -/
+theorem image_conj_eq_iff {B : Finset G} {w : G} :
+    B.image (fun b => w * b * w⁻¹) = B ↔ w ∈ Subgroup.normalizer (↑B : Set G) := by
+  constructor
+  · intro h
+    rw [Subgroup.mem_set_normalizer_iff]
+    intro n
+    constructor
+    · intro hn
+      have : w * n * w⁻¹ ∈ B.image (fun b => w * b * w⁻¹) :=
+        Finset.mem_image.mpr ⟨n, hn, rfl⟩
+      rwa [h] at this
+    · intro hn
+      rw [← h] at hn
+      obtain ⟨b, hb, hbe⟩ := Finset.mem_image.mp hn
+      have : b = n := mul_left_cancel (mul_right_cancel hbe)
+      rwa [← this]
+  · intro h
+    ext m
+    rw [Finset.mem_image]
+    constructor
+    · rintro ⟨b, hb, rfl⟩
+      exact ((Subgroup.mem_set_normalizer_iff.mp h) b).mp hb
+    · intro hm
+      refine ⟨w⁻¹ * m * w, ?_, by group⟩
+      have := (Subgroup.mem_set_normalizer_iff.mp h) (w⁻¹ * m * w)
+      rw [show w * (w⁻¹ * m * w) * w⁻¹ = m by group] at this
+      exact this.mpr hm
+
+open scoped Classical in
+/-- Composition law for `Finset` conjugation. -/
+theorem image_conj_image_conj (B : Finset G) (x y : G) :
+    (B.image fun b => y * b * y⁻¹).image (fun b => x * b * x⁻¹)
+      = B.image (fun b => (x * y) * b * (x * y)⁻¹) := by
+  rw [Finset.image_image]
+  refine Finset.image_congr fun b _ => ?_
+  show x * (y * b * y⁻¹) * x⁻¹ = (x * y) * b * (x * y)⁻¹
+  group
+
+namespace DadeHypothesis
+
+variable {L : Subgroup G} {A : Set G}
+
+/-- `'H(B) = ⋂_{b ∈ B} H b` — the generalized signalizer of Peterfalvi (2.8)–(2.10).
+Coq: `Dade_set_signalizer` (`PFsection2.v`). -/
+def setSignalizer (ddA : DadeHypothesis G L A) (B : Finset G) : Subgroup G :=
+  ⨅ b ∈ B, ddA.signalizer b
+
+theorem mem_setSignalizer {ddA : DadeHypothesis G L A} {B : Finset G} {x : G} :
+    x ∈ ddA.setSignalizer B ↔ ∀ b ∈ B, x ∈ ddA.signalizer b := by
+  simp [setSignalizer, Subgroup.mem_iInf]
+
+theorem setSignalizer_le (ddA : DadeHypothesis G L A) {B : Finset G} {b : G} (hb : b ∈ B) :
+    ddA.setSignalizer B ≤ ddA.signalizer b := fun _ hx => mem_setSignalizer.mp hx b hb
+
+theorem setSignalizer_singleton (ddA : DadeHypothesis G L A) (a : G) :
+    ddA.setSignalizer {a} = ddA.signalizer a := by
+  ext x
+  simp [mem_setSignalizer]
+
+/-- `|'H(B)|` is coprime to `|C_L(b')|` for every `b' ∈ A` — the `π'`-group property of
+the generalized signalizer, inherited from any single member of `B`. -/
+theorem coprime_card_setSignalizer (ddA : DadeHypothesis G L A) {B : Finset G}
+    (hB : ↑B ⊆ A) (hne : B.Nonempty) {b' : G} (hb' : b' ∈ A) :
+    Nat.Coprime (Nat.card (ddA.setSignalizer B))
+      (Nat.card ↥(L ⊓ Subgroup.centralizer {b'})) := by
+  obtain ⟨b₀, hb₀⟩ := hne
+  exact Nat.Coprime.coprime_dvd_left
+    (Subgroup.card_dvd_of_le (ddA.setSignalizer_le hb₀))
+    (ddA.signalizer_coprime b₀ (hB hb₀) b' hb')
+
+/-- Members of `'N_L(B)` normalize `'H(B)` (elementwise form).  Part of Peterfalvi (2.8),
+Coq `Dade_set_sdprod`. -/
+theorem conj_mem_setSignalizer [Finite G] (ddA : DadeHypothesis G L A) {B : Finset G}
+    (hB : ↑B ⊆ A) {x : G} (hx : x ∈ setNormalizer L B) {h : G}
+    (hh : h ∈ ddA.setSignalizer B) : x * h * x⁻¹ ∈ ddA.setSignalizer B := by
+  obtain ⟨hxL, hxB⟩ := mem_setNormalizer.mp hx
+  rw [mem_setSignalizer]
+  intro b hb
+  have hb' : x⁻¹ * b * x ∈ B := by
+    have := hxB (x⁻¹ * b * x)
+    rw [show x * (x⁻¹ * b * x) * x⁻¹ = b by group] at this
+    exact this.mpr hb
+  have hbA : x⁻¹ * b * x ∈ A := hB hb'
+  have hconj : ddA.signalizer b
+      = (ddA.signalizer (x⁻¹ * b * x)).map (MulAut.conj x).toMonoidHom := by
+    have := ddA.signalizer_conj hxL hbA
+    rwa [show x * (x⁻¹ * b * x) * x⁻¹ = b by group] at this
+  rw [hconj, Subgroup.mem_map_conj_iff]
+  have harg : x⁻¹ * (x * h * x⁻¹) * x = h := by group
+  rw [harg]
+  exact mem_setSignalizer.mp hh _ hb'
+
+/-- `'H(B) ⊓ 'N_L(B) = ⊥` — part of Peterfalvi (2.8), Coq `Dade_set_sdprod`. -/
+theorem setSignalizer_inf_setNormalizer (ddA : DadeHypothesis G L A) {B : Finset G}
+    (hB : ↑B ⊆ A) (hne : B.Nonempty) :
+    ddA.setSignalizer B ⊓ setNormalizer L B = ⊥ := by
+  obtain ⟨b₀, hb₀⟩ := hne
+  rw [eq_bot_iff]
+  intro x hx
+  obtain ⟨hxH, hxN⟩ := Subgroup.mem_inf.mp hx
+  have h1 : x ∈ ddA.signalizer b₀ := ddA.setSignalizer_le hb₀ hxH
+  have h2 : x ∈ L ⊓ Subgroup.centralizer {b₀} :=
+    Subgroup.mem_inf.mpr ⟨setNormalizer_le hxN, ddA.signalizer_le b₀ (hB hb₀) h1⟩
+  have h3 : x ∈ ddA.signalizer b₀ ⊓ (L ⊓ Subgroup.centralizer {b₀}) :=
+    Subgroup.mem_inf.mpr ⟨h1, h2⟩
+  rw [ddA.signalizer_inf_eq_bot (hB hb₀)] at h3
+  exact h3
+
+/-- `'M(B) = 'H(B) ⊔ 'N_L(B)` — with (2.8) this is the internal semidirect product
+`'H(B) ⋊ 'N_L(B)`.  Coq: `Dade_set_normalizer` (`PFsection2.v`). -/
+def setProd (ddA : DadeHypothesis G L A) (B : Finset G) : Subgroup G :=
+  ddA.setSignalizer B ⊔ setNormalizer L B
+
+theorem setSignalizer_le_setProd (ddA : DadeHypothesis G L A) {B : Finset G} :
+    ddA.setSignalizer B ≤ ddA.setProd B := le_sup_left
+
+theorem setNormalizer_le_setProd (ddA : DadeHypothesis G L A) {B : Finset G} :
+    setNormalizer L B ≤ ddA.setProd B := le_sup_right
+
+/-- **Peterfalvi (2.8)** (`Dade_set_sdprod`), decomposition form: every element of
+`'M(B)` factors as `h * n` with `h ∈ 'H(B)`, `n ∈ 'N_L(B)`. -/
+theorem exists_mul_of_mem_setProd [Finite G] (ddA : DadeHypothesis G L A) {B : Finset G}
+    (hB : ↑B ⊆ A) {m : G} (hm : m ∈ ddA.setProd B) :
+    ∃ h ∈ ddA.setSignalizer B, ∃ n ∈ setNormalizer L B, m = h * n := by
+  rw [setProd, Subgroup.sup_eq_closure] at hm
+  induction hm using Subgroup.closure_induction with
+  | mem x hx =>
+    rcases hx with hx | hx
+    · exact ⟨x, hx, 1, one_mem _, (mul_one x).symm⟩
+    · exact ⟨1, one_mem _, x, hx, (one_mul x).symm⟩
+  | one => exact ⟨1, one_mem _, 1, one_mem _, (one_mul 1).symm⟩
+  | mul x y _ _ ihx ihy =>
+    obtain ⟨h₁, hh₁, n₁, hn₁, rfl⟩ := ihx
+    obtain ⟨h₂, hh₂, n₂, hn₂, rfl⟩ := ihy
+    refine ⟨h₁ * (n₁ * h₂ * n₁⁻¹), mul_mem hh₁ (ddA.conj_mem_setSignalizer hB hn₁ hh₂),
+      n₁ * n₂, mul_mem hn₁ hn₂, by group⟩
+  | inv x _ ihx =>
+    obtain ⟨h, hh, n, hn, rfl⟩ := ihx
+    refine ⟨n⁻¹ * h⁻¹ * n, ?_, n⁻¹, inv_mem hn, by group⟩
+    have := ddA.conj_mem_setSignalizer hB (inv_mem hn) (inv_mem hh)
+    simpa using this
+
+/-- The `'H(B)`-part of `'M(B)` is normal in `'M(B)` (as a `subgroupOf`). -/
+theorem normal_setSignalizer_subgroupOf' [Finite G] (ddA : DadeHypothesis G L A)
+    {B : Finset G} (hB : ↑B ⊆ A) :
+    ((ddA.setSignalizer B).subgroupOf (ddA.setProd B)).Normal := by
+  constructor
+  intro n hn g
+  rw [Subgroup.mem_subgroupOf] at hn ⊢
+  obtain ⟨h, hh, m, hm, hgm⟩ := ddA.exists_mul_of_mem_setProd hB g.2
+  have step1 : m * ↑n * m⁻¹ ∈ ddA.setSignalizer B := ddA.conj_mem_setSignalizer hB hm hn
+  have step2 : h * (m * ↑n * m⁻¹) * h⁻¹ ∈ ddA.setSignalizer B :=
+    mul_mem (mul_mem hh step1) (inv_mem hh)
+  have harg : (↑g : G) * ↑n * (↑g)⁻¹ = h * (m * ↑n * m⁻¹) * h⁻¹ := by
+    rw [hgm]; group
+  push_cast
+  rwa [harg]
+
+open scoped Pointwise in
+/-- **Peterfalvi (2.8)** (`Dade_set_sdprod`), complement form: `'N_L(B)` and `'H(B)` are
+complements inside `'M(B)` (with `'H(B)` normal), realizing `'M(B) = 'H(B) ⋊ 'N_L(B)`. -/
+theorem isComplement'_setProd [Finite G] (ddA : DadeHypothesis G L A) {B : Finset G}
+    (hB : ↑B ⊆ A) (hne : B.Nonempty) :
+    ((setNormalizer L B).subgroupOf (ddA.setProd B)).IsComplement'
+      ((ddA.setSignalizer B).subgroupOf (ddA.setProd B)) := by
+  refine Subgroup.isComplement'_of_disjoint_and_mul_eq_univ ?_ ?_
+  · rw [disjoint_iff, eq_bot_iff]
+    intro x hx
+    obtain ⟨hxN, hxH⟩ := Subgroup.mem_inf.mp hx
+    rw [Subgroup.mem_subgroupOf] at hxN hxH
+    have hmem : (↑x : G) ∈ ddA.setSignalizer B ⊓ setNormalizer L B :=
+      Subgroup.mem_inf.mpr ⟨hxH, hxN⟩
+    rw [ddA.setSignalizer_inf_setNormalizer hB hne, Subgroup.mem_bot] at hmem
+    rw [Subgroup.mem_bot]
+    exact Subtype.ext hmem
+  · refine Set.eq_univ_iff_forall.mpr fun u => ?_
+    obtain ⟨h, hh, n, hn, hu⟩ := ddA.exists_mul_of_mem_setProd hB u.2
+    have hh' : n⁻¹ * h * n ∈ ddA.setSignalizer B := by
+      have := ddA.conj_mem_setSignalizer hB (inv_mem hn) hh
+      simpa using this
+    refine Set.mem_mul.mpr
+      ⟨⟨n, ddA.setNormalizer_le_setProd hn⟩, ?_,
+        ⟨n⁻¹ * h * n, ddA.setSignalizer_le_setProd hh'⟩, ?_, ?_⟩
+    · exact SetLike.mem_coe.mpr (Subgroup.mem_subgroupOf.mpr hn)
+    · exact SetLike.mem_coe.mpr (Subgroup.mem_subgroupOf.mpr hh')
+    · ext
+      push_cast
+      rw [hu]
+      group
+
+/-- `|'M(B)| = |'H(B)| * |'N_L(B)|`. -/
+theorem card_setProd [Finite G] (ddA : DadeHypothesis G L A) {B : Finset G}
+    (hB : ↑B ⊆ A) (hne : B.Nonempty) :
+    Nat.card (ddA.setProd B)
+      = Nat.card (ddA.setSignalizer B) * Nat.card (setNormalizer L B) := by
+  have h := (ddA.isComplement'_setProd hB hne).card_mul
+  rw [Subgroup.card_subgroupOf ddA.setNormalizer_le_setProd,
+    Subgroup.card_subgroupOf ddA.setSignalizer_le_setProd] at h
+  rw [← h, mul_comm]
+
+/-! #### The Dade restriction `'aa_B` -/
+
+section Restriction
+
+variable [Fintype G]
+
+open scoped Classical in
+/-- The projection `'M(B) → L` with kernel `'H(B)`: the composite
+`'M(B) → 'M(B) ⧸ 'H(B) ≃* 'N_L(B) ↪ L` (junk `1` off `calP`, mirroring the Coq's
+`trivm` fallback in `Dade_restrm`).  Coq: `Dade_restrm` (`PFsection2.v`). -/
+noncomputable def dadeProj (ddA : DadeHypothesis G L A) (B : Finset G) :
+    ↥(ddA.setProd B) →* ↥L :=
+  if hB : ↑B ⊆ A ∧ B.Nonempty then
+    haveI := ddA.normal_setSignalizer_subgroupOf' hB.1
+    (Subgroup.inclusion (setNormalizer_le (L := L) (B := B))).comp
+      (((Subgroup.subgroupOfEquivOfLe
+          (ddA.setNormalizer_le_setProd (B := B))).toMonoidHom).comp
+        (((ddA.isComplement'_setProd hB.1 hB.2).QuotientMulEquiv).toMonoidHom.comp
+          (QuotientGroup.mk' ((ddA.setSignalizer B).subgroupOf (ddA.setProd B)))))
+  else 1
+
+/-- Evaluation of the Dade projection on a factored element: `h * n ↦ n`.
+Coq: the `remgrMid` computation inside `Dade_restrictionE`. -/
+theorem dadeProj_apply_mul (ddA : DadeHypothesis G L A) {B : Finset G}
+    (hB : ↑B ⊆ A ∧ B.Nonempty) {h n : G} (hh : h ∈ ddA.setSignalizer B)
+    (hn : n ∈ setNormalizer L B) (hmem : h * n ∈ ddA.setProd B) :
+    ddA.dadeProj B ⟨h * n, hmem⟩ = ⟨n, setNormalizer_le hn⟩ := by
+  classical
+  haveI := ddA.normal_setSignalizer_subgroupOf' hB.1
+  set e := (ddA.isComplement'_setProd hB.1 hB.2).QuotientMulEquiv with he
+  have hproj : ddA.dadeProj B ⟨h * n, hmem⟩
+      = Subgroup.inclusion (setNormalizer_le (L := L) (B := B))
+          ((Subgroup.subgroupOfEquivOfLe (ddA.setNormalizer_le_setProd (B := B)))
+            (e (QuotientGroup.mk (⟨h * n, hmem⟩ : ↥(ddA.setProd B))))) := by
+    rw [dadeProj, dif_pos hB]
+    rfl
+  have hnPmem : n ∈ ddA.setProd B := ddA.setNormalizer_le_setProd hn
+  have hmk : QuotientGroup.mk (s := (ddA.setSignalizer B).subgroupOf (ddA.setProd B))
+      (⟨h * n, hmem⟩ : ↥(ddA.setProd B)) = QuotientGroup.mk ⟨n, hnPmem⟩ := by
+    rw [QuotientGroup.eq]
+    rw [Subgroup.mem_subgroupOf]
+    have hval : (((⟨h * n, hmem⟩ : ↥(ddA.setProd B))⁻¹
+        * (⟨n, hnPmem⟩ : ↥(ddA.setProd B)) : ↥(ddA.setProd B)) : G) = n⁻¹ * h⁻¹ * n := by
+      show (h * n)⁻¹ * n = n⁻¹ * h⁻¹ * n
+      group
+    rw [hval]
+    have := ddA.conj_mem_setSignalizer hB.1 (inv_mem hn) (inv_mem hh)
+    simpa using this
+  have hE : e (QuotientGroup.mk (⟨n, hnPmem⟩ : ↥(ddA.setProd B)))
+      = ⟨⟨n, hnPmem⟩, Subgroup.mem_subgroupOf.mpr hn⟩ := by
+    have hsymm : e.symm ⟨⟨n, hnPmem⟩, Subgroup.mem_subgroupOf.mpr hn⟩
+        = QuotientGroup.mk (⟨n, hnPmem⟩ : ↥(ddA.setProd B)) := rfl
+    exact ((MulEquiv.symm_apply_eq e).mp hsymm).symm
+  rw [hproj, hmk, hE]
+  rfl
+
+/-- `'aa_B`: the Dade restriction of `α ∈ 'CF(L)` to `'M(B)` — the pullback of `α` along
+the projection `'M(B) → 'N_L(B) ≤ L`, bundled linearly in `α`.
+Coq: `Dade_cfun_restriction` (`PFsection2.v`). -/
+noncomputable def dadeRestriction (ddA : DadeHypothesis G L A) (B : Finset G) :
+    ClassFunction ↥L →ₗ[ℂ] ClassFunction ↥(ddA.setProd B) :=
+  ClassFunction.compHom (ddA.dadeProj B)
+
+/-- **`Dade_restrictionE`**: on a factored element, `'aa_B (h * n) = α n`. -/
+theorem dadeRestriction_apply_mul (ddA : DadeHypothesis G L A) (α : ClassFunction ↥L)
+    {B : Finset G} (hB : ↑B ⊆ A ∧ B.Nonempty) {h n : G} (hh : h ∈ ddA.setSignalizer B)
+    (hn : n ∈ setNormalizer L B) (hmem : h * n ∈ ddA.setProd B) :
+    ddA.dadeRestriction B α ⟨h * n, hmem⟩ = α ⟨n, setNormalizer_le hn⟩ := by
+  rw [dadeRestriction, ClassFunction.compHom_apply, ddA.dadeProj_apply_mul hB hh hn hmem]
+
+open scoped Classical in
+/-- **`Dade_restriction_vchar`**: the Dade restriction of a virtual character is a
+virtual character. -/
+theorem dadeRestriction_isVirtualChar (ddA : DadeHypothesis G L A) [Fintype L]
+    (B : Finset G) {α : ClassFunction ↥L} (hα : α.IsVirtualChar) :
+    (ddA.dadeRestriction B α).IsVirtualChar := by
+  obtain ⟨α₁, α₂, h₁, h₂, rfl⟩ := ClassFunction.isVirtualChar_iff_exists_isChar_sub.mp hα
+  rw [dadeRestriction, map_sub]
+  exact ClassFunction.IsChar.sub_isVirtualChar
+    (h₁.compHom (ddA.dadeProj B)) (h₂.compHom (ddA.dadeProj B))
+
+end Restriction
+
+/-! #### Conjugation transport for the expansion data (Peterfalvi (2.10.1)) -/
+
+section ConjTransport
+
+open scoped Classical
+
+variable [Fintype G]
+
+/-- `'H(B ^ x) = 'H(B) ^ x` for `x ∈ L`, `B ⊆ A`. -/
+theorem setSignalizer_image_conj (ddA : DadeHypothesis G L A) {x : G} (hx : x ∈ L)
+    {B : Finset G} (hB : ↑B ⊆ A) :
+    ddA.setSignalizer (B.image fun b => x * b * x⁻¹)
+      = (ddA.setSignalizer B).map (MulAut.conj x).toMonoidHom := by
+  ext w
+  rw [Subgroup.mem_map_conj_iff, mem_setSignalizer, mem_setSignalizer]
+  constructor
+  · intro hw b hb
+    have hmem := hw (x * b * x⁻¹) (Finset.mem_image.mpr ⟨b, hb, rfl⟩)
+    rw [ddA.signalizer_conj hx (hB hb), Subgroup.mem_map_conj_iff] at hmem
+    exact hmem
+  · intro hw b' hb'
+    obtain ⟨b, hb, rfl⟩ := Finset.mem_image.mp hb'
+    rw [ddA.signalizer_conj hx (hB hb), Subgroup.mem_map_conj_iff]
+    exact hw b hb
+
+omit [Fintype G] in
+/-- Conjugating a `Finset` conjugates its normalizer: membership form. -/
+theorem mem_normalizer_image_conj_iff {B : Finset G} {x w : G} :
+    w ∈ Subgroup.normalizer (↑(B.image fun b => x * b * x⁻¹) : Set G)
+      ↔ x⁻¹ * w * x ∈ Subgroup.normalizer (↑B : Set G) := by
+  have hmem : ∀ n : G, n ∈ B.image (fun b => x * b * x⁻¹) ↔ x⁻¹ * n * x ∈ B := by
+    intro n
+    rw [Finset.mem_image]
+    constructor
+    · rintro ⟨b, hb, rfl⟩
+      rwa [show x⁻¹ * (x * b * x⁻¹) * x = b by group]
+    · intro h
+      exact ⟨x⁻¹ * n * x, h, by group⟩
+  constructor
+  · intro h
+    rw [Subgroup.mem_set_normalizer_iff]
+    intro m
+    have h1 := Subgroup.mem_set_normalizer_iff.mp h (x * m * x⁻¹)
+    simp only [Finset.mem_coe, hmem] at h1
+    rw [show x⁻¹ * (x * m * x⁻¹) * x = m by group,
+      show x⁻¹ * (w * (x * m * x⁻¹) * w⁻¹) * x = (x⁻¹ * w * x) * m * (x⁻¹ * w * x)⁻¹
+        by group] at h1
+    simpa using h1
+  · intro h
+    rw [Subgroup.mem_set_normalizer_iff]
+    intro n
+    have h1 := Subgroup.mem_set_normalizer_iff.mp h (x⁻¹ * n * x)
+    simp only [Finset.mem_coe] at h1
+    rw [show (x⁻¹ * w * x) * (x⁻¹ * n * x) * (x⁻¹ * w * x)⁻¹ = x⁻¹ * (w * n * w⁻¹) * x
+      by group] at h1
+    simp only [Finset.mem_coe, hmem]
+    exact h1
+
+omit [Fintype G] in
+/-- `'N_L(B ^ x) = 'N_L(B) ^ x` for `x ∈ L`. -/
+theorem setNormalizer_image_conj {L : Subgroup G} {x : G} (hx : x ∈ L) (B : Finset G) :
+    setNormalizer L (B.image fun b => x * b * x⁻¹)
+      = (setNormalizer L B).map (MulAut.conj x).toMonoidHom := by
+  ext w
+  rw [Subgroup.mem_map_conj_iff, setNormalizer, setNormalizer, Subgroup.mem_inf,
+    Subgroup.mem_inf, mem_normalizer_image_conj_iff]
+  constructor
+  · rintro ⟨hwL, hwN⟩
+    exact ⟨mul_mem (mul_mem (inv_mem hx) hwL) hx, hwN⟩
+  · rintro ⟨hwL, hwN⟩
+    refine ⟨?_, hwN⟩
+    have := mul_mem (mul_mem hx hwL) (inv_mem hx)
+    rwa [show x * (x⁻¹ * w * x) * x⁻¹ = w by group] at this
+
+/-- `'M(B ^ x) = 'M(B) ^ x` for `x ∈ L`, `B ⊆ A`. -/
+theorem setProd_image_conj (ddA : DadeHypothesis G L A) {x : G} (hx : x ∈ L)
+    {B : Finset G} (hB : ↑B ⊆ A) :
+    ddA.setProd (B.image fun b => x * b * x⁻¹)
+      = (ddA.setProd B).map (MulAut.conj x).toMonoidHom := by
+  rw [setProd, setProd, ddA.setSignalizer_image_conj hx hB, setNormalizer_image_conj hx B,
+    Subgroup.map_sup]
+
+omit [Fintype G] in
+/-- `calP` is stable under `L`-conjugation. -/
+theorem image_conj_subset_and_nonempty {x : G} (hx : x ∈ L)
+    {A : Set G} (hstab : ∀ y ∈ L, ∀ a ∈ A, y * a * y⁻¹ ∈ A) {B : Finset G} (hB : ↑B ⊆ A)
+    (hne : B.Nonempty) :
+    ↑(B.image fun b => x * b * x⁻¹) ⊆ A ∧ (B.image fun b => x * b * x⁻¹).Nonempty := by
+  constructor
+  · intro b' hb'
+    rw [Finset.mem_coe, Finset.mem_image] at hb'
+    obtain ⟨b, hb, rfl⟩ := hb'
+    exact hstab x hx b (hB hb)
+  · exact hne.image _
+
+/-- **Peterfalvi (2.10.1)** (`Dade_Ind_restr_J`): the induced Dade restriction is
+invariant under `L`-conjugation of `B`: `Ind_G 'aa_{B^x} = Ind_G 'aa_B` for `x ∈ L`. -/
+theorem ind_dadeRestriction_image_conj (ddA : DadeHypothesis G L A) (α : ClassFunction ↥L)
+    {x : G} (hx : x ∈ L) {B : Finset G} (hB : ↑B ⊆ A) (hne : B.Nonempty) :
+    ClassFunction.ind (ddA.setProd (B.image fun b => x * b * x⁻¹))
+        (ddA.dadeRestriction (B.image fun b => x * b * x⁻¹) α)
+      = ClassFunction.ind (ddA.setProd B) (ddA.dadeRestriction B α) := by
+  set Bx : Finset G := B.image fun b => x * b * x⁻¹ with hBx
+  have hBx' : ↑Bx ⊆ A ∧ Bx.Nonempty := by
+    constructor
+    · intro b' hb'
+      rw [hBx, Finset.mem_coe, Finset.mem_image] at hb'
+      obtain ⟨b, hb, rfl⟩ := hb'
+      exact ddA.conj_mem x hx b (hB hb)
+    · exact hne.image _
+  have hMx : ddA.setProd Bx = (ddA.setProd B).map (MulAut.conj x).toMonoidHom :=
+    ddA.setProd_image_conj hx hB
+  -- the values of the two restrictions correspond under conjugation
+  have hval : ∀ w : G,
+      ClassFunction.extendZero (ddA.dadeRestriction Bx α) w
+        = ClassFunction.extendZero (ddA.dadeRestriction B α) (x⁻¹ * w * x) := by
+    intro w
+    by_cases hw : w ∈ ddA.setProd Bx
+    · have hw' : x⁻¹ * w * x ∈ ddA.setProd B := by
+        rw [hMx, Subgroup.mem_map_conj_iff] at hw
+        exact hw
+      rw [ClassFunction.extendZero_apply_of_mem _ hw,
+        ClassFunction.extendZero_apply_of_mem _ hw']
+      obtain ⟨h, hh, n, hn, hwn⟩ := ddA.exists_mul_of_mem_setProd hB hw'
+      have hxh : x * h * x⁻¹ ∈ ddA.setSignalizer Bx := by
+        rw [hBx, ddA.setSignalizer_image_conj hx hB, Subgroup.mem_map_conj_iff]
+        rwa [show x⁻¹ * (x * h * x⁻¹) * x = h by group]
+      have hxn : x * n * x⁻¹ ∈ setNormalizer L Bx := by
+        rw [hBx, setNormalizer_image_conj hx B, Subgroup.mem_map_conj_iff]
+        rwa [show x⁻¹ * (x * n * x⁻¹) * x = n by group]
+      have hwmul : w = (x * h * x⁻¹) * (x * n * x⁻¹) := by
+        have : w = x * (x⁻¹ * w * x) * x⁻¹ := by group
+        rw [this, hwn]
+        group
+      have hsub : (⟨w, hw⟩ : ↥(ddA.setProd Bx))
+          = ⟨(x * h * x⁻¹) * (x * n * x⁻¹), hwmul ▸ hw⟩ := Subtype.ext hwmul
+      have hsub' : (⟨x⁻¹ * w * x, hw'⟩ : ↥(ddA.setProd B))
+          = ⟨h * n, hwn ▸ hw'⟩ := Subtype.ext hwn
+      rw [hsub, hsub', ddA.dadeRestriction_apply_mul α hBx' hxh hxn _,
+        ddA.dadeRestriction_apply_mul α ⟨hB, hne⟩ hh hn _]
+      -- `α (x n x⁻¹) = α n` since `α` is a class function of `L`
+      have hxL : (⟨x * n * x⁻¹, setNormalizer_le hxn⟩ : ↥L)
+          = ⟨x, hx⟩ * ⟨n, setNormalizer_le hn⟩ * (⟨x, hx⟩ : ↥L)⁻¹ := by
+        ext
+        push_cast
+        rfl
+      rw [hxL, ClassFunction.conj_apply]
+    · have hw' : x⁻¹ * w * x ∉ ddA.setProd B := by
+        intro hmem
+        apply hw
+        rw [hMx, Subgroup.mem_map_conj_iff]
+        exact hmem
+      rw [ClassFunction.extendZero_apply_of_not_mem _ hw,
+        ClassFunction.extendZero_apply_of_not_mem _ hw']
+  -- compare the two averaging sums
+  ext g
+  rw [ClassFunction.ind_apply, ClassFunction.ind_apply]
+  have hcard : Nat.card (ddA.setProd Bx) = Nat.card (ddA.setProd B) := by
+    rw [hMx]
+    exact (Nat.card_congr
+      (Subgroup.equivMapOfInjective _ _ (MulAut.conj x).injective).toEquiv).symm
+  rw [hcard]
+  congr 1
+  calc ∑ z : G, ClassFunction.extendZero (ddA.dadeRestriction Bx α) (z⁻¹ * g * z)
+      = ∑ z : G, ClassFunction.extendZero (ddA.dadeRestriction B α)
+          (x⁻¹ * (z⁻¹ * g * z) * x) := by
+        exact Finset.sum_congr rfl fun z _ => hval _
+    _ = ∑ z : G, ClassFunction.extendZero (ddA.dadeRestriction B α) (z⁻¹ * g * z) := by
+        refine Fintype.sum_equiv (Equiv.mulRight x) _ _ fun z => ?_
+        simp only [Equiv.coe_mulRight]
+        congr 1
+        group
+
+end ConjTransport
+
+end DadeHypothesis
+
+end SetSignalizer
+
 end PF2
