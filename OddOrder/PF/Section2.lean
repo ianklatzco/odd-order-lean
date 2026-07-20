@@ -2803,6 +2803,13 @@ theorem restrict_support1 (ddA : DadeHypothesis G L A) (hA₁ : A₁ ⊆ A)
     (ddA.restrict hA₁ hstab).support1 = ddA.support1 :=
   rfl
 
+/-- The restricted Dade support is the union of the original local supports over `A₁`
+(definitionally).  Coq: `restr_Dade_support`. -/
+theorem restrict_support (ddA : DadeHypothesis G L A) (hA₁ : A₁ ⊆ A)
+    (hstab : ∀ x ∈ L, ∀ a ∈ A₁, x * a * x⁻¹ ∈ A₁) :
+    (ddA.restrict hA₁ hstab).support = {u | ∃ a ∈ A₁, u ∈ ddA.support1 a} :=
+  rfl
+
 /-- **Peterfalvi (2.11), second part** (`restr_DadeE`): on `'CF(L, A₁)` the restricted
 Dade lift agrees with the original one. -/
 theorem restrict_dade_eq [Finite G] (ddA : DadeHypothesis G L A) (hA₁ : A₁ ⊆ A)
