@@ -588,4 +588,18 @@ theorem ClassFunction.isVirtualChar_iff_exists_isChar_sub {φ : ClassFunction G}
   rintro ⟨φ₁, φ₂, h₁, h₂, rfl⟩
   exact h₁.sub_isVirtualChar h₂
 
+open scoped Classical in
+/-- **`zcharD1E` bridge**: membership in `'Z[irr G, G^#]` (the virtual characters supported
+off the identity) is exactly being a virtual character that vanishes at `1`.  MathComp:
+`zcharD1E` (`vcharacter.v`). -/
+theorem ClassFunction.mem_virtualChar_irr_compl_one_iff {φ : ClassFunction G} :
+    φ ∈ Z[Finset.univ.image (fun χ : Irr G => (χ : ClassFunction G)), ({1}ᶜ : Set G)] ↔
+      φ.IsVirtualChar ∧ φ 1 = 0 := by
+  rw [ClassFunction.mem_virtualChar_iff]
+  refine and_congr ?_ ?_
+  · rw [ClassFunction.isVirtualChar_iff_mem_virtualCharIrr]
+    simp only [ClassFunction.virtualCharIrr, ClassFunction.mem_virtualChar_univ_iff]
+  · rw [← ClassFunction.mem_supportedOn (A := ({1}ᶜ : Set G)),
+      ClassFunction.mem_supportedOn_compl_one]
+
 end IsCharInteraction

@@ -384,6 +384,30 @@ theorem cfInner_congr_right_of_mem_supportedOn {A : Set G} {φ ψ ψ' : ClassFun
   · rw [h g hg]
   · rw [hφ g hg, zero_mul, zero_mul]
 
+/-- **Positive definiteness of the inner product**: `⟪φ, φ⟫_[G] = 0` iff `φ = 0`.  The
+self-inner-product is `(#G)⁻¹ * ∑ g, φ g * conj (φ g)`, a nonnegative-real-weighted sum
+of `normSq (φ g)`, so it vanishes exactly when every `φ g` does.  MathComp: `cfnorm_eq0`. -/
+theorem cfInner_self_eq_zero {φ : ClassFunction G} : ⟪φ, φ⟫_[G] = 0 ↔ φ = 0 := by
+  constructor
+  · intro h
+    have hG0 : (Fintype.card G : ℂ) ≠ 0 := Nat.cast_ne_zero.mpr Fintype.card_ne_zero
+    rw [cfInner_def] at h
+    have hsum : ∑ g : G, φ g * starRingEnd ℂ (φ g) = 0 :=
+      (mul_eq_zero.mp h).resolve_left (inv_ne_zero hG0)
+    have hsum' : (∑ g : G, (Complex.normSq (φ g) : ℝ)) = 0 := by
+      have hcast : ∑ g : G, ((Complex.normSq (φ g) : ℝ) : ℂ) = 0 := by
+        rw [← hsum]
+        exact Finset.sum_congr rfl fun g _ => (Complex.mul_conj (φ g)).symm
+      exact_mod_cast hcast
+    have hzero : ∀ g : G, Complex.normSq (φ g) = 0 :=
+      fun g => (Finset.sum_eq_zero_iff_of_nonneg
+        (fun g _ => Complex.normSq_nonneg (φ g))).mp hsum' g (Finset.mem_univ g)
+    ext g
+    rw [zero_apply]
+    exact Complex.normSq_eq_zero.mp (hzero g)
+  · rintro rfl
+    exact cfInner_zero_left 0
+
 end CfInner
 
 end ClassFunction
