@@ -53,7 +53,7 @@ Peterfalvi number and MathComp/Coq name.
   `cfDet`, and `extend_solvable_coprime_irr`, none of which exist in the project yet.  The
   (1.7)(a) bijection they build on is fully proved.  (1.8) rests on the character-center
   Schur bound `irr1_bound` (`cfcenter`), now provided in
-  `OddOrder.Mathlib.RepresentationTheory.CharCenter`; this file is sorry-free.
+  `OddOrder.Mathlib.RepresentationTheory.CharCenter`; this file has no remaining proof gaps.
 -/
 
 noncomputable section

@@ -1,3 +1,6 @@
 /.lake
 /.superpowers
 leaneval/*/.lake/
+
+# Agent worktrees and harness scratch
+.claude/
