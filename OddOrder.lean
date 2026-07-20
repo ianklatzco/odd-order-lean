@@ -21,4 +21,5 @@ import OddOrder.Mathlib.RepresentationTheory.CharacterArith
 import OddOrder.Mathlib.RepresentationTheory.ClassFunction
 import OddOrder.Mathlib.RepresentationTheory.ClassSum
 import OddOrder.Mathlib.RepresentationTheory.Induced
+import OddOrder.Mathlib.RepresentationTheory.Inertia
 import OddOrder.Mathlib.RepresentationTheory.VirtualChar

@@ -397,3 +397,39 @@ theorem ClassFunction.IsChar.ind {H : Subgroup G} [Fintype H] {φ : ClassFunctio
   rw [ClassFunction.cfInner_ind_eq_cfInner_res, hn χ]
 
 end IsCharInd
+
+/-! ### Restriction, induction, and supports (`'CF(G, A)`-interaction) -/
+
+section Supports
+
+variable {G : Type u} [Group G]
+
+/-- Restriction maps class functions supported on `A ⊆ G` to class functions supported
+on the preimage of `A` in the subgroup.  MathComp: `cfRes_on`-shaped (`classfun.v`). -/
+theorem ClassFunction.res_mem_supportedOn (H : Subgroup G) {A : Set G}
+    {ψ : ClassFunction G} (hψ : ψ ∈ ClassFunction.supportedOn G A) :
+    ClassFunction.res H ψ ∈ ClassFunction.supportedOn H (((↑) : H → G) ⁻¹' A) :=
+  fun h hh => hψ ↑h hh
+
+variable [Fintype G]
+
+/-- **Induction and supports**: the induced class function of an `A`-supported class
+function of `H` is supported on the `G`-class support of `A` (the union of the
+`G`-conjugacy classes meeting `A`) — the `'CF(L, A)`-interaction shape the PF2 Dade
+isometry needs.  MathComp: `cfInd_on` (`classfun.v`), with `class_support A G`
+spelled via Mathlib's `Group.conjugatesOfSet`. -/
+theorem ClassFunction.ind_mem_supportedOn_conjugatesOfSet (H : Subgroup G) {A : Set H}
+    {φ : ClassFunction H} (hφ : φ ∈ ClassFunction.supportedOn H A) :
+    ClassFunction.ind H φ
+      ∈ ClassFunction.supportedOn G (Group.conjugatesOfSet (((↑) : H → G) '' A)) := by
+  intro g hg
+  rw [ClassFunction.ind_apply, Finset.sum_eq_zero, mul_zero]
+  intro x _
+  by_cases hx : x⁻¹ * g * x ∈ H
+  · rw [ClassFunction.extendZero_apply_of_mem _ hx]
+    refine hφ _ fun hA => hg ?_
+    refine Group.mem_conjugatesOfSet_iff.mpr
+      ⟨x⁻¹ * g * x, ⟨⟨x⁻¹ * g * x, hx⟩, hA, rfl⟩, isConj_iff.mpr ⟨x, by group⟩⟩
+  · rw [ClassFunction.extendZero_apply_of_not_mem _ hx]
+
+end Supports

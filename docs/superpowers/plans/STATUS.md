@@ -78,6 +78,7 @@ None of the 34 Coq theory files is ported yet — everything so far is Layer-0 p
 - Verify the `FittingEgen` NAME_MAP row against a real MathComp checkout.
 - `VirtualChar.lean`: the support-restricted `Z[irr G, A]` bridge (MathComp `zcharD1E`-analogue: `φ ∈ Z[image Irr, G^#] ↔ φ.IsVirtualChar ∧ φ 1 = 0`) is not stated yet — the two sides exist separately; land the bundled iff with the PF1 task plan, which fixes the `G^#` spelling (see the future-work note in `docs/NAME_MAP.md`).
 - Monitor the two priority-100 global instances in CoprimeAction.lean; scope them if elaboration slows.
+- `Representation.isIrreducible_comp_iff` (AbelemRepr.lean) and its `MulEquiv` restatement `Representation.IsIrreducible.compMulEquiv` + `Subrepresentation.orderIsoCompMulEquiv` (Inertia.lean, M6 Task 1) duplicate a 10-line surjective-precomposition transport; consolidate into a shared low-level RepresentationTheory home on first touch (kept separate to avoid importing the CoprimeAction chain into the PF lane).
 - Upstreaming order (final review, rec 3): PiGroup+Hall predicate → SZ conjugacy (into Mathlib's own file) → Hall theorems → fitting → ChiefFactor → CoprimeAction → ClassFunction last.
 
 ## Standing conventions (bind every future task; see master plan §Global Constraints for the full list)

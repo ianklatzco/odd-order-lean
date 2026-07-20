@@ -249,6 +249,22 @@ theorem mem_supportedOn {A : Set G} {φ : ClassFunction G} :
 theorem supportedOn_univ (φ : ClassFunction G) : φ ∈ supportedOn G Set.univ :=
   fun g hg => absurd (Set.mem_univ g) hg
 
+/-- Support monotonicity: a class function supported on `A ⊆ B` is supported on `B`.
+MathComp: `cfun_onS` (`classfun.v`). -/
+theorem supportedOn_mono {A B : Set G} (h : A ⊆ B) : supportedOn G A ≤ supportedOn G B :=
+  fun _ hφ g hg => hφ g fun hA => hg (h hA)
+
+/-- Membership in `'CF(G, G^#)` (class functions supported off the identity) is exactly
+vanishing at `1`.  MathComp: `cfunD1E` (`classfun.v`). -/
+theorem mem_supportedOn_compl_one {φ : ClassFunction G} :
+    φ ∈ supportedOn G ({1}ᶜ : Set G) ↔ φ 1 = 0 := by
+  constructor
+  · intro h
+    exact h 1 (by simp)
+  · intro h g hg
+    have hg1 : g = 1 := by simpa using hg
+    rw [hg1, h]
+
 /-! ### The inner product -/
 
 section CfInner
@@ -326,6 +342,47 @@ theorem cfInner_sub_right (φ ψ₁ ψ₂ : ClassFunction G) :
     ⟪φ, ψ₁ - ψ₂⟫_[G] = ⟪φ, ψ₁⟫_[G] - ⟪φ, ψ₂⟫_[G] := by
   rw [cfInner_conj_symm, cfInner_sub_left, map_sub, ← cfInner_conj_symm ψ₁ φ,
     ← cfInner_conj_symm ψ₂ φ]
+
+/-! #### The inner product against a support-restricted class function
+
+The `'CF(G, A)`-calculus PF2's Dade-isometry computations consume: the inner product
+with an `A`-supported class function is a sum over `A` only, depends only on the other
+argument's values on `A`, and vanishes against functions supported on a disjoint set. -/
+
+open scoped Classical in
+/-- For `φ` supported on `A`, the inner-product sum restricts to `A`.
+MathComp: `cfdotEl`-shaped (`classfun.v`). -/
+theorem cfInner_eq_sum_filter_of_mem_supportedOn {A : Set G} {φ : ClassFunction G}
+    (hφ : φ ∈ supportedOn G A) (ψ : ClassFunction G) :
+    ⟪φ, ψ⟫_[G] = (Fintype.card G : ℂ)⁻¹ *
+      ∑ g ∈ Finset.univ.filter (· ∈ A), φ g * starRingEnd ℂ (ψ g) := by
+  rw [cfInner_def]
+  congr 1
+  refine (Finset.sum_subset (Finset.filter_subset _ _) fun g _ hg => ?_).symm
+  rw [hφ g (by simpa using hg), zero_mul]
+
+/-- Class functions with disjoint supports are orthogonal.
+MathComp: `cfdot_complement`-shaped (`classfun.v`). -/
+theorem cfInner_eq_zero_of_supportedOn_disjoint {A B : Set G} {φ ψ : ClassFunction G}
+    (hφ : φ ∈ supportedOn G A) (hψ : ψ ∈ supportedOn G B) (hAB : Disjoint A B) :
+    ⟪φ, ψ⟫_[G] = 0 := by
+  rw [cfInner_def, Finset.sum_eq_zero, mul_zero]
+  intro g _
+  by_cases hg : g ∈ A
+  · rw [hψ g fun hB => Set.disjoint_left.mp hAB hg hB, map_zero, mul_zero]
+  · rw [hφ g hg, zero_mul]
+
+/-- The inner product against an `A`-supported class function only sees the values of
+the second argument on `A`. -/
+theorem cfInner_congr_right_of_mem_supportedOn {A : Set G} {φ ψ ψ' : ClassFunction G}
+    (hφ : φ ∈ supportedOn G A) (h : ∀ g ∈ A, ψ g = ψ' g) :
+    ⟪φ, ψ⟫_[G] = ⟪φ, ψ'⟫_[G] := by
+  rw [cfInner_def, cfInner_def]
+  congr 1
+  refine Finset.sum_congr rfl fun g _ => ?_
+  by_cases hg : g ∈ A
+  · rw [h g hg]
+  · rw [hφ g hg, zero_mul, zero_mul]
 
 end CfInner
 
