@@ -26,3 +26,4 @@ import OddOrder.Mathlib.RepresentationTheory.CharacterTransfer
 import OddOrder.Mathlib.RepresentationTheory.Inertia
 import OddOrder.Mathlib.RepresentationTheory.VirtualChar
 import OddOrder.PF.Section1
+import OddOrder.PF.Section2
