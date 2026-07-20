@@ -52,8 +52,8 @@ Peterfalvi number and MathComp/Coq name.
   (`mul_lin_irr`, hence tensor products of representations — a documented M2 omission),
   `cfDet`, and `extend_solvable_coprime_irr`, none of which exist in the project yet.  The
   (1.7)(a) bijection they build on is fully proved.  (1.8) rests on the character-center
-  Schur bound `irr1_bound` (`cfcenter`), also not yet in the project; its one leaf
-  (`irr1_bound_charCenter`) is the single budgeted gap in this file (tagged `TODO`).
+  Schur bound `irr1_bound` (`cfcenter`), now provided in
+  `OddOrder.Mathlib.RepresentationTheory.CharCenter`; this file is sorry-free.
 -/
 
 noncomputable section
@@ -1598,10 +1598,10 @@ For an irreducible character `χ` of `K` with `B ≤ ker χ` and `D / B ≤ Z(K 
 ```
     χ(1)² ≤ |K : D|.
 ```
-Proof (mirroring MathComp's `irr1_bound i2` composed with `index_quotient_eq`): `χ` descends
-to an irreducible `χbar` on `K / B` (since `B ≤ ker χ`); every `g ∈ D` maps into the
-group-center `Z(K / B)`, where Schur's lemma forces `‖χbar ḡ‖ = χbar 1`, i.e. `‖χ g‖ = χ 1`.
-The counting core `Irr.sq_re_le_index_of_forall_norm_eq` then gives `χ(1)² ≤ |K : D|`. -/
+Proof: `χ` descends to an irreducible `χbar` on `K / B` (since `B ≤ ker χ`); every `g ∈ D`
+maps into the group-center `Z(K / B)`, where Schur's lemma forces `‖χbar ḡ‖ = χbar 1`, i.e.
+`‖χ g‖ = χ 1`.  The counting core `Irr.sq_re_le_index_of_forall_norm_eq` then gives
+`χ(1)² ≤ |K : D|` directly (no quotient-index rewrite needed). -/
 theorem irr1_bound_charCenter {K : Type u} [Group K] [Fintype K] (B D : Subgroup K) [B.Normal]
     (χ : Irr K) (hBker : B ≤ χ.ker) (_hBD : B ≤ D)
     (hZ : D.map (QuotientGroup.mk' B) ≤ Subgroup.center (K ⧸ B)) :
@@ -1630,8 +1630,7 @@ theorem irr1_bound_charCenter {K : Type u} [Group K] [Fintype K] (B D : Subgroup
 ```
     χ 1 ≤ |G : C| · √|C : D|.
 ```
-See the module docstring for the `√`/cast discipline and the location of the single budgeted
-gap. -/
+See the module docstring for the `√`/cast discipline. -/
 theorem irr1_bound_quo (B C D : Subgroup G) [B.Normal] (χ : Irr G)
     (_hBC : B ≤ C) (hBker : B ≤ χ.ker) (hBD : B ≤ D)
     (_hDC : D ≤ C)
