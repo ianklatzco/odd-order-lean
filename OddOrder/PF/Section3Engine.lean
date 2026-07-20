@@ -203,6 +203,25 @@ private theorem eq_neg_of_mul_eq_neg_one {x y : ℤ} (hx : x = -1 ∨ x = 0 ∨ 
 private theorem eq_zero_of_mul_eq_zero {x y : ℤ} (hx : x ≠ 0) (h : x * y = 0) : y = 0 :=
   (mul_eq_zero.mp h).resolve_left hx
 
+private theorem eq_zero_of_mul_eq_zero' {x y : ℤ} (hy : y ≠ 0) (h : x * y = 0) : x = 0 :=
+  (mul_eq_zero.mp h).resolve_right hy
+
+private theorem mul_self_eq_one {x : ℤ} (hx : x = -1 ∨ x = 0 ∨ x = 1) (h : x ≠ 0) :
+    x * x = 1 := by
+  rcases hx with h' | h' | h'
+  · rw [h']; norm_num
+  · exact absurd h' h
+  · rw [h']; norm_num
+
+omit [Fintype Ω] in
+/-- A vector vanishing off `{x, y, z}` is nonzero only at `x`, `y` or `z`. -/
+private theorem support_cases {f : Ω → ℤ} {x y z : Ω}
+    (h0 : ∀ ω, ω ≠ x → ω ≠ y → ω ≠ z → f ω = 0) {w : Ω} (hw : f w ≠ 0) :
+    w = x ∨ w = y ∨ w = z := by
+  by_contra hcon
+  simp only [not_or] at hcon
+  exact hw (h0 w hcon.1 hcon.2.1 hcon.2.2)
+
 private theorem mul_val_cases {x y : ℤ} (hx : x = -1 ∨ x = 0 ∨ x = 1)
     (hy : y = -1 ∨ y = 0 ∨ y = 1) : x * y = -1 ∨ x * y = 0 ∨ x * y = 1 := by
   rcases hx with h | h | h <;> rcases hy with h' | h' | h' <;> rw [h, h'] <;> norm_num
@@ -391,6 +410,103 @@ theorem share_row_eq (hb : IsBetaGrid b) (i : ι₁) {j j' : ι₂} (hne : j ≠
     (ha : b i j a ≠ 0) (ha' : b i j' a ≠ 0) :
     b i j a = b i j' a ∧ ∀ ω : Ω, ω ≠ a → b i j ω * b i j' ω = 0 :=
   hb.transpose.share_col_eq hne ha ha'
+
+/-! ### Peterfalvi (3.5.4): column coherence
+
+Coq: `unsat_Ii` (`|= & x1 in b11 & x1 in b21 & ~x1 in b31` is impossible).  The bad
+configuration forces, in column `j`, a *triangle* `f₁ = {a, p, q}`, `f₂ = {a, r, s}`,
+`f₃ = {p, r, u}` (writing `{…}` for supports; the shared coordinates carry equal values by
+(3.5.2)).  A fourth row (available since `#ι₁` is even and `≥ 3` here) must then have one
+of four shapes; the `K₄` shape `{q, s, u}` dies by parity against any entry of a second
+column (`col_coherent_K4`), and the remaining three are the same configuration
+`f₄ = {a, u, v}` up to relabelling (`col_coherent_core`, invoked on permuted arguments in
+place of the Coq `symmetric to` reductions), which is killed through the second column:
+its row-`i₃` and row-`i₄` entries get pinned down to `g₃ = {u, v, w}`, `g₄ = {u, r, s}`,
+after which the row-`i₁` entry of the second column has no consistent shared coordinate
+with `g₄` (`col_coherent_final`). -/
+
+/-- Endgame of the `unsat_Ii` analysis: the column-`j` triangle `f₁ = {a, p, q}`,
+`f₂ = {a, r, s}`, `f₃ = {p, r, u}` together with a second-column entry
+`b i₄ j' = {u, r, s}` (values `f₃ u`, `-f₂ r`, `f₂ s`) is impossible: the shared
+coordinate of `b i₁ j'` and `b i₄ j'` cannot be placed. -/
+private theorem col_coherent_final (hb : IsBetaGrid b) {i₁ i₂ i₃ i₄ : ι₁} {j j' : ι₂}
+    {a p q r s u : Ω} (h12 : i₁ ≠ i₂) (h13 : i₁ ≠ i₃) (h14 : i₁ ≠ i₄) (hj : j ≠ j')
+    (hap : a ≠ p) (haq : a ≠ q) (har : a ≠ r) (has : a ≠ s)
+    (hpq : p ≠ q) (hpr : p ≠ r) (hpu : p ≠ u) (hqr : q ≠ r)
+    (hrs : r ≠ s) (hru : r ≠ u) (hsu : s ≠ u)
+    (hf₁0 : ∀ ω, ω ≠ a → ω ≠ p → ω ≠ q → b i₁ j ω = 0)
+    (hf₁a : b i₁ j a ≠ 0) (hf₁p : b i₁ j p ≠ 0) (hf₁q : b i₁ j q ≠ 0)
+    (hf₂0 : ∀ ω, ω ≠ a → ω ≠ r → ω ≠ s → b i₂ j ω = 0)
+    (hf₂a : b i₂ j a = b i₁ j a) (hf₂r : b i₂ j r ≠ 0) (hf₂s : b i₂ j s ≠ 0)
+    (hf₃0 : ∀ ω, ω ≠ p → ω ≠ r → ω ≠ u → b i₃ j ω = 0)
+    (hf₃p : b i₃ j p = b i₁ j p) (hf₃r : b i₃ j r = b i₂ j r) (hf₃u : b i₃ j u ≠ 0)
+    (hg₄0 : ∀ ω, ω ≠ u → ω ≠ r → ω ≠ s → b i₄ j' ω = 0)
+    (hg₄u : b i₄ j' u = b i₃ j u) (hg₄r : b i₄ j' r = -b i₂ j r)
+    (hg₄s : b i₄ j' s = b i₂ j s) : False := by
+  have hg₄r0 : b i₄ j' r ≠ 0 := by rw [hg₄r]; exact neg_ne_zero.mpr hf₂r
+  have hg₄s0 : b i₄ j' s ≠ 0 := by rw [hg₄s]; exact hf₂s
+  have hg₄u0 : b i₄ j' u ≠ 0 := by rw [hg₄u]; exact hf₃u
+  -- the shared coordinate of `g₁ = b i₁ j'` and `g₄ = b i₄ j'` (both in column `j'`)
+  obtain ⟨t, htv, ht0, hprod⟩ := hb.exists_share_col h14 j'
+  -- dot products of `g₁` against the three column-`j` entries
+  have d₁ : b i₁ j a * b i₁ j' a + b i₁ j p * b i₁ j' p + b i₁ j q * b i₁ j' q = 1 :=
+    (dotProduct_eq_of_support₃ hap haq hpq hf₁0).symm.trans (hb.dot_row i₁ hj)
+  have d₂ : b i₂ j a * b i₁ j' a + b i₂ j r * b i₁ j' r + b i₂ j s * b i₁ j' s = 0 :=
+    (dotProduct_eq_of_support₃ har has hrs hf₂0).symm.trans (hb.dot_zero h12.symm hj)
+  have d₃ : b i₃ j p * b i₁ j' p + b i₃ j r * b i₁ j' r + b i₃ j u * b i₁ j' u = 0 :=
+    (dotProduct_eq_of_support₃ hpr hpu hru hf₃0).symm.trans (hb.dot_zero h13.symm hj)
+  have hπ : b i₁ j p * b i₁ j p = 1 := mul_self_eq_one (hb.val i₁ j p) hf₁p
+  have hα : b i₁ j a * b i₁ j a = 1 := mul_self_eq_one (hb.val i₁ j a) hf₁a
+  have hρ : b i₂ j r * b i₂ j r = 1 := mul_self_eq_one (hb.val i₂ j r) hf₂r
+  have hσ : b i₂ j s * b i₂ j s = 1 := mul_self_eq_one (hb.val i₂ j s) hf₂s
+  have hmu : b i₃ j u * b i₃ j u = 1 := mul_self_eq_one (hb.val i₃ j u) hf₃u
+  have hg₄t : b i₄ j' t ≠ 0 := htv ▸ ht0
+  rcases support_cases hg₄0 hg₄t with h | h | h <;> rw [h] at htv ht0 hprod
+  · -- shared coordinate `u`: `d₃` forces `g₁ p = -f₁ p`, then `d₁` overflows
+    have hg1r : b i₁ j' r = 0 := eq_zero_of_mul_eq_zero' hg₄r0 (hprod r hru)
+    have hg1s : b i₁ j' s = 0 := eq_zero_of_mul_eq_zero' hg₄s0 (hprod s hsu)
+    have hg1u : b i₁ j' u = b i₃ j u := htv.trans hg₄u
+    rw [hg1r, hg1u, mul_zero, hmu] at d₃
+    have hgp : b i₃ j p * b i₁ j' p = -1 := by linarith
+    have hg1p : b i₁ j' p = -b i₃ j p := eq_neg_of_mul_eq_neg_one (hb.val i₃ j p) hgp
+    rw [hg1r, hg1s, mul_zero, mul_zero] at d₂
+    have hg1a : b i₁ j' a = 0 :=
+      eq_zero_of_mul_eq_zero (show b i₂ j a ≠ 0 by rw [hf₂a]; exact hf₁a) (by linarith)
+    rw [hg1a, hg1p, hf₃p, mul_zero, mul_neg, hπ] at d₁
+    rcases mul_val_cases (hb.val i₁ j q) (hb.val i₁ j' q) with h' | h' | h' <;>
+      rw [h'] at d₁ <;> omega
+  · -- shared coordinate `r`: `g₁` needs all of `a`, `p`, `q`, `r` in its support
+    have hg1u : b i₁ j' u = 0 := eq_zero_of_mul_eq_zero' hg₄u0 (hprod u hru.symm)
+    have hg1s : b i₁ j' s = 0 := eq_zero_of_mul_eq_zero' hg₄s0 (hprod s hrs.symm)
+    have hg1r : b i₁ j' r = -b i₂ j r := htv.trans hg₄r
+    rw [hg1s, hg1r, mul_zero, mul_neg, hρ] at d₂
+    have hg1a : b i₁ j' a = b i₂ j a :=
+      eq_of_mul_eq_one (hb.val i₂ j a) (by linarith)
+    rw [hg1u, hg1r, hf₃r, mul_zero, mul_neg, hρ] at d₃
+    have hg1p : b i₁ j' p = b i₃ j p :=
+      eq_of_mul_eq_one (hb.val i₃ j p) (by linarith)
+    rw [hg1a, hf₂a, hg1p, hf₃p, hα, hπ] at d₁
+    have hgq : b i₁ j q * b i₁ j' q = -1 := by linarith
+    have hg1q : b i₁ j' q = -b i₁ j q := eq_neg_of_mul_eq_neg_one (hb.val i₁ j q) hgq
+    have hg1a0 : b i₁ j' a ≠ 0 := by rw [hg1a, hf₂a]; exact hf₁a
+    have hg1p0 : b i₁ j' p ≠ 0 := by rw [hg1p, hf₃p]; exact hf₁p
+    have hg1q0 : b i₁ j' q ≠ 0 := by rw [hg1q]; exact neg_ne_zero.mpr hf₁q
+    have hg1r0 : b i₁ j' r ≠ 0 := by rw [hg1r]; exact neg_ne_zero.mpr hf₂r
+    exact hg1r0 (eq_zero_of_norm3 (hb.norm3 i₁ j') hap haq hpq hg1a0 hg1p0 hg1q0
+      har.symm hpr.symm hqr.symm)
+  · -- shared coordinate `s`: `d₂` forces `g₁ a = -f₁ a`, then `d₁` overflows
+    have hg1u : b i₁ j' u = 0 := eq_zero_of_mul_eq_zero' hg₄u0 (hprod u hsu.symm)
+    have hg1r : b i₁ j' r = 0 := eq_zero_of_mul_eq_zero' hg₄r0 (hprod r hrs)
+    have hg1s : b i₁ j' s = b i₂ j s := htv.trans hg₄s
+    rw [hg1r, hg1s, mul_zero, hσ] at d₂
+    have hg1a : b i₁ j' a = -b i₂ j a :=
+      eq_neg_of_mul_eq_neg_one (hb.val i₂ j a) (by linarith)
+    rw [hg1u, hg1r, mul_zero, mul_zero] at d₃
+    have hg1p : b i₁ j' p = 0 :=
+      eq_zero_of_mul_eq_zero (show b i₃ j p ≠ 0 by rw [hf₃p]; exact hf₁p) (by linarith)
+    rw [hg1a, hf₂a, hg1p, mul_zero, mul_neg, hα] at d₁
+    rcases mul_val_cases (hb.val i₁ j q) (hb.val i₁ j' q) with h' | h' | h' <;>
+      rw [h'] at d₁ <;> omega
 
 end IsBetaGrid
 
