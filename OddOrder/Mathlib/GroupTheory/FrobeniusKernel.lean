@@ -376,4 +376,168 @@ theorem cfInner_ind_ind_of_malnormal [Fintype H]
 
 end ClassFunction
 
+/-!
+### The Frobenius system of irreducible characters
+
+For each nonprincipal `θ : Irr H`, the Isaacs 7.2 class function
+`φ_θ = ind (θ - θ 1 • 1) + θ 1 • 1` restricts to `θ` on `H`, is constant `θ 1` on the kernel
+set, and — under malnormality — is a norm-`1` virtual character positive at `1`, hence an
+irreducible character of `G`. -/
+
+namespace Irr
+
+variable [Fintype G] {H : Subgroup G} [Fintype H]
+
+/-- The Isaacs 7.2 companion `φ_θ` of an irreducible character `θ` of a subgroup `H`:
+`φ_θ := ind H (θ - θ 1 • 1) + θ 1 • 1`.  By linearity of `ind` this is the classical
+`ind θ - θ 1 • ind 1 + θ 1 • 1` (`Irr.frobeniusInd_eq`).  No hypothesis is needed to
+*define* it; its values and norm are computed below when `H` is malnormal and `θ`
+nonprincipal. -/
+def frobeniusInd (θ : Irr H) : ClassFunction G :=
+  ClassFunction.ind H ((θ : ClassFunction H) - θ 1 • 1) + θ 1 • 1
+
+theorem frobeniusInd_def (θ : Irr H) :
+    θ.frobeniusInd = ClassFunction.ind H ((θ : ClassFunction H) - θ 1 • 1) + θ 1 • 1 :=
+  rfl
+
+/-- The classical spelling: `φ_θ = ind θ - θ 1 • ind 1_H + θ 1 • 1_G`. -/
+theorem frobeniusInd_eq (θ : Irr H) :
+    θ.frobeniusInd = ClassFunction.ind H (θ : ClassFunction H)
+      - θ 1 • ClassFunction.ind H (1 : ClassFunction H) + θ 1 • 1 := by
+  rw [frobeniusInd_def, map_sub, map_smul]
+
+omit [Fintype G] in
+/-- `α_θ := θ - θ 1 • 1` vanishes at `1` — the hypothesis feeding the TI isometry. -/
+theorem sub_smul_one_apply_one (θ : Irr H) :
+    ((θ : ClassFunction H) - θ 1 • 1) 1 = 0 := by
+  simp
+
+theorem frobeniusInd_apply (θ : Irr H) (g : G) :
+    θ.frobeniusInd g
+      = ClassFunction.ind H ((θ : ClassFunction H) - θ 1 • 1) g + θ 1 := by
+  rw [frobeniusInd_def, ClassFunction.add_apply, ClassFunction.smul_apply,
+    ClassFunction.one_apply, smul_eq_mul, mul_one]
+
+/-- `φ_θ 1 = θ 1` (no malnormality needed): the induced part vanishes at `1` because `α_θ`
+does. -/
+theorem frobeniusInd_apply_one (θ : Irr H) : θ.frobeniusInd 1 = θ 1 := by
+  rw [frobeniusInd_apply, ClassFunction.ind_apply_one, sub_smul_one_apply_one, mul_zero,
+    zero_add]
+
+/-- `φ_θ` is constant with value `θ 1` on the whole kernel set (including at `1`); the
+induced part vanishes there since its argument is supported on the conjugates of `H`.  No
+malnormality needed. -/
+theorem frobeniusInd_apply_of_mem_frobeniusKernelSet (θ : Irr H) {g : G}
+    (hg : g ∈ H.frobeniusKernelSet) : θ.frobeniusInd g = θ 1 := by
+  rcases eq_or_ne g 1 with rfl | hg1
+  · exact frobeniusInd_apply_one θ
+  · have hsupp : ∀ x : G, x⁻¹ * g * x ∉ H := fun x hx =>
+      hg1 (hg x (Subgroup.mem_map_conj_iff.mpr hx))
+    rw [frobeniusInd_apply,
+      ClassFunction.ind_apply_eq_zero_of_forall_notMem ((θ : ClassFunction H) - θ 1 • 1) hsupp,
+      zero_add]
+
+/-- On `H^#` — hence on every conjugate, `φ_θ` being a class function — `φ_θ` restricts to
+`θ`: `φ_θ h = θ h` for `1 ≠ h ∈ H`.  This is where malnormality enters, through the collapse
+of the induced sum. -/
+theorem frobeniusInd_apply_coe
+    (hmal : ∀ g ∉ H, H ⊓ H.map (MulAut.conj g).toMonoidHom = ⊥)
+    (θ : Irr H) {h : H} (hh1 : h ≠ 1) : θ.frobeniusInd (h : G) = θ h := by
+  rw [frobeniusInd_apply, ClassFunction.ind_apply_coe_of_malnormal hmal _ hh1]
+  simp
+
+/-- `φ_θ` is a virtual character: regrouped as
+`(ind θ + θ 1 • 1_G) - θ 1 • ind 1_H`, a difference of two characters. -/
+theorem frobeniusInd_isVirtualChar (θ : Irr H) : θ.frobeniusInd.IsVirtualChar := by
+  obtain ⟨d, -, hd⟩ := θ.exists_degree
+  have hone_char : (1 : ClassFunction G).IsChar := by
+    rw [← Irr.coe_one]
+    exact (Irr.one : Irr G).isChar
+  have honeH_char : (1 : ClassFunction H).IsChar := by
+    rw [← Irr.coe_one]
+    exact (Irr.one : Irr H).isChar
+  have hsplit : θ.frobeniusInd
+      = (ClassFunction.ind H (θ : ClassFunction H) + (d : ℂ) • (1 : ClassFunction G))
+        - (d : ℂ) • ClassFunction.ind H (1 : ClassFunction H) := by
+    rw [frobeniusInd_eq, hd]
+    abel
+  rw [hsplit]
+  exact ClassFunction.IsChar.sub_isVirtualChar
+    (θ.isChar.ind.add (hone_char.natCast_smul d)) (honeH_char.ind.natCast_smul d)
+
+/-- **The norm computation** (Isaacs 7.2): for nonprincipal `θ` on a malnormal `H`,
+`⟪φ_θ, φ_θ⟫_[G] = 1`.  Writing `φ_θ = ind α_θ + θ 1 • 1` with `α_θ 1 = 0`:
+the TI isometry gives `⟪ind α_θ, ind α_θ⟫ = ⟪α_θ, α_θ⟫ = 1 + θ 1 ^ 2` (first orthogonality
+on `H`, `θ ⊥ 1_H`), reciprocity gives `⟪ind α_θ, 1_G⟫ = ⟪α_θ, 1_H⟫ = -θ 1`, and the four
+terms sum to `(1 + θ 1 ^ 2) - θ 1 ^ 2 - θ 1 ^ 2 + θ 1 ^ 2 = 1`. -/
+theorem cfInner_frobeniusInd_self
+    (hmal : ∀ g ∉ H, H ⊓ H.map (MulAut.conj g).toMonoidHom = ⊥)
+    {θ : Irr H} (hθ : θ ≠ Irr.one) :
+    ⟪θ.frobeniusInd, θ.frobeniusInd⟫_[G] = 1 := by
+  obtain ⟨d, -, hd⟩ := θ.exists_degree
+  have hconj : starRingEnd ℂ (θ 1) = θ 1 := by rw [hd, map_natCast]
+  set α : ClassFunction H := (θ : ClassFunction H) - θ 1 • 1 with hα
+  have hα1 : α 1 = 0 := sub_smul_one_apply_one θ
+  -- the four inner products on `H`
+  have hθθ : ⟪(θ : ClassFunction H), (θ : ClassFunction H)⟫_[H] = 1 := by
+    have := Irr.cfInner_eq θ θ
+    rwa [if_pos rfl] at this
+  have hθ1 : ⟪(θ : ClassFunction H), (1 : ClassFunction H)⟫_[H] = 0 := by
+    have := Irr.cfInner_eq θ (Irr.one : Irr H)
+    rwa [if_neg hθ, Irr.coe_one] at this
+  have h1θ : ⟪(1 : ClassFunction H), (θ : ClassFunction H)⟫_[H] = 0 := by
+    rw [ClassFunction.cfInner_conj_symm, hθ1, map_zero]
+  have h11 : ⟪(1 : ClassFunction H), (1 : ClassFunction H)⟫_[H] = 1 := by
+    have := Irr.cfInner_eq (Irr.one : Irr H) (Irr.one : Irr H)
+    rwa [if_pos rfl, Irr.coe_one] at this
+  have hαα : ⟪α, α⟫_[H] = 1 + θ 1 * θ 1 := by
+    simp only [hα, ClassFunction.cfInner_sub_left, ClassFunction.cfInner_sub_right,
+      ClassFunction.cfInner_smul_left, ClassFunction.cfInner_smul_right, hθθ, hθ1, h1θ, h11,
+      hconj]
+    ring
+  -- transport to `G`
+  have hisom : ⟪ClassFunction.ind H α, ClassFunction.ind H α⟫_[G] = 1 + θ 1 * θ 1 := by
+    rw [ClassFunction.cfInner_ind_ind_of_malnormal hmal hα1, hαα]
+  have hind1 : ⟪ClassFunction.ind H α, (1 : ClassFunction G)⟫_[G] = -(θ 1) := by
+    rw [ClassFunction.cfInner_ind_eq_cfInner_res, ClassFunction.res_one]
+    simp only [hα, ClassFunction.cfInner_sub_left, ClassFunction.cfInner_smul_left, hθ1, h11]
+    ring
+  have h1ind : ⟪(1 : ClassFunction G), ClassFunction.ind H α⟫_[G] = -(θ 1) := by
+    rw [ClassFunction.cfInner_conj_symm, hind1, map_neg, hconj]
+  have h11G : ⟪(1 : ClassFunction G), (1 : ClassFunction G)⟫_[G] = 1 := by
+    have := Irr.cfInner_eq (Irr.one : Irr G) (Irr.one : Irr G)
+    rwa [if_pos rfl, Irr.coe_one] at this
+  have hphi : θ.frobeniusInd = ClassFunction.ind H α + θ 1 • 1 := by
+    rw [frobeniusInd_def, ← hα]
+  rw [hphi]
+  simp only [ClassFunction.cfInner_add_left, ClassFunction.cfInner_add_right,
+    ClassFunction.cfInner_smul_left, ClassFunction.cfInner_smul_right, hisom, hind1, h1ind,
+    h11G, hconj]
+  ring
+
+/-- **`φ_θ` is an irreducible character of `G`**: a virtual character of norm `1` is `±` an
+irreducible (`vchar_norm1`), and the `-χ` branch is impossible since
+`φ_θ 1 = θ 1 > 0` while irreducible degrees are positive. -/
+theorem exists_coe_eq_frobeniusInd
+    (hmal : ∀ g ∉ H, H ⊓ H.map (MulAut.conj g).toMonoidHom = ⊥)
+    {θ : Irr H} (hθ : θ ≠ Irr.one) :
+    ∃ χ : Irr G, (χ : ClassFunction G) = θ.frobeniusInd := by
+  rcases (frobeniusInd_isVirtualChar θ).exists_eq_or_eq_neg_of_cfInner_self_eq_one
+      (cfInner_frobeniusInd_self hmal hθ) with ⟨χ, hχ⟩ | ⟨χ, hχ⟩
+  · exact ⟨χ, hχ.symm⟩
+  · exfalso
+    obtain ⟨d, hd0, hd⟩ := θ.exists_degree
+    obtain ⟨d', hd'0, hd'⟩ := χ.exists_degree
+    have h1 : θ.frobeniusInd 1 = -((χ : ClassFunction G) 1) := by
+      rw [hχ]
+      rfl
+    rw [frobeniusInd_apply_one, hd, Irr.coe_apply, hd'] at h1
+    have hnat : ((d + d' : ℕ) : ℂ) = 0 := by
+      push_cast
+      linear_combination h1
+    have : d + d' = 0 := by exact_mod_cast hnat
+    omega
+
+end Irr
+
 end
