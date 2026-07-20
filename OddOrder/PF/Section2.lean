@@ -1752,6 +1752,369 @@ theorem ind_dadeRestriction_image_conj (ddA : DadeHypothesis G L A) (α : ClassF
 
 end ConjTransport
 
+/-! #### (2.10.2), the coset counting, and (2.10.3) -/
+
+section Expansion3
+
+open scoped Classical
+
+variable [Fintype G]
+
+/-- The generic count `|{y ∈ univ | y ∈ K}| = |K|` for a subgroup `K`. -/
+private theorem card_filter_mem_subgroup (K : Subgroup G) :
+    ({y ∈ (Finset.univ : Finset G) | y ∈ K}).card = Nat.card K :=
+  calc ({y ∈ (Finset.univ : Finset G) | y ∈ K}).card
+      = Fintype.card {y : G // y ∈ K} := (Fintype.card_subtype _).symm
+    _ = Nat.card {y : G // y ∈ K} := Nat.card_eq_fintype_card.symm
+    _ = Nat.card K := rfl
+
+/-- **Peterfalvi (2.10.2)** (`Dade_setU1`): `'H({a} ∪ B) = C_{'H(B)}(a)` for `a ∈ A` and
+nonempty `B ⊆ A`.  The nontrivial containment is the Hall-containment engine
+(`mem_signalizer_of_coprime`), replacing the Coq's `sub_normal_Hall` argument. -/
+theorem setSignalizer_insert (ddA : DadeHypothesis G L A) {a : G} (ha : a ∈ A)
+    {B : Finset G} (hB : ↑B ⊆ A) (hne : B.Nonempty) :
+    ddA.setSignalizer (insert a B)
+      = ddA.setSignalizer B ⊓ Subgroup.centralizer {a} := by
+  ext w
+  rw [Subgroup.mem_inf, mem_setSignalizer]
+  constructor
+  · intro hw
+    refine ⟨mem_setSignalizer.mpr fun b hb => hw b (Finset.mem_insert_of_mem hb), ?_⟩
+    exact ddA.signalizer_le a ha (hw a (Finset.mem_insert_self a B))
+  · rintro ⟨hwB, hwC⟩
+    intro b hb
+    rcases Finset.mem_insert.mp hb with rfl | hb
+    · refine ddA.mem_signalizer_of_coprime ha hwC ?_
+      exact Nat.Coprime.coprime_dvd_left
+        (Subgroup.orderOf_dvd_natCard _ hwB)
+        (ddA.coprime_card_setSignalizer hB hne ha)
+    · exact mem_setSignalizer.mp hwB b hb
+
+/-- **The `supp_aBgP` engine of (2.10.3)**: an element of the coset `'H(B) * b`, for
+`b ∈ A ∩ 'N_L(B)`, lies in the local Dade support of `b`.  Combines the (2.1) cover with
+the Hall containment `C_{'H(B)}(b) ≤ H b`. -/
+theorem mem_support1_of_mul_inv_mem_setSignalizer (ddA : DadeHypothesis G L A)
+    {B : Finset G} (hB : ↑B ⊆ A) (hne : B.Nonempty) {b : G} (hbA : b ∈ A)
+    (hbn : b ∈ setNormalizer L B) {v : G} (hv : v * b⁻¹ ∈ ddA.setSignalizer B) :
+    v ∈ ddA.support1 b := by
+  have hnorm : ∀ h ∈ ddA.setSignalizer B, b * h * b⁻¹ ∈ ddA.setSignalizer B :=
+    fun h hh => ddA.conj_mem_setSignalizer hB hbn hh
+  have hco : Nat.Coprime (Nat.card (ddA.setSignalizer B)) (orderOf b) :=
+    Nat.Coprime.coprime_dvd_right (ddA.orderOf_dvd_card hbA)
+      (ddA.coprime_card_setSignalizer hB hne hbA)
+  obtain ⟨y, hy, c, hc, hconj⟩ := exists_conj_mul_of_mul_inv_mem hnorm hco hv
+  have hcHb : c ∈ ddA.signalizer b := by
+    refine ddA.mem_signalizer_of_coprime hbA (Subgroup.mem_inf.mp hc).2 ?_
+    exact Nat.Coprime.coprime_dvd_left
+      (Subgroup.orderOf_dvd_natCard _ (Subgroup.mem_inf.mp hc).1)
+      (ddA.coprime_card_setSignalizer hB hne hbA)
+  exact mem_support1.mpr ⟨c, hcHb, y, hconj⟩
+
+/-- **The block-counting identity behind (2.10)** — the descent step
+`aa2 B a = |'H(B) : 'H(a ∪ B)| * aa2 (a ∪ B) a` in multiplied-out form:
+`|{z : g^z ∈ 'H(B)a}| * |C| = |'H(B)| * |{z : g^z ∈ C a}|`, where
+`C = 'H(B) ⊓ C_G(a)`.  Coq: the `partition_cent_rcoset` double count closing the proof of
+`Dade_expansion` (`PFsection2.v:691-718`). -/
+theorem card_filter_conj_coset_mul (ddA : DadeHypothesis G L A) {B : Finset G}
+    (hB : ↑B ⊆ A) (hne : B.Nonempty) {a : G} (ha : a ∈ A)
+    (han : a ∈ setNormalizer L B) (g : G) :
+    ({z ∈ (Finset.univ : Finset G) | (z⁻¹ * g * z) * a⁻¹ ∈ ddA.setSignalizer B}).card
+        * Nat.card ↥(ddA.setSignalizer B ⊓ Subgroup.centralizer {a})
+      = Nat.card (ddA.setSignalizer B)
+        * ({z ∈ (Finset.univ : Finset G) |
+            (z⁻¹ * g * z) * a⁻¹ ∈ ddA.setSignalizer B ⊓ Subgroup.centralizer {a}}).card := by
+  classical
+  set HB : Subgroup G := ddA.setSignalizer B with hHB
+  set C : Subgroup G := HB ⊓ Subgroup.centralizer {a} with hC
+  set S : Finset G := {z ∈ (Finset.univ : Finset G) | (z⁻¹ * g * z) * a⁻¹ ∈ HB} with hS
+  set T : Finset G := {z ∈ (Finset.univ : Finset G) | (z⁻¹ * g * z) * a⁻¹ ∈ C} with hT
+  have hnorm : ∀ h ∈ HB, a * h * a⁻¹ ∈ HB :=
+    fun h hh => ddA.conj_mem_setSignalizer hB han hh
+  have hco : Nat.Coprime (Nat.card HB) (orderOf a) :=
+    Nat.Coprime.coprime_dvd_right (ddA.orderOf_dvd_card ha)
+      (ddA.coprime_card_setSignalizer hB hne ha)
+  set HBF : Finset G := {y ∈ (Finset.univ : Finset G) | y ∈ HB} with hHBF
+  set cond : G × G → Prop :=
+    fun p => ((p.1 * p.2)⁻¹ * g * (p.1 * p.2)) * a⁻¹ ∈ C with hcond
+  set Q : Finset (G × G) := ((Finset.univ : Finset G) ×ˢ HBF).filter cond with hQ
+  -- Way 1: fiber over the second coordinate; each fiber is a translate of `T`
+  have hway1 : Q.card = Nat.card HB * T.card := by
+    have hmaps : ∀ p ∈ Q, p.2 ∈ HBF := by
+      intro p hp
+      rw [hQ, Finset.mem_filter, Finset.mem_product] at hp
+      exact hp.1.2
+    rw [Finset.card_eq_sum_card_fiberwise hmaps]
+    have hfib : ∀ y ∈ HBF, ({p ∈ Q | p.2 = y}).card = T.card := by
+      intro y hy
+      refine Finset.card_bij' (fun p _ => p.1 * y) (fun z _ => (z * y⁻¹, y)) ?_ ?_ ?_ ?_
+      · intro p hp
+        rw [Finset.mem_filter] at hp
+        obtain ⟨hpQ, hp2⟩ := hp
+        rw [hQ, Finset.mem_filter] at hpQ
+        have := hpQ.2
+        rw [hcond] at this
+        rw [hT, Finset.mem_filter]
+        refine ⟨Finset.mem_univ _, ?_⟩
+        rw [← hp2]
+        exact this
+      · intro z hz
+        rw [hT, Finset.mem_filter] at hz
+        rw [Finset.mem_filter, hQ, Finset.mem_filter, Finset.mem_product]
+        refine ⟨⟨⟨Finset.mem_univ _, hy⟩, ?_⟩, rfl⟩
+        rw [hcond]
+        show ((z * y⁻¹ * y)⁻¹ * g * (z * y⁻¹ * y)) * a⁻¹ ∈ C
+        rw [inv_mul_cancel_right]
+        exact hz.2
+      · intro p hp
+        rw [Finset.mem_filter] at hp
+        ext
+        · simp
+        · simp [hp.2]
+      · intro z _
+        simp
+    rw [Finset.sum_congr rfl hfib, Finset.sum_const, smul_eq_mul, hHBF,
+      card_filter_mem_subgroup]
+  -- Way 2: fiber over the first coordinate; nonempty fibers sit over `S`, with `|C|` each
+  have hway2 : Q.card = S.card * Nat.card ↥C := by
+    have hmaps : ∀ p ∈ Q, p.1 ∈ S := by
+      rintro ⟨z, y⟩ hp
+      rw [hQ, Finset.mem_filter, Finset.mem_product] at hp
+      obtain ⟨⟨-, hy⟩, hcondp⟩ := hp
+      rw [hHBF, Finset.mem_filter] at hy
+      rw [hcond] at hcondp
+      rw [hS, Finset.mem_filter]
+      refine ⟨Finset.mem_univ _, ?_⟩
+      -- `v a⁻¹ = y ((y⁻¹ v y) a⁻¹) (a y⁻¹ a⁻¹)` with all three factors in `HB`
+      have hval : (z⁻¹ * g * z) * a⁻¹
+          = y * (((z * y)⁻¹ * g * (z * y)) * a⁻¹) * (a * y⁻¹ * a⁻¹) := by group
+      rw [hval]
+      exact mul_mem (mul_mem hy.2 ((Subgroup.mem_inf.mp hcondp).1))
+        (hnorm y⁻¹ (inv_mem hy.2))
+    rw [Finset.card_eq_sum_card_fiberwise hmaps]
+    have hfib : ∀ z ∈ S, ({p ∈ Q | p.1 = z}).card = Nat.card ↥C := by
+      intro z hz
+      rw [hS, Finset.mem_filter] at hz
+      -- the (2.1) cover provides a base point of the fiber
+      obtain ⟨y₀, hy₀, c₀, hc₀, hconj₀⟩ := exists_conj_mul_of_mul_inv_mem hnorm hco hz.2
+      have hy₀v : (y₀⁻¹ * (z⁻¹ * g * z) * y₀) * a⁻¹ ∈ C := by
+        have hval : y₀⁻¹ * (z⁻¹ * g * z) * y₀ = c₀ * a := by
+          rw [← hconj₀]; group
+        rw [hval, mul_inv_cancel_right]
+        exact hc₀
+      rw [← card_filter_mem_subgroup (G := G) C]
+      refine Finset.card_bij' (fun p _ => y₀⁻¹ * p.2) (fun w _ => (z, y₀ * w)) ?_ ?_ ?_ ?_
+      · -- membership: the second coordinate lies in the coset `y₀ C`
+        rintro ⟨z', y⟩ hp
+        rw [Finset.mem_filter] at hp
+        obtain ⟨hpQ, hp1⟩ := hp
+        rw [hQ, Finset.mem_filter, Finset.mem_product] at hpQ
+        obtain ⟨⟨-, hy⟩, hcondp⟩ := hpQ
+        rw [hHBF, Finset.mem_filter] at hy
+        rw [hcond] at hcondp
+        dsimp only at hp1
+        subst hp1
+        rw [Finset.mem_filter]
+        refine ⟨Finset.mem_univ _, ?_⟩
+        -- `w := y₀⁻¹ y` centralizes `a` by the TI collapse, and lies in `HB`
+        have hyv : (y⁻¹ * (z'⁻¹ * g * z') * y) * a⁻¹ ∈ C := by
+          have hval : (z' * y)⁻¹ * g * (z' * y) = y⁻¹ * (z'⁻¹ * g * z') * y := by group
+          rwa [hval] at hcondp
+        have hcent : y⁻¹ * y₀ ∈ Subgroup.centralizer {a} := by
+          refine mem_centralizer_of_conj_mul_mem (H := HB) hco
+            (u := y₀⁻¹ * (z'⁻¹ * g * z') * y₀) hy₀v ?_
+          have hval : (y⁻¹ * y₀) * (y₀⁻¹ * (z'⁻¹ * g * z') * y₀) * (y⁻¹ * y₀)⁻¹
+              = y⁻¹ * (z'⁻¹ * g * z') * y := by group
+          rw [hval]
+          exact hyv
+        refine Subgroup.mem_inf.mpr ⟨mul_mem (inv_mem hy₀) hy.2, ?_⟩
+        have hinv := inv_mem hcent
+        rwa [show (y⁻¹ * y₀)⁻¹ = y₀⁻¹ * y by group] at hinv
+      · intro w hw
+        rw [Finset.mem_filter] at hw
+        rw [Finset.mem_filter, hQ, Finset.mem_filter, Finset.mem_product]
+        have hwHB : w ∈ HB := (Subgroup.mem_inf.mp hw.2).1
+        have hwCa : w ∈ Subgroup.centralizer {a} := (Subgroup.mem_inf.mp hw.2).2
+        refine ⟨⟨⟨Finset.mem_univ _, ?_⟩, ?_⟩, rfl⟩
+        · rw [hHBF, Finset.mem_filter]
+          exact ⟨Finset.mem_univ _, mul_mem hy₀ hwHB⟩
+        · show ((z * (y₀ * w))⁻¹ * g * (z * (y₀ * w))) * a⁻¹ ∈ C
+          -- direct computation: `(zy₀w)⁻¹ g (zy₀w) a⁻¹ = w⁻¹ (c₀ a) w a⁻¹ = w⁻¹c₀w`
+          have hval2 : (z * (y₀ * w))⁻¹ * g * (z * (y₀ * w)) = w⁻¹ * (c₀ * a) * w := by
+            have h1 : y₀⁻¹ * (z⁻¹ * g * z) * y₀ = c₀ * a := by
+              rw [← hconj₀]; group
+            calc (z * (y₀ * w))⁻¹ * g * (z * (y₀ * w))
+                = w⁻¹ * (y₀⁻¹ * (z⁻¹ * g * z) * y₀) * w := by group
+              _ = w⁻¹ * (c₀ * a) * w := by rw [h1]
+          rw [hval2]
+          have hwa : w⁻¹ * a * w = a := by
+            have hcomm := Subgroup.mem_centralizer_singleton_iff.mp hwCa
+            calc w⁻¹ * a * w = w⁻¹ * (a * w) := by group
+              _ = w⁻¹ * (w * a) := by rw [← hcomm]
+              _ = a := by group
+          have hval3 : (w⁻¹ * (c₀ * a) * w) * a⁻¹ = w⁻¹ * c₀ * w * ((w⁻¹ * a * w) * a⁻¹) := by
+            group
+          rw [hval3, hwa, mul_inv_cancel, mul_one]
+          exact Subgroup.mem_inf.mpr
+            ⟨mul_mem (mul_mem (inv_mem hwHB) (Subgroup.mem_inf.mp hc₀).1) hwHB,
+              mul_mem (mul_mem (inv_mem hwCa) (Subgroup.mem_inf.mp hc₀).2) hwCa⟩
+      · rintro ⟨z', y⟩ hp
+        rw [Finset.mem_filter] at hp
+        have hp1 := hp.2
+        dsimp only at hp1
+        ext
+        · simp [hp1]
+        · simp
+      · intro w _
+        simp
+    rw [Finset.sum_congr rfl hfib, Finset.sum_const, smul_eq_mul]
+  rw [← hway1, hway2]
+
+/-- **Peterfalvi (2.10.3), first clause** (`Dade_Ind_expansion`): off the Dade support,
+every induced Dade restriction vanishes. -/
+theorem ind_dadeRestriction_apply_of_notMem (ddA : DadeHypothesis G L A)
+    {α : ClassFunction ↥L}
+    (hα : α ∈ ClassFunction.supportedOn ↥L (((↑) : ↥L → G) ⁻¹' A)) {B : Finset G}
+    (hB : ↑B ⊆ A) (hne : B.Nonempty) {g : G} (hg : g ∉ ddA.support) :
+    ClassFunction.ind (ddA.setProd B) (ddA.dadeRestriction B α) g = 0 := by
+  rw [ClassFunction.ind_apply]
+  rw [Finset.sum_eq_zero, mul_zero]
+  intro z _
+  by_cases hz : z⁻¹ * g * z ∈ ddA.setProd B
+  · rw [ClassFunction.extendZero_apply_of_mem _ hz]
+    obtain ⟨h, hh, n, hn, hzn⟩ := ddA.exists_mul_of_mem_setProd hB hz
+    have hsub : (⟨z⁻¹ * g * z, hz⟩ : ↥(ddA.setProd B)) = ⟨h * n, hzn ▸ hz⟩ :=
+      Subtype.ext hzn
+    rw [hsub, ddA.dadeRestriction_apply_mul α ⟨hB, hne⟩ hh hn _]
+    by_contra hne0
+    have hnA : n ∈ A := by
+      by_contra hnA
+      exact hne0 (hα ⟨n, setNormalizer_le hn⟩ hnA)
+    have hv : (z⁻¹ * g * z) * n⁻¹ ∈ ddA.setSignalizer B := by
+      rw [hzn, mul_inv_cancel_right]
+      exact hh
+    have hgd : z⁻¹ * g * z ∈ ddA.support1 n :=
+      ddA.mem_support1_of_mul_inv_mem_setSignalizer hB hne hnA hn hv
+    have hgd' : g ∈ ddA.support1 n := by
+      have := conj_mem_support1 hgd z
+      rwa [show z * (z⁻¹ * g * z) * z⁻¹ = g by group] at this
+    exact hg ⟨n, hnA, hgd'⟩
+  · rw [ClassFunction.extendZero_apply_of_not_mem _ hz]
+
+/-- **Peterfalvi (2.10.3), second clause** (`Dade_Ind_expansion`): on the local support
+of `a ∈ A`,
+`(Ind_G 'aa_B) g = α a * |'M(B)|⁻¹ * ∑_{b ∈ 'N_L(B) ∩ a^L} |{z : g^z ∈ 'H(B) b}|`. -/
+theorem ind_dadeRestriction_apply_of_mem (ddA : DadeHypothesis G L A)
+    {α : ClassFunction ↥L}
+    (hα : α ∈ ClassFunction.supportedOn ↥L (((↑) : ↥L → G) ⁻¹' A)) {B : Finset G}
+    (hB : ↑B ⊆ A) (hne : B.Nonempty) {a g : G} (ha : a ∈ A) (hg : g ∈ ddA.support1 a) :
+    ClassFunction.ind (ddA.setProd B) (ddA.dadeRestriction B α) g
+      = α ⟨a, ddA.mem_of_mem_set ha⟩ * (Nat.card (ddA.setProd B) : ℂ)⁻¹
+        * ∑ b ∈ {b ∈ (Finset.univ : Finset G) |
+              b ∈ setNormalizer L B ∧ ∃ x ∈ L, x * a * x⁻¹ = b},
+            (({z ∈ (Finset.univ : Finset G) |
+              (z⁻¹ * g * z) * b⁻¹ ∈ ddA.setSignalizer B}).card : ℂ) := by
+  classical
+  set NLo : Finset G := {b ∈ (Finset.univ : Finset G) |
+    b ∈ setNormalizer L B ∧ ∃ x ∈ L, x * a * x⁻¹ = b} with hNLo
+  -- pointwise: each summand of the averaging formula expands over `NLo`
+  have hkey : ∀ z : G,
+      ClassFunction.extendZero (ddA.dadeRestriction B α) (z⁻¹ * g * z)
+        = ∑ b ∈ NLo, if (z⁻¹ * g * z) * b⁻¹ ∈ ddA.setSignalizer B
+            then α ⟨a, ddA.mem_of_mem_set ha⟩ else 0 := by
+    intro z
+    by_cases hz : z⁻¹ * g * z ∈ ddA.setProd B
+    · rw [ClassFunction.extendZero_apply_of_mem _ hz]
+      obtain ⟨h, hh, n, hn, hzn⟩ := ddA.exists_mul_of_mem_setProd hB hz
+      have hsub : (⟨z⁻¹ * g * z, hz⟩ : ↥(ddA.setProd B)) = ⟨h * n, hzn ▸ hz⟩ :=
+        Subtype.ext hzn
+      rw [hsub, ddA.dadeRestriction_apply_mul α ⟨hB, hne⟩ hh hn _]
+      -- at most one `b ∈ 'N_L(B)` can satisfy the coset condition, namely `b = n`
+      have huniq : ∀ b ∈ setNormalizer L B,
+          (z⁻¹ * g * z) * b⁻¹ ∈ ddA.setSignalizer B → b = n := by
+        intro b hbn hcond
+        have h1 : n * b⁻¹ ∈ ddA.setSignalizer B := by
+          have : n * b⁻¹ = h⁻¹ * ((z⁻¹ * g * z) * b⁻¹) := by rw [hzn]; group
+          rw [this]
+          exact mul_mem (inv_mem hh) hcond
+        have h2 : n * b⁻¹ ∈ setNormalizer L B := mul_mem hn (inv_mem hbn)
+        have h3 : n * b⁻¹ ∈ ddA.setSignalizer B ⊓ setNormalizer L B :=
+          Subgroup.mem_inf.mpr ⟨h1, h2⟩
+        rw [ddA.setSignalizer_inf_setNormalizer hB hne, Subgroup.mem_bot] at h3
+        have := congrArg (· * b) h3
+        simpa using this.symm
+      by_cases hnO : n ∈ NLo
+      · -- the summand at `b = n` is the only survivor, and `α n = α a`
+        rw [Finset.sum_eq_single_of_mem n hnO]
+        · have hcondn : (z⁻¹ * g * z) * n⁻¹ ∈ ddA.setSignalizer B := by
+            rw [hzn, mul_inv_cancel_right]
+            exact hh
+          rw [if_pos hcondn]
+          rw [hNLo, Finset.mem_filter] at hnO
+          obtain ⟨-, -, x, hx, hxa⟩ := hnO
+          have hsubn : (⟨n, setNormalizer_le hn⟩ : ↥L)
+              = ⟨x, hx⟩ * ⟨a, ddA.mem_of_mem_set ha⟩ * (⟨x, hx⟩ : ↥L)⁻¹ := by
+            ext
+            push_cast
+            exact hxa.symm
+          rw [hsubn, ClassFunction.conj_apply]
+        · intro b hb hbne
+          rw [hNLo, Finset.mem_filter] at hb
+          rw [if_neg]
+          intro hcond
+          exact hbne (huniq b hb.2.1 hcond)
+      · -- no survivor, and `α n = 0` (else `g` would lie in the support of `n ∈ a^L`)
+        rw [Finset.sum_eq_zero]
+        · by_contra hne0
+          have hnA : n ∈ A := by
+            by_contra hnA
+            exact hne0 (hα ⟨n, setNormalizer_le hn⟩ hnA)
+          have hv : (z⁻¹ * g * z) * n⁻¹ ∈ ddA.setSignalizer B := by
+            rw [hzn, mul_inv_cancel_right]
+            exact hh
+          have hgd : z⁻¹ * g * z ∈ ddA.support1 n :=
+            ddA.mem_support1_of_mul_inv_mem_setSignalizer hB hne hnA hn hv
+          have hgd' : g ∈ ddA.support1 n := by
+            have := conj_mem_support1 hgd z
+            rwa [show z * (z⁻¹ * g * z) * z⁻¹ = g by group] at this
+          obtain ⟨x, hx, hxa⟩ := ddA.exists_conj_of_mem_support1 ha hnA hg hgd'
+          exact hnO (by
+            rw [hNLo, Finset.mem_filter]
+            exact ⟨Finset.mem_univ _, hn, x, hx, hxa⟩)
+        · intro b hb
+          rw [hNLo, Finset.mem_filter] at hb
+          rw [if_neg]
+          intro hcond
+          -- the coset condition would force `b = n ∉ NLo`, but `b ∈ NLo`
+          have := huniq b hb.2.1 hcond
+          subst this
+          exact hnO (by rw [hNLo, Finset.mem_filter]; exact hb)
+    · rw [ClassFunction.extendZero_apply_of_not_mem _ hz]
+      rw [eq_comm]
+      rw [Finset.sum_eq_zero]
+      intro b hb
+      rw [hNLo, Finset.mem_filter] at hb
+      rw [if_neg]
+      intro hcond
+      apply hz
+      have : z⁻¹ * g * z = ((z⁻¹ * g * z) * b⁻¹) * b := by group
+      rw [this]
+      exact mul_mem (ddA.setSignalizer_le_setProd hcond)
+        (ddA.setNormalizer_le_setProd hb.2.1)
+  -- assemble: swap the two sums and collapse the inner indicator sums to counts
+  rw [ClassFunction.ind_apply, Finset.sum_congr rfl fun z _ => hkey z, Finset.sum_comm]
+  have hinner : ∀ b ∈ NLo,
+      (∑ z : G, if (z⁻¹ * g * z) * b⁻¹ ∈ ddA.setSignalizer B
+          then α ⟨a, ddA.mem_of_mem_set ha⟩ else 0)
+        = α ⟨a, ddA.mem_of_mem_set ha⟩
+            * (({z ∈ (Finset.univ : Finset G) |
+                (z⁻¹ * g * z) * b⁻¹ ∈ ddA.setSignalizer B}).card : ℂ) := by
+    intro b _
+    rw [← Finset.sum_filter, Finset.sum_const, nsmul_eq_mul, mul_comm]
+  rw [Finset.sum_congr rfl hinner, ← Finset.mul_sum]
+  ring
+
+end Expansion3
+
 end DadeHypothesis
 
 end SetSignalizer
