@@ -36,15 +36,14 @@ transport layer that Peterfalvi §1 assumes from MathComp and that the M2 files 
 
 ## Main results
 
-* `Irr.exists_norm_eq_one_mul_of_mem_center`: an irreducible character takes unimodular
-  scalar multiples of its degree on central elements (Schur).  MathComp: the
-  `irr1_bound`-adjacent central-value fact (`character.v`).
-* `Irr.norm_apply_le_one_apply`: `‖χ g‖ ≤ ‖χ 1‖` (character values are bounded by the
-  degree).  MathComp: `char1_ge_norm`-shaped (`character.v`).
-* `ClassFunction.IsChar.irr_apply_eq_one_apply_of_apply_eq`: the equality case of the
-  triangle inequality — if a character takes its degree value at `g`, so does every
-  irreducible constituent.  MathComp: kernel-of-constituent facts (`character.v`).
-* `ClassFunction.ind_indNested` / `ClassFunction.res_resNested`: transitivity of induction
+* `Irr.IsLinear.map_mul` / `Irr.IsLinear.map_pow`: a linear character is multiplicative
+  (its witnessing module is one-dimensional, so the action is by scalars).
+* `Irr.isLinear_of_comm`: every irreducible character of a commutative group is linear
+  (`#Irr = #classes = |G|` together with `∑ χ(1)² = |G|` forces every degree to be `1`).
+  MathComp: `char_abelianP` (`character.v`).
+* `Irr.IsLinear.apply_pow_orderOf_eq_one`: a linear character sends an element to a root of
+  unity of its order.
+* `ClassFunction.ind_indNested` / `ClassFunction.resNested_res`: transitivity of induction
   and restriction along `K ≤ H ≤ G`.  MathComp: `cfIndInd`, `cfResRes` (`classfun.v`).
 
 ## Design notes
@@ -308,9 +307,10 @@ theorem eq_of_forall_cfInner_irr_eq {G₀ : Type*} [Group G₀] [Fintype G₀]
 
 /-- Induction is transitive: inducing from `K` to `H ≥ K` and then to `G` is induction
 to `G`.  MathComp: `cfIndInd` (`classfun.v`). -/
-theorem ind_indNested [Fintype G] [Fintype H] [Fintype K] (hKH : K ≤ H)
+theorem ind_indNested [Fintype G] [Fintype H] [Finite K] (hKH : K ≤ H)
     (φ : ClassFunction ↥K) :
     ind H (indNested hKH φ) = ind K φ := by
+  haveI : Fintype ↥K := Fintype.ofFinite _
   refine eq_of_forall_cfInner_irr_eq fun χ => ?_
   rw [cfInner_ind_eq_cfInner_res, cfInner_ind_eq_cfInner_res,
     cfInner_indNested_eq_cfInner_resNested, resNested_res]
@@ -444,5 +444,133 @@ theorem quotientKerEquiv_apply (χ : Irr (G ⧸ N)) :
 theorem quotientKerEquiv_symm_apply (χ : {χ : Irr G // N ≤ χ.ker}) (g : G) :
     (quotientKerEquiv N).symm χ (g : G ⧸ N) = (χ : Irr G) g :=
   (exists_quo N χ.1 χ.2).choose_spec g
+
+end Irr
+
+/-! ### Linear (degree-one) characters -/
+
+namespace Irr
+
+variable {G : Type u} [Group G] [Fintype G]
+
+/-- A **linear character** is an irreducible character of degree one.
+MathComp: `lin_char` (`character.v`). -/
+def IsLinear (χ : Irr G) : Prop := χ 1 = 1
+
+theorem isLinear_iff (χ : Irr G) : χ.IsLinear ↔ χ 1 = 1 := Iff.rfl
+
+/-- A linear character is multiplicative: its witnessing simple module is one-dimensional,
+so the group acts by scalars.  MathComp: `lin_charM` (`character.v`). -/
+theorem IsLinear.map_mul {χ : Irr G} (hχ : χ.IsLinear) (g h : G) :
+    χ (g * h) = χ g * χ h := by
+  obtain ⟨N, hN, hval⟩ := χ.exists_simple'
+  haveI := hN
+  have happ : ∀ x : G, χ x = trace ℂ N (MonoidAlgebra.actionEnd N x) := by
+    intro x
+    have h := congrArg (fun φ : ClassFunction G => φ x) hval
+    simpa [MonoidAlgebra.moduleCharacter_apply] using h
+  have hone : MonoidAlgebra.actionEnd N (1 : G) = 1 := by
+    refine LinearMap.ext fun v => ?_
+    rw [MonoidAlgebra.actionEnd_apply, ← MonoidAlgebra.one_def, one_smul, Module.End.one_apply]
+  have hfr : Module.finrank ℂ N = 1 := by
+    have h1 := happ 1
+    rw [hone, LinearMap.trace_one] at h1
+    have : (Module.finrank ℂ N : ℂ) = 1 := by rw [← h1]; exact hχ
+    exact_mod_cast this
+  haveI : Module.Free ℂ N := Module.Free.of_divisionRing ℂ N
+  obtain ⟨v, hv0, hspan⟩ := (finrank_eq_one_iff' (K := ℂ) (V := N)).mp hfr
+  -- every endomorphism scaling `v` is the corresponding scalar times the identity
+  have hscalar : ∀ (f : Module.End ℂ N) (c : ℂ), f v = c • v → f = c • 1 := by
+    intro f c hfv
+    refine LinearMap.ext fun w => ?_
+    obtain ⟨a, rfl⟩ := hspan w
+    rw [map_smul, hfv, LinearMap.smul_apply, Module.End.one_apply, smul_comm]
+  have htrace : ∀ (f : Module.End ℂ N) (c : ℂ), f = c • 1 → trace ℂ N f = c := by
+    intro f c hf
+    rw [hf, map_smul, LinearMap.trace_one, hfr, Nat.cast_one, smul_eq_mul, mul_one]
+  have hcg : ∀ x : G, MonoidAlgebra.actionEnd N x v = χ x • v := by
+    intro x
+    obtain ⟨c, hc⟩ := hspan (MonoidAlgebra.actionEnd N x v)
+    have hχc : χ x = c := by rw [happ x, htrace _ c (hscalar _ c hc.symm)]
+    rw [hχc, hc]
+  have key : MonoidAlgebra.actionEnd N (g * h) v = (χ g * χ h) • v := by
+    rw [MonoidAlgebra.actionEnd_mul, LinearMap.comp_apply, hcg h, map_smul, hcg g, smul_smul,
+      mul_comm (χ h) (χ g)]
+  have heq : χ (g * h) • v = (χ g * χ h) • v := (hcg (g * h)).symm.trans key
+  exact smul_left_injective ℂ hv0 heq
+
+/-- A linear character sends `1` to `1`. -/
+@[simp]
+theorem IsLinear.map_one {χ : Irr G} (hχ : χ.IsLinear) : χ 1 = 1 := hχ
+
+/-- A linear character is multiplicative on powers.  MathComp: `lin_charX`
+(`character.v`). -/
+theorem IsLinear.map_pow {χ : Irr G} (hχ : χ.IsLinear) (g : G) (n : ℕ) :
+    χ (g ^ n) = (χ g) ^ n := by
+  induction n with
+  | zero => rw [pow_zero, pow_zero, hχ.map_one]
+  | succ n ih => rw [pow_succ, pow_succ, hχ.map_mul, ih]
+
+/-- A linear character sends a group element to a root of unity of its order.
+MathComp: `lin_char_unity_root`-shaped (`character.v`). -/
+theorem IsLinear.apply_pow_orderOf_eq_one {χ : Irr G} (hχ : χ.IsLinear) (g : G) :
+    (χ g) ^ orderOf g = 1 := by
+  rw [← hχ.map_pow, pow_orderOf_eq_one, hχ.map_one]
+
+/-- **Every irreducible character of a commutative group is linear.**  Counting: the number
+of irreducible characters equals the number of conjugacy classes, which for a commutative
+group is `|G|`; together with `∑ χ(1)² = |G|` and `χ(1) ≥ 1`, every degree must be `1`.
+The commutativity is passed as a hypothesis (rather than a `CommGroup` instance) so the
+lemma applies to subgroups generated by commuting elements without an extra instance.
+MathComp: `char_abelianP` (`character.v`). -/
+theorem isLinear_of_comm (hcomm : ∀ a b : G, a * b = b * a) (χ : Irr G) : χ.IsLinear := by
+  classical
+  -- for a commutative group, conjugacy classes are singletons, so `#Irr = |G|`
+  have hconj : ∀ a b : G, IsConj a b ↔ a = b := by
+    intro a b
+    constructor
+    · intro h
+      obtain ⟨c, hc⟩ := isConj_iff.mp h
+      rw [hcomm c a, mul_assoc, mul_inv_cancel, mul_one] at hc
+      exact hc
+    · rintro rfl; exact IsConj.refl a
+  have hcard : Fintype.card (Irr G) = Fintype.card G := by
+    have h1 : Nat.card (Irr G) = Nat.card (ConjClasses G) := Irr.card_eq_card_conjClasses
+    have hEquiv : ConjClasses G ≃ G :=
+      { toFun := fun c => Quotient.liftOn c (fun a => a) fun a b h => (hconj a b).mp h
+        invFun := ConjClasses.mk
+        left_inv := fun c => by
+          induction c using Quotient.inductionOn with
+          | h a => rfl
+        right_inv := fun a => rfl }
+    have h2 : Nat.card (ConjClasses G) = Nat.card G := Nat.card_congr hEquiv
+    have h3 : Nat.card (Irr G) = Nat.card G := h1.trans h2
+    simpa [Nat.card_eq_fintype_card] using h3
+  -- the natural-number degrees
+  set d : Irr G → ℕ := fun ψ => ψ.exists_degree.choose with hddef
+  have hdpos : ∀ ψ : Irr G, 1 ≤ d ψ := fun ψ => ψ.exists_degree.choose_spec.1
+  have hdval : ∀ ψ : Irr G, (ψ 1 : ℂ) = (d ψ : ℂ) := fun ψ => ψ.exists_degree.choose_spec.2
+  -- `∑ (d ψ)² = |G|`
+  have h' : ∑ ψ : Irr G, ((d ψ : ℂ)) ^ 2 = (Nat.card G : ℂ) := by
+    rw [← Irr.sum_sq_degree (G := G)]
+    exact Finset.sum_congr rfl fun ψ _ => by rw [hdval ψ]
+  have hsum : ∑ ψ : Irr G, (d ψ) ^ 2 = Fintype.card G := by
+    have hnat : ((∑ ψ : Irr G, (d ψ) ^ 2 : ℕ) : ℂ) = (Nat.card G : ℂ) := by
+      push_cast
+      exact h'
+    rw [Nat.card_eq_fintype_card] at hnat
+    exact_mod_cast hnat
+  -- each degree is `1`
+  by_contra hnl
+  rw [isLinear_iff] at hnl
+  have hd0 : d χ ≠ 1 := fun heq => hnl (by rw [hdval χ, heq, Nat.cast_one])
+  have hd2 : 2 ≤ d χ := by have := hdpos χ; omega
+  -- but then `∑ (d ψ)² > |G|`
+  have hlt : ∑ _ψ : Irr G, 1 < ∑ ψ : Irr G, (d ψ) ^ 2 := by
+    refine Finset.sum_lt_sum (fun ψ _ => ?_) ⟨χ, Finset.mem_univ χ, ?_⟩
+    · nlinarith [hdpos ψ]
+    · nlinarith [hd2]
+  rw [Finset.sum_const, Finset.card_univ, smul_eq_mul, mul_one, hsum, hcard] at hlt
+  exact lt_irrefl _ hlt
 
 end Irr
