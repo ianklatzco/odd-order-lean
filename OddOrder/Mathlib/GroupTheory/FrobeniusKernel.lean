@@ -540,4 +540,105 @@ theorem exists_coe_eq_frobeniusInd
 
 end Irr
 
+/-!
+### Frobenius' kernel theorem
+-/
+
+namespace Subgroup
+
+/-- **Frobenius' kernel theorem** (1901), internal form: if `H` is a nontrivial proper
+malnormal subgroup of a finite group `G` (`H ⊓ H^g = ⊥` for all `g ∉ H`), then the kernel
+set — `1` together with the elements outside every conjugate of `H` — is a (normal) subgroup
+`K` of order `H.index`, and `⟨K, H⟩` is a Frobenius configuration (`Subgroup.IsFrobenius`,
+which bundles `IsComplement' K H`, `K.Normal`, nontriviality, and semiregularity).
+
+The multiplicative closure of the kernel set is the character-theoretic heart (no
+character-free proof of it is known): the kernel set is the common kernel of the
+irreducible characters `χ_θ = φ_θ` (`Irr.exists_coe_eq_frobeniusInd`) attached to the
+nonprincipal `θ : Irr H` — membership in every `χ_θ.ker` follows from the computed values,
+and conversely a nontrivial element of a conjugate of `H` is separated from `1` by some
+`χ_θ` (`Irr.exists_ne_one_apply_ne`).  Everything else (normality, the complement property)
+is geometry and the conjugate-partition count `card_frobeniusKernelSet`.
+
+MathComp has no counterpart (`frobenius.v` develops Frobenius groups with the kernel
+*given*; BGsection3 consumes exactly that interface, provided here by `IsFrobenius`).  The
+corresponding lean-eval problem is the action form, `MulAction.exists_isFrobenius_stabilizer`
+below. -/
+theorem exists_isFrobenius_of_malnormal [Finite G] {H : Subgroup G}
+    (hbot : H ≠ ⊥) (htop : H ≠ ⊤)
+    (hmal : ∀ g ∉ H, H ⊓ H.map (MulAut.conj g).toMonoidHom = ⊥) :
+    ∃ K : Subgroup G, (K : Set G) = H.frobeniusKernelSet ∧ Nat.card K = H.index ∧
+      K.IsFrobenius H := by
+  classical
+  letI : Fintype G := Fintype.ofFinite G
+  letI : Fintype H := Fintype.ofFinite H
+  -- the Frobenius system of irreducible characters of `G`
+  choose χ hχ using fun (θ : Irr H) (hθ : θ ≠ Irr.one) =>
+    Irr.exists_coe_eq_frobeniusInd hmal hθ
+  have hχval : ∀ (θ : Irr H) (hθ : θ ≠ Irr.one) (g : G), (χ θ hθ) g = θ.frobeniusInd g :=
+    fun θ hθ g => congrArg (fun f : ClassFunction G => f g) (hχ θ hθ)
+  -- the kernel set is contained in every `χ_θ.ker` …
+  have hforward : ∀ {g : G}, g ∈ H.frobeniusKernelSet →
+      ∀ (θ : Irr H) (hθ : θ ≠ Irr.one), g ∈ (χ θ hθ).ker := by
+    intro g hg θ hθ
+    rw [Irr.mem_ker_iff, hχval θ hθ g, hχval θ hθ 1,
+      Irr.frobeniusInd_apply_of_mem_frobeniusKernelSet θ hg, Irr.frobeniusInd_apply_one]
+  -- … and conversely: the separation lemma on `H` detects conjugate-of-`H^#` elements
+  have hbackward : ∀ {g : G}, (∀ (θ : Irr H) (hθ : θ ≠ Irr.one), g ∈ (χ θ hθ).ker) →
+      g ∈ H.frobeniusKernelSet := by
+    intro g hker x hgx
+    have hmem : x⁻¹ * g * x ∈ H := mem_map_conj_iff.mp hgx
+    by_contra hg1
+    set h₀ : H := ⟨x⁻¹ * g * x, hmem⟩ with hh₀
+    have hh₀1 : h₀ ≠ 1 := by
+      intro hc
+      apply hg1
+      have hcoe : x⁻¹ * g * x = 1 := congrArg Subtype.val hc
+      calc g = x * (x⁻¹ * g * x) * x⁻¹ := by group
+        _ = 1 := by rw [hcoe]; group
+    obtain ⟨θ, hθne, hθval⟩ := Irr.exists_ne_one_apply_ne hh₀1
+    have hgconj : x * (h₀ : G) * x⁻¹ = g := by
+      change x * (x⁻¹ * g * x) * x⁻¹ = g
+      group
+    have hval_g : (χ θ hθne) g = θ h₀ := by
+      have hconj : (χ θ hθne) (x * (h₀ : G) * x⁻¹) = (χ θ hθne) (h₀ : G) :=
+        (χ θ hθne).toClassFunction.conj_apply ((h₀ : G)) x
+      rw [← hgconj, hconj, hχval θ hθne _, Irr.frobeniusInd_apply_coe hmal θ hh₀1]
+    have hval_1 : (χ θ hθne) 1 = θ 1 := by
+      rw [hχval θ hθne 1, Irr.frobeniusInd_apply_one]
+    have hkg := (Irr.mem_ker_iff _ g).mp (hker θ hθne)
+    exact hθval (by rw [← hval_g, ← hval_1, hkg])
+  -- the kernel set is a subgroup: only `mul_mem` needs the characters
+  set K : Subgroup G :=
+    { carrier := H.frobeniusKernelSet
+      one_mem' := one_mem_frobeniusKernelSet
+      inv_mem' := fun hg => inv_mem_frobeniusKernelSet hg
+      mul_mem' := fun ha hb =>
+        hbackward fun θ hθ => mul_mem (hforward ha θ hθ) (hforward hb θ hθ) } with hK
+  have hKcoe : (K : Set G) = H.frobeniusKernelSet := rfl
+  have hKcard : Nat.card K = H.index := by
+    rw [← card_frobeniusKernelSet hmal]
+    exact Nat.card_congr (Equiv.setCongr hKcoe)
+  have hKnormal : K.Normal := ⟨fun n hn g => conj_mem_frobeniusKernelSet hn g⟩
+  have hdisj : Disjoint K H := by
+    rw [disjoint_def]
+    intro g hgK hgH
+    exact eq_one_of_mem_frobeniusKernelSet_of_mem hgK hgH
+  have hcompl : IsComplement' K H := by
+    apply isComplement'_of_card_mul_and_disjoint _ hdisj
+    rw [hKcard]
+    exact H.index_mul_card
+  have hKbot : K ≠ ⊥ := by
+    intro hc
+    rw [hc, card_bot] at hKcard
+    exact htop (index_eq_one.mp hKcard.symm)
+  have hsemi : IsSemiregular K H := by
+    apply isSemiregular_of_forall_inf_map_conj_eq_bot
+    intro g hgK hg1
+    refine hmal g fun hgH => hg1 ?_
+    exact eq_one_of_mem_frobeniusKernelSet_of_mem hgK hgH
+  exact ⟨K, hKcoe, hKcard, ⟨hcompl, hKnormal, hKbot, hbot, hsemi⟩⟩
+
+end Subgroup
+
 end
