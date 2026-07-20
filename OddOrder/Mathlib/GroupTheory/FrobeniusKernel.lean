@@ -641,4 +641,91 @@ theorem exists_isFrobenius_of_malnormal [Finite G] {H : Subgroup G}
 
 end Subgroup
 
+/-!
+### The action form
+
+A transitive action in which no nonidentity element fixes two points makes every point
+stabilizer malnormal, and the Frobenius kernel set of a stabilizer is exactly
+`{fixed-point-free elements} ∪ {1}` — base-point independent.  This is the eval-problem
+shape of the kernel theorem. -/
+
+namespace MulAction
+
+variable {X : Type*} [MulAction G X]
+
+/-- Under a transitive action, the Frobenius kernel set of a point stabilizer is the set of
+fixed-point-free elements together with `1`, independently of the base point: the conjugates
+of `stabilizer G x` are exactly the stabilizers of the points of `X`. -/
+theorem frobeniusKernelSet_stabilizer [IsPretransitive G X] (x : X) :
+    (stabilizer G x).frobeniusKernelSet = {g : G | ∀ y : X, g • y ≠ y} ∪ {1} := by
+  ext g
+  simp only [Set.mem_union, Set.mem_setOf_eq, Set.mem_singleton_iff]
+  constructor
+  · intro hg
+    rcases eq_or_ne g 1 with rfl | hg1
+    · exact Or.inr rfl
+    · refine Or.inl fun y hy => hg1 ?_
+      obtain ⟨h, rfl⟩ := MulAction.exists_smul_eq G x y
+      refine hg h ?_
+      rw [← stabilizer_smul_eq_stabilizer_map_conj]
+      exact mem_stabilizer_iff.mpr hy
+  · rintro (hfree | rfl)
+    · intro z hz
+      rw [← stabilizer_smul_eq_stabilizer_map_conj] at hz
+      exact absurd (mem_stabilizer_iff.mp hz) (hfree (z • x))
+    · exact Subgroup.one_mem_frobeniusKernelSet
+
+/-- **Frobenius' kernel theorem, action form** (the lean-eval statement shape): if a finite
+group `G` acts transitively on `X` with `1 < #X`, all point stabilizers are nontrivial, and
+no nonidentity element fixes two distinct points, then the fixed-point-free elements
+together with `1` form a normal subgroup `K` — a Frobenius kernel against *every* point
+stabilizer (`Subgroup.IsFrobenius K (stabilizer G x)`, which also carries
+`IsComplement' K (stabilizer G x)`).
+
+Faithfulness of the action, part of the classical statement, is *not* assumed: it is a
+consequence (a kernel element fixes every point, so the two-point condition and the
+nontrivial stabilizer of a second point force it to be `1` — this is the `htop` step
+below). -/
+theorem exists_isFrobenius_stabilizer [Finite G] [IsPretransitive G X]
+    (hX : 1 < Nat.card X) (hstab : ∀ x : X, stabilizer G x ≠ ⊥)
+    (hfix : ∀ g : G, g ≠ 1 → ∀ x y : X, g • x = x → g • y = y → x = y) :
+    ∃ K : Subgroup G, (K : Set G) = {g : G | ∀ y : X, g • y ≠ y} ∪ {1} ∧ K.Normal ∧
+      ∀ x : X, K.IsFrobenius (stabilizer G x) := by
+  haveI : Finite X := Nat.finite_of_card_ne_zero (by omega)
+  haveI hnontriv : Nontrivial X := Finite.one_lt_card_iff_nontrivial.mp hX
+  -- stabilizers are proper: a `⊤` stabilizer would meet the nontrivial stabilizer of a
+  -- second point in a nonidentity element fixing both
+  have htop : ∀ x : X, stabilizer G x ≠ ⊤ := by
+    intro x htop'
+    obtain ⟨y, hyx⟩ := exists_ne x
+    obtain ⟨k, hkY, hk1⟩ := (stabilizer G y).bot_or_exists_ne_one.resolve_left (hstab y)
+    have hkx : k ∈ stabilizer G x := htop' ▸ Subgroup.mem_top k
+    exact hyx (hfix k hk1 y x (mem_stabilizer_iff.mp hkY) (mem_stabilizer_iff.mp hkx))
+  -- stabilizers are malnormal: two-point freeness
+  have hmal : ∀ x : X, ∀ g ∉ stabilizer G x,
+      stabilizer G x ⊓ (stabilizer G x).map (MulAut.conj g).toMonoidHom = ⊥ := by
+    intro x g hg
+    rw [← stabilizer_smul_eq_stabilizer_map_conj, eq_bot_iff]
+    intro k hk
+    rw [Subgroup.mem_inf] at hk
+    rw [Subgroup.mem_bot]
+    by_contra hk1
+    have heq : x = g • x :=
+      hfix k hk1 x (g • x) (mem_stabilizer_iff.mp hk.1) (mem_stabilizer_iff.mp hk.2)
+    exact hg (mem_stabilizer_iff.mpr heq.symm)
+  obtain ⟨x₀⟩ : Nonempty X := inferInstance
+  obtain ⟨K, hKcoe, -, hKfrob⟩ :=
+    Subgroup.exists_isFrobenius_of_malnormal (hstab x₀) (htop x₀) (hmal x₀)
+  refine ⟨K, ?_, hKfrob.normal, fun x => ?_⟩
+  · rw [hKcoe, frobeniusKernelSet_stabilizer x₀]
+  · -- the kernel set is base-point independent, so the theorem at `x` produces the same `K`
+    obtain ⟨K', hK'coe, -, hK'frob⟩ :=
+      Subgroup.exists_isFrobenius_of_malnormal (hstab x) (htop x) (hmal x)
+    have hKK' : K = K' := SetLike.coe_injective (by
+      rw [hKcoe, hK'coe, frobeniusKernelSet_stabilizer x₀, frobeniusKernelSet_stabilizer x])
+    rw [hKK']
+    exact hK'frob
+
+end MulAction
+
 end

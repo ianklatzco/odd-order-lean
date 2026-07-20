@@ -17,8 +17,9 @@ the Peterfalvi chapters consume pervasively.  This file provides the predicates
 API: monotonicity, symmetry, conjugation invariance, the `cent_semiregular`/`cent_semiprime`
 rewriting lemmas, the malnormality characterization, and the counting facts
 (`|H| ∣ |K| - 1`, coprimality, Hall-ness of kernel and complement).  Frobenius' kernel
-theorem (existence of the kernel from a malnormal complement, via induced characters) is
-the next task and lands in a sibling file.
+theorem (existence of the kernel from a malnormal complement, via induced characters)
+lives in the sibling file `FrobeniusKernel.lean`
+(`Subgroup.exists_isFrobenius_of_malnormal`).
 
 ## Main definitions
 

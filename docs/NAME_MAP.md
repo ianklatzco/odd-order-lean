@@ -101,7 +101,8 @@ Lean/Mathlib ports, per `docs/superpowers/plans/2026-07-06-odd-order-port.md` §
 | (virtual character whose `Irr`-coefficients all have nonnegative real part is a character; no confirmed Coq name) | `ClassFunction.IsVirtualChar.isChar_of_forall_cfInner_nonneg` | `OddOrder/Mathlib/RepresentationTheory/VirtualChar.lean` |
 | `vcharP` (virtual character ↔ difference of two characters; usage PFsection1.v:639) | `ClassFunction.IsVirtualChar.exists_isChar_sub` (converse: `ClassFunction.IsChar.sub_isVirtualChar`; iff: `ClassFunction.isVirtualChar_iff_exists_isChar_sub`) | `OddOrder/Mathlib/RepresentationTheory/VirtualChar.lean` |
 | nonvanishing dichotomy (analytic crux of Burnside; likely in mathcomp's `character/integral_char.v` — verify on first mathcomp checkout) | `Irr.eq_zero_or_norm_eq` | `OddOrder/Mathlib/RepresentationTheory/Burnside.lean` |
-| character kernel (`cfker`) | `Irr.ker`, `Irr.mem_ker_iff`, `Irr.eq_one_of_ker_eq_top` | `OddOrder/Mathlib/RepresentationTheory/Burnside.lean` |
+| character kernel (`cfker`) | `Irr.ker`, `Irr.mem_ker_iff`, `Irr.eq_one_of_ker_eq_top` (promoted from `Burnside.lean` with M3 Task 4, together with the eigen-projection kit and the scalar-action lemma `Module.End.eq_smul_one_of_trace_eq_mul_finrank`; statements unchanged) | `OddOrder/Mathlib/RepresentationTheory/CharacterArith.lean` |
+| kernel-intersection separation (column of the character table at `(g, 1)`; no single confirmed Coq name) | `Irr.exists_ne_one_apply_ne` | `OddOrder/Mathlib/RepresentationTheory/CharacterArith.lean` |
 | class-size lemma (likely in mathcomp's `character/integral_char.v` — verify on first mathcomp checkout; note the odd-order checkout's `Burnside_normal_complement` in `BGsection1.v` is the *normal p-complement* theorem, a different result) | `not_isSimpleGroup_of_conjClasses_card_eq_prime_pow` | `OddOrder/Mathlib/RepresentationTheory/Burnside.lean` |
 | **`p^a q^b` solvability** (headline; likely proved in mathcomp's `character/integral_char.v` — verify on first mathcomp checkout. It is *not* in the odd-order checkout itself: the only Burnside-named result there, `BGsection1.v:846 Burnside_normal_complement`, is the normal p-complement theorem) | **`burnside_solvable`** | `OddOrder/Mathlib/RepresentationTheory/Burnside.lean` |
 | `cfConjC` (`phi^*%CF`, valuewise complex conjugation; `classfun.v`) | `ClassFunction.conjC` (named `conjC`, not `conj`: `ClassFunction.conj_apply` is already the conjugation-invariance lemma) | `OddOrder/Mathlib/RepresentationTheory/CharAut.lean` |
@@ -143,13 +144,17 @@ Lean/Mathlib ports, per `docs/superpowers/plans/2026-07-06-odd-order-port.md` §
 | `Frobenius_ker_Hall` / `Frobenius_compl_Hall` | `Subgroup.IsFrobenius.ker_isHall` / `.compl_isHall` (π-indexed; unbundled coprime forms `coprime_card_ker_index` / `coprime_card_compl_index`) | `OddOrder/Mathlib/GroupTheory/Frobenius.lean` |
 | `normedTI H^# G H` (malnormality component of `[Frobenius G with complement H]`) | `Subgroup.isFrobenius_iff_inf_map_conj_eq_bot`, directions `IsSemiregular.inf_map_conj_eq_bot` (needs complement + normality) and `isSemiregular_of_forall_inf_map_conj_eq_bot` (hypothesis-free) | `OddOrder/Mathlib/GroupTheory/Frobenius.lean` |
 | `FrobeniusJ`-style conjugation invariance | `Subgroup.IsFrobenius.conj` (and `.map` for isomorphisms; likewise `IsSemiregular.conj`/`.map`, `IsSemiprime.conj`/`.map`) | `OddOrder/Mathlib/GroupTheory/Frobenius.lean` |
+| **Frobenius' kernel theorem** (no MathComp counterpart: `frobenius.v`/BG take the kernel as *given* via an explicit `sdprod` and consume the `IsFrobenius` interface; approximate) | `Subgroup.exists_isFrobenius_of_malnormal` (internal form: malnormal `H` ⇒ `∃ K`, `↑K = H.frobeniusKernelSet`, `#K = H.index`, `IsFrobenius K H`); action form `MulAction.exists_isFrobenius_stabilizer` (the lean-eval shape) | `OddOrder/Mathlib/GroupTheory/FrobeniusKernel.lean` |
+| `Frobenius_partition` (approximate: the Coq lemma states the partition of `G` into `K` and the conjugates of `H^#`; this is the resulting count) | `Subgroup.card_frobeniusKernelSet` (`= H.index`; supporting bijection `(G ⧸ H) × H^# ≃ (frobeniusKernelSet)ᶜ` inlined) | `OddOrder/Mathlib/GroupTheory/FrobeniusKernel.lean` |
+| `normedTI_isometry`-correspondent (approximate: the trivial-intersection seed of the Dade isometry, to be consumed by the future PFsection2 task; the Coq lemma is stated for `normedTI` configurations) | `ClassFunction.cfInner_ind_ind_of_malnormal` (`⟪ind α, ind β⟫_[G] = ⟪α, β⟫_[H]` for `α 1 = 0`, `H` malnormal; via `ClassFunction.res_ind_eq_self_of_malnormal`) | `OddOrder/Mathlib/GroupTheory/FrobeniusKernel.lean` |
+| self-normalization of a malnormal subgroup (inside MathComp's Frobenius structure theory) | `Subgroup.normalizer_eq_self_of_malnormal` | `OddOrder/Mathlib/GroupTheory/FrobeniusKernel.lean` |
 
-Future work (not ported yet, Frobenius theory): `Frobenius_partition` (the partition of
-`G` into `K` and the conjugates of `H^#`) and `Frobenius_quotient` /
+Future work (not ported yet, Frobenius theory): `Frobenius_quotient` /
 `Frobenius_proper_quotient` / `Frobenius_normal_proper_ker` — these are proved in
 `BGsection3.v` and port with the M4/BG3 task; `Frobenius_ker_dvd_ker1` /
-`Frobenius_index_dvd_ker1` (variants of the counting fact, add on demand); the kernel
-theorem (`Frobenius_kerP`-adjacent; M3 Task 4). Frobenius-complement *structure* facts:
+`Frobenius_index_dvd_ker1` (variants of the counting fact, add on demand);
+`Frobenius_partition` in literal partition form (the counting corollary is ported, see
+above). Frobenius-complement *structure* facts:
 `odd_regular_pgroup_cyclic` (BGsection3.v:1571, B&G 3.9 — odd p-groups acting
 semiregularly are cyclic, the input making odd Frobenius complements Z-groups; M4) and
 the `p = 2` cyclic-or-generalized-quaternion classification (no Mathlib analogue;
