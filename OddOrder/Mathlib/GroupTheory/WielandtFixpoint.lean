@@ -881,3 +881,300 @@ theorem Representation.wielandt_trace_sum_eq {p : ℕ} (hp : p.Prime)
   rw [hcast m, hcast n, hΘ]
 
 end ModuleCase
+
+/-!
+### The order formula: group-level reduction
+
+The strong induction of the Coq proof: quotient by a `G`-invariant normal
+subgroup `B` of `V` splits every fixed-point order (the `factorCA_B` step of
+`solvable_Wielandt_fixpoint`, via `coprime_quotient_cent` — here
+`Subgroup.coprime_fixedPoints_quotient_eq`); when no such `B` exists, `V` is
+elementary abelian and irreducible under `G`, and the module-level identity
+applies.
+-/
+
+section GroupCase
+
+/-- Restricting the actor to a subgroup preserves invariance of subgroups. -/
+instance Subgroup.SMulInvariant.of_subgroup_actor {G V : Type*} [Group G] [Group V]
+    [MulDistribMulAction G V] (H : Subgroup V) [H.SMulInvariant G] (A : Subgroup G) :
+    H.SMulInvariant ↥A :=
+  ⟨fun a _v hv => Subgroup.SMulInvariant.smul_mem (a : G) hv⟩
+
+open MulAction in
+/-- **Fixed-point orders factor through coprime quotients** (the `factorCA_B` step
+in the Coq proof of `solvable_Wielandt_fixpoint`):
+`#|C_V(A)| = #|C_B(A)| * #|C_{V/B}(A)|` for an `A`-invariant normal subgroup
+`B ≤ V` with `|A|` coprime to `|B|`, `B` solvable. -/
+private theorem card_fixedPoints_eq_card_mul_card {A V : Type*} [Group A] [Finite A]
+    [Group V] [Finite V] [MulDistribMulAction A V] (B : Subgroup V) [B.Normal]
+    [B.SMulInvariant A] [IsSolvable ↥B]
+    (hco : (Nat.card A).Coprime (Nat.card ↥B)) :
+    Nat.card (FixedPoints.subgroup A V)
+      = Nat.card (FixedPoints.subgroup A ↥B)
+          * Nat.card (FixedPoints.subgroup A (V ⧸ B)) := by
+  classical
+  set f₀ : (FixedPoints.subgroup A V) →* V ⧸ B :=
+    (QuotientGroup.mk' B).comp (FixedPoints.subgroup A V).subtype with hf₀def
+  -- the range of `f₀` is the fixed subgroup of the quotient (coprime lifting)
+  have hrange : f₀.range = FixedPoints.subgroup A (V ⧸ B) := by
+    rw [← coprime_fixedPoints_quotient_eq (A := A) (N := B) hco]
+    ext x
+    constructor
+    · rintro ⟨⟨v, hv⟩, rfl⟩
+      exact ⟨v, hv, rfl⟩
+    · rintro ⟨v, hv, rfl⟩
+      exact ⟨⟨v, hv⟩, rfl⟩
+  -- the kernel of `f₀` is (equivalent to) the fixed subgroup of `B`
+  have hmem1 : ∀ x : ↥(FixedPoints.subgroup A V), x ∈ f₀.ker ↔ ((x : V) ∈ B) := by
+    intro x
+    rw [MonoidHom.mem_ker]
+    change (((x : V) : V ⧸ B) = 1) ↔ _
+    exact QuotientGroup.eq_one_iff _
+  have hker : Nat.card f₀.ker = Nat.card (FixedPoints.subgroup A ↥B) := by
+    refine Nat.card_congr
+      { toFun := fun x => ⟨⟨((x : ↥(FixedPoints.subgroup A V)) : V), (hmem1 _).mp x.2⟩,
+          fun a => Subtype.ext (by
+            rw [Subgroup.coe_smul]
+            exact (x : ↥(FixedPoints.subgroup A V)).2 a)⟩
+        invFun := fun b => ⟨⟨((b : ↥B) : V), fun a => by
+            have h1 : ((a • (b : ↥B) : ↥B) : V) = (((b : ↥B) : ↥B) : V) :=
+              congrArg _ (b.2 a)
+            rwa [Subgroup.coe_smul] at h1⟩,
+          (hmem1 _).mpr (b : ↥B).2⟩
+        left_inv := fun x => Subtype.ext (Subtype.ext rfl)
+        right_inv := fun b => Subtype.ext (Subtype.ext rfl) }
+  -- Lagrange plus the first isomorphism theorem
+  have h1 : Nat.card (FixedPoints.subgroup A V)
+      = Nat.card ((FixedPoints.subgroup A V) ⧸ f₀.ker) * Nat.card f₀.ker :=
+    Subgroup.card_eq_card_quotient_mul_card_subgroup f₀.ker
+  have h2 : Nat.card ((FixedPoints.subgroup A V) ⧸ f₀.ker) = Nat.card f₀.range :=
+    Nat.card_congr (QuotientGroup.quotientKerEquivRange f₀).toEquiv
+  rw [h1, h2, hrange, hker, mul_comm]
+
+variable {p : ℕ} {V : Type*} [Group V]
+
+/-- The subgroup ↔ submodule dictionary preserves cardinality. -/
+private theorem card_toSubmodule (h : IsElementaryAbelian p V) (K : Subgroup V) :
+    Nat.card ↥(h.toSubmodule K) = Nat.card ↥K :=
+  Nat.card_congr
+    ⟨fun x => ⟨(x : h.Vec).toMul, (h.mem_toSubmodule).mp x.2⟩,
+      fun k => ⟨h.toVec (k : V), by
+        rw [h.mem_toSubmodule, IsElementaryAbelian.Vec.toMul_toVec]; exact k.2⟩,
+      fun x => Subtype.ext (IsElementaryAbelian.Vec.toVec_toMul _),
+      fun k => Subtype.ext (IsElementaryAbelian.Vec.toMul_toVec _)⟩
+
+open MulAction in
+/-- The fixed-point subgroup corresponds to the invariant submodule under the
+abelem dictionary. -/
+private theorem toSubmodule_fixedPoints_eq (h : IsElementaryAbelian p V)
+    {G : Type*} [Group G] [MulDistribMulAction G V] (A : Subgroup G) :
+    h.toSubmodule (FixedPoints.subgroup ↥A V)
+      = Representation.invariants ((h.repr G).comp A.subtype) := by
+  ext x
+  rw [IsElementaryAbelian.mem_toSubmodule, Representation.mem_invariants]
+  constructor
+  · intro hx a
+    have h0 : ((h.repr G).comp A.subtype) a x = h.repr G (a : G) x := rfl
+    rw [h0]
+    refine IsElementaryAbelian.Vec.toMul_injective ?_
+    rw [IsElementaryAbelian.toMul_repr_apply]
+    exact hx a
+  · intro hx a
+    have h1 : h.repr G (a : G) x = x := hx a
+    have h2 := congrArg IsElementaryAbelian.Vec.toMul h1
+    rw [IsElementaryAbelian.toMul_repr_apply] at h2
+    exact h2
+
+end GroupCase
+
+section Main
+
+open MulAction
+
+private theorem solvable_wielandt_fixpoint_aux {G : Type*} [Group G] [Finite G]
+    {ι : Type*} [Fintype ι] (A : ι → Subgroup G) (m n : ι → ℕ)
+    [∀ (a : G) (i : ι), Decidable (a ∈ A i)]
+    (hbal : ∀ a : G, ∑ i with a ∈ A i, m i = ∑ i with a ∈ A i, n i) :
+    ∀ c : ℕ, ∀ (V : Type v) [Group V] [Finite V] [MulDistribMulAction G V],
+      Nat.card V ≤ c → (Nat.card V).Coprime (Nat.card G) → IsSolvable V →
+      ∏ i, Nat.card (FixedPoints.subgroup ↥(A i) V) ^ (m i * Nat.card (A i))
+        = ∏ i, Nat.card (FixedPoints.subgroup ↥(A i) V) ^ (n i * Nat.card (A i)) := by
+  intro c
+  induction c with
+  | zero =>
+    intro V _ _ _ hle _ _
+    have h0 := Nat.card_pos (α := V)
+    omega
+  | succ c IH =>
+    intro V _ _ _ hle hco hsol
+    by_cases hB : ∃ B : Subgroup V, B.Normal ∧ B.SMulInvariant G ∧ B ≠ ⊥ ∧ B ≠ ⊤
+    · -- a proper nontrivial invariant normal subgroup: factor and recurse
+      obtain ⟨B, hBn, hBi, hBbot, hBtop⟩ := hB
+      haveI := hBn
+      haveI := hBi
+      have hcardB_lt : Nat.card ↥B < Nat.card V := by
+        refine lt_of_le_of_ne
+          (Nat.le_of_dvd Nat.card_pos (Subgroup.card_subgroup_dvd_card B)) ?_
+        exact fun hEq => hBtop (Subgroup.eq_top_of_card_eq B hEq)
+      have hcardQ_lt : Nat.card (V ⧸ B) < Nat.card V := by
+        rw [Subgroup.card_eq_card_quotient_mul_card_subgroup B]
+        have h1 : 1 < Nat.card ↥B := (Subgroup.one_lt_card_iff_ne_bot B).mpr hBbot
+        exact lt_mul_of_one_lt_right Nat.card_pos h1
+      have hcoB : (Nat.card ↥B).Coprime (Nat.card G) :=
+        Nat.Coprime.coprime_dvd_left (Subgroup.card_subgroup_dvd_card B) hco
+      have hcoQ : (Nat.card (V ⧸ B)).Coprime (Nat.card G) :=
+        Nat.Coprime.coprime_dvd_left (Subgroup.card_quotient_dvd_card B) hco
+      have hrecB := IH ↥B (Nat.le_of_lt_succ (lt_of_lt_of_le hcardB_lt hle)) hcoB
+        inferInstance
+      have hrecQ := IH (V ⧸ B) (Nat.le_of_lt_succ (lt_of_lt_of_le hcardQ_lt hle)) hcoQ
+        inferInstance
+      have hfact : ∀ i, Nat.card (FixedPoints.subgroup ↥(A i) V)
+          = Nat.card (FixedPoints.subgroup ↥(A i) ↥B)
+              * Nat.card (FixedPoints.subgroup ↥(A i) (V ⧸ B)) := by
+        intro i
+        refine card_fixedPoints_eq_card_mul_card B ?_
+        refine Nat.Coprime.coprime_dvd_left (Subgroup.card_subgroup_dvd_card (A i)) ?_
+        exact (Nat.Coprime.coprime_dvd_left (Subgroup.card_subgroup_dvd_card B) hco).symm
+      calc ∏ i, Nat.card (FixedPoints.subgroup ↥(A i) V) ^ (m i * Nat.card (A i))
+          = (∏ i, Nat.card (FixedPoints.subgroup ↥(A i) ↥B) ^ (m i * Nat.card (A i)))
+              * ∏ i, Nat.card (FixedPoints.subgroup ↥(A i) (V ⧸ B))
+                  ^ (m i * Nat.card (A i)) := by
+            rw [← Finset.prod_mul_distrib]
+            exact Finset.prod_congr rfl fun i _ => by rw [hfact i, mul_pow]
+        _ = (∏ i, Nat.card (FixedPoints.subgroup ↥(A i) ↥B) ^ (n i * Nat.card (A i)))
+              * ∏ i, Nat.card (FixedPoints.subgroup ↥(A i) (V ⧸ B))
+                  ^ (n i * Nat.card (A i)) := by rw [hrecB, hrecQ]
+        _ = ∏ i, Nat.card (FixedPoints.subgroup ↥(A i) V) ^ (n i * Nat.card (A i)) := by
+            rw [← Finset.prod_mul_distrib]
+            exact (Finset.prod_congr rfl fun i _ => by rw [hfact i, mul_pow]).symm
+    · rcases eq_or_ne (Nat.card V) 1 with hV1 | hVne
+      · -- `V` trivial: all factors are `1`
+        haveI hsub : Subsingleton V := (Nat.card_eq_one_iff_unique.mp hV1).1
+        have hone : ∀ i, Nat.card (FixedPoints.subgroup ↥(A i) V) = 1 := fun i =>
+          Nat.card_of_subsingleton 1
+        have h1 : ∀ k : ι → ℕ,
+            ∏ i, Nat.card (FixedPoints.subgroup ↥(A i) V) ^ (k i * Nat.card (A i)) = 1 := by
+          intro k
+          refine Finset.prod_eq_one fun i _ => ?_
+          rw [hone i, one_pow]
+        rw [h1 m, h1 n]
+      · -- no invariant normal subgroup: `V` is elementary abelian and irreducible
+        have hBtop : ∀ B : Subgroup V, B.Normal → B.SMulInvariant G → B ≠ ⊥ → B = ⊤ := by
+          intro B h1 h2 h3
+          by_contra h4
+          exact hB ⟨B, h1, h2, h3, h4⟩
+        haveI hVnontriv : Nontrivial V :=
+          Finite.one_lt_card_iff_nontrivial.mp (lt_of_le_of_ne Nat.card_pos (Ne.symm hVne))
+        have hcommbot : commutator V = ⊥ := by
+          by_contra hne
+          have h1 : commutator V = ⊤ :=
+            hBtop (commutator V) inferInstance inferInstance hne
+          exact absurd h1 (IsSolvable.commutator_lt_top_of_nontrivial V).ne
+        open scoped commutatorElement in
+        have hmulcomm : ∀ a b : V, a * b = b * a := by
+          intro a b
+          have h1 : ⁅a, b⁆ ∈ (⁅(⊤ : Subgroup V), (⊤ : Subgroup V)⁆ : Subgroup V) :=
+            Subgroup.commutator_mem_commutator (Subgroup.mem_top a) (Subgroup.mem_top b)
+          have h2 : (⁅(⊤ : Subgroup V), (⊤ : Subgroup V)⁆ : Subgroup V) = commutator V := rfl
+          rw [h2, hcommbot, Subgroup.mem_bot,
+            commutatorElement_eq_one_iff_mul_comm] at h1
+          exact h1
+        obtain ⟨p, hp, hpdvd⟩ := Nat.exists_prime_and_dvd hVne
+        haveI : Fact p.Prime := ⟨hp⟩
+        set Ω : Subgroup V :=
+          { carrier := {v | v ^ p = 1}
+            one_mem' := one_pow p
+            mul_mem' := fun {a b} ha hb => by
+              rw [Set.mem_setOf_eq] at ha hb ⊢
+              rw [Commute.mul_pow (hmulcomm a b), ha, hb, one_mul]
+            inv_mem' := fun {a} ha => by
+              rw [Set.mem_setOf_eq] at ha ⊢
+              rw [inv_pow, ha, inv_one] } with hΩdef
+        have hΩmem : ∀ v : V, v ∈ Ω ↔ v ^ p = 1 := fun v => Iff.rfl
+        have hΩn : Ω.Normal := by
+          refine ⟨fun x hx g => ?_⟩
+          rw [hΩmem] at hx ⊢
+          rw [conj_pow, hx, mul_one, mul_inv_cancel]
+        have hΩi : Ω.SMulInvariant G := by
+          refine ⟨fun a v hv => ?_⟩
+          rw [hΩmem] at hv ⊢
+          rw [← smul_pow', hv, smul_one]
+        have hΩbot : Ω ≠ ⊥ := by
+          obtain ⟨x, hx⟩ := exists_prime_orderOf_dvd_card' p hpdvd
+          intro h0
+          have hxΩ : x ∈ Ω := by rw [hΩmem, ← hx]; exact pow_orderOf_eq_one x
+          rw [h0, Subgroup.mem_bot] at hxΩ
+          rw [hxΩ, orderOf_one] at hx
+          exact hp.ne_one hx.symm
+        have hEl : IsElementaryAbelian p V :=
+          ⟨hmulcomm, fun v => (hΩmem v).mp ((hBtop Ω hΩn hΩi hΩbot).symm ▸ Subgroup.mem_top v)⟩
+        have hpG : ¬ p ∣ Nat.card G := by
+          intro hdvd
+          have h1 : p ∣ Nat.gcd (Nat.card V) (Nat.card G) := Nat.dvd_gcd hpdvd hdvd
+          rw [Nat.Coprime] at hco
+          rw [hco] at h1
+          exact hp.one_lt.ne' (Nat.dvd_one.mp h1)
+        have hirr : (hEl.repr G).IsIrreducible := by
+          rw [hEl.isIrreducible_repr_iff G]
+          refine ⟨hVnontriv, fun K hKinv hKbot => ?_⟩
+          have hKn : K.Normal := ⟨fun x hx g => by
+            rw [hmulcomm g x, mul_assoc, mul_inv_cancel, mul_one]; exact hx⟩
+          exact hBtop K hKn hKinv hKbot
+        have hsimplemod :
+            IsSimpleModule (MonoidAlgebra (ZMod p) G) (hEl.repr G).asModule :=
+          (Representation.irreducible_iff_isSimpleModule_asModule _).mp hirr
+        haveI : Finite hEl.Vec := Finite.of_equiv V hEl.toVec
+        have hsum := Representation.wielandt_trace_sum_eq hp hpG (hEl.repr G)
+          hsimplemod A m n hbal
+        have hcard : ∀ i, Nat.card (FixedPoints.subgroup ↥(A i) V)
+            = p ^ Module.finrank (ZMod p)
+                (Representation.invariants ((hEl.repr G).comp (A i).subtype)) := by
+          intro i
+          rw [← card_toSubmodule hEl (FixedPoints.subgroup ↥(A i) V),
+            toSubmodule_fixedPoints_eq hEl (A i)]
+          have h3 := Module.natCard_eq_pow_finrank (K := ZMod p)
+            (V := ↥(Representation.invariants ((hEl.repr G).comp (A i).subtype)))
+          rwa [Nat.card_zmod] at h3
+        calc ∏ i, Nat.card (FixedPoints.subgroup ↥(A i) V) ^ (m i * Nat.card (A i))
+            = p ^ ∑ i, m i * Nat.card (A i) * Module.finrank (ZMod p)
+                (Representation.invariants ((hEl.repr G).comp (A i).subtype)) := by
+              rw [← Finset.prod_pow_eq_pow_sum]
+              refine Finset.prod_congr rfl fun i _ => ?_
+              rw [hcard i, ← pow_mul]
+              congr 1
+              ring
+          _ = p ^ ∑ i, n i * Nat.card (A i) * Module.finrank (ZMod p)
+                (Representation.invariants ((hEl.repr G).comp (A i).subtype)) := by
+              rw [hsum]
+          _ = ∏ i, Nat.card (FixedPoints.subgroup ↥(A i) V) ^ (n i * Nat.card (A i)) := by
+              rw [← Finset.prod_pow_eq_pow_sum]
+              refine (Finset.prod_congr rfl fun i _ => ?_).symm
+              rw [hcard i, ← pow_mul]
+              congr 1
+              ring
+
+open MulAction in
+/-- **The solvable Wielandt fixpoint order formula** (Coq
+`solvable_Wielandt_fixpoint`), external-action form: let `G` act coprimely on a
+finite solvable group `V` (the project's `MulDistribMulAction` convention), let
+`A : ι → Subgroup G` be a finite family with weights `m n : ι → ℕ` such that
+`∑ (i | a ∈ A i), m i = ∑ (i | a ∈ A i), n i` for every `a : G`.  Then
+
+`∏ i, #|C_V(A i)| ^ (m i * #|A i|) = ∏ i, #|C_V(A i)| ^ (n i * #|A i|)`,
+
+where `C_V(A i)` is the fixed-point subgroup `FixedPoints.subgroup ↥(A i) V`.
+
+See `Subgroup.solvable_wielandt_fixpoint_internal` for the internal (subgroups of
+a common ambient group) form, which mirrors the Coq statement. -/
+theorem solvable_wielandt_fixpoint {G : Type*} [Group G] [Finite G]
+    {V : Type*} [Group V] [Finite V] [MulDistribMulAction G V]
+    {ι : Type*} [Fintype ι] (A : ι → Subgroup G) (m n : ι → ℕ)
+    [∀ (a : G) (i : ι), Decidable (a ∈ A i)]
+    (hco : (Nat.card V).Coprime (Nat.card G)) (hsol : IsSolvable V)
+    (hbal : ∀ a : G, ∑ i with a ∈ A i, m i = ∑ i with a ∈ A i, n i) :
+    ∏ i, Nat.card (FixedPoints.subgroup ↥(A i) V) ^ (m i * Nat.card (A i))
+      = ∏ i, Nat.card (FixedPoints.subgroup ↥(A i) V) ^ (n i * Nat.card (A i)) :=
+  solvable_wielandt_fixpoint_aux A m n hbal (Nat.card V) V le_rfl hco hsol
+
+end Main
