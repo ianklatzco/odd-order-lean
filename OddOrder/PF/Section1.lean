@@ -5,6 +5,7 @@ Authors: Ian Klatzco
 -/
 import Mathlib.Analysis.Real.Sqrt
 import OddOrder.Mathlib.RepresentationTheory.CharacterArith
+import OddOrder.Mathlib.RepresentationTheory.CharCenter
 import OddOrder.Mathlib.RepresentationTheory.CharacterTransfer
 import OddOrder.Mathlib.RepresentationTheory.CharAut
 import OddOrder.Mathlib.RepresentationTheory.VirtualChar
@@ -1597,15 +1598,30 @@ For an irreducible character `χ` of `K` with `B ≤ ker χ` and `D / B ≤ Z(K 
 ```
     χ(1)² ≤ |K : D|.
 ```
-NOT YET PROVED. Its MathComp proof (`irr1_bound i2` composed with `index_quotient_eq`) rests on
-the character center `cfcenter` (`χ(1)² ≤ |K : Z(χ)|`), which is not yet ported. This carries the
-project's single budgeted gap for (1.8). -/
+Proof (mirroring MathComp's `irr1_bound i2` composed with `index_quotient_eq`): `χ` descends
+to an irreducible `χbar` on `K / B` (since `B ≤ ker χ`); every `g ∈ D` maps into the
+group-center `Z(K / B)`, where Schur's lemma forces `‖χbar ḡ‖ = χbar 1`, i.e. `‖χ g‖ = χ 1`.
+The counting core `Irr.sq_re_le_index_of_forall_norm_eq` then gives `χ(1)² ≤ |K : D|`. -/
 theorem irr1_bound_charCenter {K : Type u} [Group K] [Fintype K] (B D : Subgroup K) [B.Normal]
-    (χ : Irr K) (hBker : B ≤ χ.ker) (hBD : B ≤ D)
+    (χ : Irr K) (hBker : B ≤ χ.ker) (_hBD : B ≤ D)
     (hZ : D.map (QuotientGroup.mk' B) ≤ Subgroup.center (K ⧸ B)) :
     (χ 1).re ^ 2 ≤ (D.index : ℝ) := by
-  -- TODO(m6-task2): irr1_bound (character-center Schur bound) not yet in project
-  sorry
+  classical
+  haveI : Fintype (K ⧸ B) := Fintype.ofFinite _
+  -- Descend `χ` to an irreducible character `χbar` of `K / B`.
+  obtain ⟨χbar, hχbar⟩ := Irr.exists_quo B χ hBker
+  have hbar1 : χbar 1 = χ 1 := by
+    have h := hχbar 1
+    rwa [QuotientGroup.mk_one] at h
+  -- Each `g ∈ D` has group-central image in `K / B`, so `χ` has maximal modulus there.
+  have hD : ∀ g ∈ D, ‖χ g‖ = (χ 1).re := by
+    intro g hg
+    have hzc : (g : K ⧸ B) ∈ Subgroup.center (K ⧸ B) := by
+      have h := hZ (Subgroup.mem_map_of_mem (QuotientGroup.mk' B) hg)
+      rwa [QuotientGroup.mk'_apply] at h
+    have hnorm := Irr.norm_apply_eq_of_mem_center χbar hzc
+    rwa [hχbar g, hbar1] at hnorm
+  exact Irr.sq_re_le_index_of_forall_norm_eq χ D hD
 
 /-! ### Peterfalvi (1.8) -/
 

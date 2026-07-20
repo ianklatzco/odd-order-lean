@@ -18,6 +18,7 @@ import OddOrder.Mathlib.GroupTheory.WielandtFixpoint
 import OddOrder.Mathlib.RepresentationTheory.Burnside
 import OddOrder.Mathlib.RepresentationTheory.CharAut
 import OddOrder.Mathlib.RepresentationTheory.CharacterArith
+import OddOrder.Mathlib.RepresentationTheory.CharCenter
 import OddOrder.Mathlib.RepresentationTheory.ClassFunction
 import OddOrder.Mathlib.RepresentationTheory.ClassSum
 import OddOrder.Mathlib.RepresentationTheory.Induced

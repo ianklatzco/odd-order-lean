@@ -144,6 +144,8 @@ Lean/Mathlib ports, per `docs/superpowers/plans/2026-07-06-odd-order-port.md` §
 | `mod_Iirr` / `quo_Iirr` / `mod_IirrK` (`character.v`) | `Irr.mod` / `Irr.quotientKerEquiv` (kernel-containment bijection); `Irr.le_ker_mod` | `OddOrder/Mathlib/RepresentationTheory/CharacterTransfer.lean` |
 | `cfResRes` / `cfIndInd` (nested subgroups; `classfun.v`) | `ClassFunction.resNested` / `ClassFunction.indNested`, with `resNested_res` / `ind_indNested` and Frobenius `cfInner_indNested_eq_cfInner_resNested` | `OddOrder/Mathlib/RepresentationTheory/CharacterTransfer.lean` |
 | `lin_char` / `char_abelianP` / `lin_charM` / `lin_charX` (`character.v`) | `Irr.IsLinear` / `Irr.isLinear_of_comm` / `Irr.IsLinear.map_mul` / `Irr.IsLinear.map_pow` (root-of-unity form `IsLinear.apply_pow_orderOf_eq_one`) | `OddOrder/Mathlib/RepresentationTheory/CharacterTransfer.lean` |
+| `cfcenter` (`character.v`) | `Irr.cfcenter` (the modulus-equality set `{g | ‖χ g‖ = χ 1}`; a subgroup via the scalar-action predicate `Irr.IsScalarOn`; `Irr.norm_apply_eq_of_mem_center` = `Z(G) ≤ Z(χ)`) | `OddOrder/Mathlib/RepresentationTheory/CharCenter.lean` |
+| `irr1_bound` (`character.v`) | `Irr.irr1_bound` (`χ(1)² ≤ |G:Z(χ)|`; reusable counting core `Irr.sq_re_le_index_of_forall_norm_eq`) | `OddOrder/Mathlib/RepresentationTheory/CharCenter.lean` |
 | `odd_eq_conj_irr1` (Peterfalvi (1.1); `PFsection1.v`) | `PF1.odd_eq_conj_irr1` | `OddOrder/PF/Section1.lean` |
 | `irr_reg_off_ker_0` (Peterfalvi (1.2); `PFsection1.v`) | `PF1.irr_reg_off_ker_0` | `OddOrder/PF/Section1.lean` |
 | `equiv_restrict_compl` / `equiv_restrict_compl_ortho` (Peterfalvi (1.3); `PFsection1.v`) | `PF1.equiv_restrict_compl` / `PF1.equiv_restrict_compl_ortho` (restated over a `Basis` of `'CF(H,A)`) | `OddOrder/PF/Section1.lean` |
@@ -155,7 +157,7 @@ Lean/Mathlib ports, per `docs/superpowers/plans/2026-07-06-odd-order-port.md` §
 | `odd_induced_orthogonal` (Peterfalvi (1.5)(e); `PFsection1.v`) | `PF1.odd_induced_orthogonal` | `OddOrder/PF/Section1.lean` |
 | `cfInd_sum_Inertia` (Peterfalvi (1.7)(a); `PFsection1.v`) | `PF1.cfInd_sum_Inertia` (Clifford correspondence bijection; Mackey-free route) | `OddOrder/PF/Section1.lean` |
 | `cfInd_central_Inertia` / `cfInd_Hall_central_Inertia` (Peterfalvi (1.7)(b),(c); `PFsection1.v`) | **not ported** — need `mul_lin_irr` (tensor of reps), `cfDet`, `extend_solvable_coprime_irr` (absent); the (1.7)(a) bijection they use is done | (pending) |
-| `irr1_bound_quo` (Peterfalvi (1.8); `PFsection1.v`) | `PF1.irr1_bound_quo` (stated; residual leaf `PF1.irr1_bound_charCenter` = `irr1_bound`/`cfcenter` bound is the budgeted `TODO`) | `OddOrder/PF/Section1.lean` |
+| `irr1_bound_quo` (Peterfalvi (1.8); `PFsection1.v`) | `PF1.irr1_bound_quo` (fully proved, sorry-free; leaf `PF1.irr1_bound_charCenter` closed via `Irr.irr1_bound`/`Irr.cfcenter`) | `OddOrder/PF/Section1.lean` |
 | `extend_coprime_Qn_aut` (Peterfalvi (1.9)(a); `PFsection1.v`) | `PF1.extend_coprime_Qn_aut` (root-of-unity form) | `OddOrder/PF/Section1.lean` |
 | `dvd_restrict_cfAut` / `make_pi_cfAut` (Peterfalvi (1.9)(b); `PFsection1.v`) | `PF1.dvd_restrict_cfAut` / `PF1.make_pi_cfAut` (uniform-in-`G0`; `cfAut u χ x` spelled `u (χ x)`) | `OddOrder/PF/Section1.lean` |
 | `eqAmod` (`algnum.v`) | `PF1.eqAmod` (+ `eqAmod_refl`/`.symm`/`.trans`/`.add`/`.mul_left`/`eqAmod_sum`) — `IsIntegral ℤ`-based, global algebraic integers | `OddOrder/PF/Section1.lean` |
