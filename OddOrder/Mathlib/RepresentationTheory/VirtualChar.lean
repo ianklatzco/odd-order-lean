@@ -579,6 +579,16 @@ theorem ClassFunction.IsChar.sub_isVirtualChar {φ₁ φ₂ : ClassFunction G}
     (h₁ : φ₁.IsChar) (h₂ : φ₂.IsChar) : (φ₁ - φ₂).IsVirtualChar :=
   h₁.isVirtualChar.sub h₂.isVirtualChar
 
+/-- Induction of a virtual character is a virtual character (split as a difference of
+characters and apply `ClassFunction.IsChar.ind`).  MathComp: `cfInd_vchar`
+(`vcharacter.v`; usage verified at PFsection2.v:728).  Added with M6 Task 3. -/
+theorem ClassFunction.IsVirtualChar.ind {H : Subgroup G} [Fintype H]
+    {φ : ClassFunction ↥H} (hφ : φ.IsVirtualChar) :
+    (ClassFunction.ind H φ).IsVirtualChar := by
+  obtain ⟨φ₁, φ₂, h₁, h₂, rfl⟩ := hφ.exists_isChar_sub
+  rw [map_sub]
+  exact ClassFunction.IsChar.sub_isVirtualChar h₁.ind h₂.ind
+
 /-- **`vcharP` shape** (MathComp `vcharP`, usage verified at PFsection1.v:639): a class
 function is a virtual character iff it is a difference of two characters. -/
 theorem ClassFunction.isVirtualChar_iff_exists_isChar_sub {φ : ClassFunction G} :

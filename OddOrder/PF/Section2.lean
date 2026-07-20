@@ -121,6 +121,17 @@ theorem exists_pow_eq_coprime_mul {n₁ n₂ : ℕ} (h : Nat.Coprime n₁ n₂) 
 private theorem conj_pow_eq (w u : G) (k : ℕ) : (w * u * w⁻¹) ^ k = w * u ^ k * w⁻¹ := by
   rw [← MulAut.conj_apply, ← map_pow, MulAut.conj_apply]
 
+/-- `b * c * b⁻¹ = b` iff `c = b`. -/
+private theorem conj_eq_self_iff_eq {b c : G} : b * c * b⁻¹ = b ↔ c = b := by
+  constructor
+  · intro hc
+    calc c = b⁻¹ * (b * c * b⁻¹) * b := by group
+      _ = b⁻¹ * b * b := by rw [hc]
+      _ = b := by group
+  · intro hc
+    rw [hc]
+    group
+
 /-- Conjugation preserves element orders. -/
 private theorem orderOf_conj_eq (x w : G) : orderOf (x⁻¹ * w * x) = orderOf w := by
   have h := orderOf_injective (MulAut.conj x⁻¹).toMonoidHom
@@ -2114,6 +2125,629 @@ theorem ind_dadeRestriction_apply_of_mem (ddA : DadeHypothesis G L A)
   ring
 
 end Expansion3
+
+end DadeHypothesis
+
+/-! #### Transversals of the `L`-orbits of nonempty subsets of `A`
+
+The Coq fixes one transversal, `Dade_transversal := [set repr (B :^: L) | B in calP]`
+(used only inside `PFsection2.v`); here (2.10) is stated for an arbitrary transversal
+`T`, with an existence lemma.  See the module docstring. -/
+
+section Transversal
+
+open scoped Classical in
+/-- `T` is a **transversal of the `L`-conjugation orbits of the nonempty subsets of `A`**:
+its members are nonempty subsets of `A`, every nonempty subset of `A` is `L`-conjugate to
+a member, and distinct members are not `L`-conjugate.  Coq: the defining properties of
+`Dade_transversal` (`PFsection2.v`). -/
+def IsSetTransversal (L : Subgroup G) (A : Set G) (T : Finset (Finset G)) : Prop :=
+  (∀ B ∈ T, ↑B ⊆ A ∧ B.Nonempty)
+    ∧ (∀ B : Finset G, ↑B ⊆ A → B.Nonempty →
+        ∃ B₀ ∈ T, ∃ x ∈ L, B.image (fun b => x * b * x⁻¹) = B₀)
+    ∧ (∀ B₁ ∈ T, ∀ B₂ ∈ T, ∀ x ∈ L, B₁.image (fun b => x * b * x⁻¹) = B₂ → B₁ = B₂)
+
+open scoped Classical in
+private theorem image_conj_one (B : Finset G) : B.image (fun b => (1 : G) * b * 1⁻¹) = B := by
+  have : (fun b => (1 : G) * b * 1⁻¹) = id := by
+    funext b
+    simp
+  rw [this, Finset.image_id]
+
+open scoped Classical in
+/-- Transversals of the `L`-orbits of nonempty subsets of `A` exist (greedy choice). -/
+theorem exists_isSetTransversal [Fintype G] (L : Subgroup G) (A : Set G) :
+    ∃ T : Finset (Finset G), IsSetTransversal L A T := by
+  classical
+  set rel : Finset G → Finset G → Prop :=
+    fun B C => ∃ x ∈ L, B.image (fun b => x * b * x⁻¹) = C with hrel
+  have hrefl : ∀ B, rel B B := fun B => ⟨1, one_mem L, image_conj_one B⟩
+  have hsymm : ∀ {B C}, rel B C → rel C B := by
+    rintro B C ⟨x, hx, rfl⟩
+    refine ⟨x⁻¹, inv_mem hx, ?_⟩
+    rw [image_conj_image_conj, inv_mul_cancel]
+    exact image_conj_one B
+  have htrans : ∀ {B C D}, rel B C → rel C D → rel B D := by
+    rintro B C D ⟨x, hx, rfl⟩ ⟨y, hy, rfl⟩
+    exact ⟨y * x, mul_mem hy hx, (image_conj_image_conj B y x).symm⟩
+  -- greedy extraction of a transversal from any finite family
+  have key : ∀ S : Finset (Finset G), ∃ T ⊆ S,
+      (∀ B ∈ S, ∃ B₀ ∈ T, rel B B₀) ∧
+        (∀ B₁ ∈ T, ∀ B₂ ∈ T, rel B₁ B₂ → B₁ = B₂) := by
+    intro S
+    induction S using Finset.strongInduction with
+    | _ S ih =>
+      rcases S.eq_empty_or_nonempty with rfl | ⟨B, hB⟩
+      · exact ⟨∅, Finset.Subset.refl _, fun C hC => absurd hC (Finset.notMem_empty C),
+          fun B₁ h₁ => absurd h₁ (Finset.notMem_empty B₁)⟩
+      · set S' : Finset (Finset G) := S.filter (fun C => ¬ rel C B) with hS'
+        have hS'sub : S' ⊂ S := by
+          refine Finset.filter_ssubset.mpr ⟨B, hB, ?_⟩
+          simp only [not_not]
+          exact hrefl B
+        obtain ⟨T', hT'sub, hT'cov, hT'rig⟩ := ih S' hS'sub
+        refine ⟨insert B T', ?_, ?_, ?_⟩
+        · intro C hC
+          rcases Finset.mem_insert.mp hC with rfl | hC
+          · exact hB
+          · exact Finset.filter_subset _ _ (hT'sub hC)
+        · intro C hC
+          by_cases hCB : rel C B
+          · exact ⟨B, Finset.mem_insert_self B T', hCB⟩
+          · obtain ⟨B₀, hB₀, hrel₀⟩ := hT'cov C (by
+              rw [hS', Finset.mem_filter]
+              exact ⟨hC, hCB⟩)
+            exact ⟨B₀, Finset.mem_insert_of_mem hB₀, hrel₀⟩
+        · intro B₁ h₁ B₂ h₂ h12
+          rcases Finset.mem_insert.mp h₁ with hB₁ | hB₁ <;>
+            rcases Finset.mem_insert.mp h₂ with hB₂ | hB₂
+          · rw [hB₁, hB₂]
+          · exfalso
+            have hmem := hT'sub hB₂
+            rw [hS', Finset.mem_filter] at hmem
+            rw [hB₁] at h12
+            exact hmem.2 (hsymm h12)
+          · exfalso
+            have hmem := hT'sub hB₁
+            rw [hS', Finset.mem_filter] at hmem
+            rw [hB₂] at h12
+            exact hmem.2 h12
+          · exact hT'rig B₁ hB₁ B₂ hB₂ h12
+  obtain ⟨T, hTsub, hTcov, hTrig⟩ :=
+    key ({B ∈ (Finset.univ : Finset (Finset G)) | ↑B ⊆ A ∧ B.Nonempty})
+  refine ⟨T, ?_, ?_, ?_⟩
+  · intro B hB
+    have := hTsub hB
+    rw [Finset.mem_filter] at this
+    exact this.2
+  · intro B hBA hBne
+    obtain ⟨B₀, hB₀, x, hx, hxB⟩ := hTcov B (by
+      rw [Finset.mem_filter]
+      exact ⟨Finset.mem_univ _, hBA, hBne⟩)
+    exact ⟨B₀, hB₀, x, hx, hxB⟩
+  · intro B₁ h₁ B₂ h₂ x hx hxB
+    exact hTrig B₁ h₁ B₂ h₂ ⟨x, hx, hxB⟩
+
+end Transversal
+
+namespace DadeHypothesis
+
+variable {L : Subgroup G} {A : Set G}
+
+section Expansion10
+
+open scoped Classical
+
+variable [Fintype G]
+
+omit [Fintype G] in
+/-- Two conjugates of a `Finset` agree iff the quotient conjugator fixes it. -/
+private theorem image_conj_eq_image_conj_iff (B₀ : Finset G) (y₀ y : G) :
+    B₀.image (fun b => y * b * y⁻¹) = B₀.image (fun b => y₀ * b * y₀⁻¹)
+      ↔ B₀.image (fun b => (y₀⁻¹ * y) * b * (y₀⁻¹ * y)⁻¹) = B₀ := by
+  constructor
+  · intro h
+    have h2 := congrArg (Finset.image (fun b => y₀⁻¹ * b * (y₀⁻¹)⁻¹)) h
+    rw [image_conj_image_conj, image_conj_image_conj, inv_mul_cancel, image_conj_one] at h2
+    exact h2
+  · intro h
+    have h2 := congrArg (Finset.image (fun b => y₀ * b * y₀⁻¹)) h
+    rw [image_conj_image_conj] at h2
+    rw [show y₀ * (y₀⁻¹ * y) = y by group] at h2
+    exact h2
+
+/-- The orbit–stabilizer count for `Finset`s under `L`-conjugation:
+`|B₀ ^: L| * |'N_L(B₀)| = |L|`. -/
+private theorem card_orbitF_mul_card_setNormalizer (L : Subgroup G) (B₀ : Finset G) :
+    ((Finset.univ : Finset ↥L).image
+        (fun y : ↥L => B₀.image fun b => ↑y * b * (↑y : G)⁻¹)).card
+      * Nat.card (setNormalizer L B₀) = Nat.card ↥L := by
+  classical
+  have hcond : ∀ y₀ y : ↥L,
+      B₀.image (fun b => ↑y * b * (↑y : G)⁻¹) = B₀.image (fun b => ↑y₀ * b * (↑y₀ : G)⁻¹)
+        ↔ (↑y₀ : G)⁻¹ * ↑y ∈ setNormalizer L B₀ := by
+    intro y₀ y
+    rw [image_conj_eq_image_conj_iff, setNormalizer, Subgroup.mem_inf, image_conj_eq_iff]
+    exact ⟨fun h => ⟨mul_mem (inv_mem y₀.2) y.2, h⟩, fun h => h.2⟩
+  have hfibcard : ∀ C ∈ (Finset.univ : Finset ↥L).image
+      (fun y : ↥L => B₀.image fun b => ↑y * b * (↑y : G)⁻¹),
+      ((Finset.univ : Finset ↥L).filter
+        (fun y : ↥L => B₀.image (fun b => ↑y * b * (↑y : G)⁻¹) = C)).card
+        = Nat.card (setNormalizer L B₀) := by
+    intro C hC
+    rw [Finset.mem_image] at hC
+    obtain ⟨y₀, -, rfl⟩ := hC
+    have e : {y : ↥L // B₀.image (fun b => ↑y * b * (↑y : G)⁻¹)
+        = B₀.image (fun b => ↑y₀ * b * (↑y₀ : G)⁻¹)} ≃ ↥(setNormalizer L B₀) :=
+      { toFun := fun y => ⟨(↑y₀ : G)⁻¹ * ↑(y.1 : ↥L), (hcond y₀ y.1).mp y.2⟩
+        invFun := fun w =>
+          ⟨⟨(↑y₀ : G) * ↑w, mul_mem y₀.2 (setNormalizer_le w.2)⟩, (hcond y₀ _).mpr (by
+            show (↑y₀ : G)⁻¹ * ((↑y₀ : G) * ↑w) ∈ setNormalizer L B₀
+            rw [show (↑y₀ : G)⁻¹ * ((↑y₀ : G) * ↑w) = (↑w : G) by group]
+            exact w.2)⟩
+        left_inv := fun y => by
+          apply Subtype.ext
+          apply Subtype.ext
+          show (↑y₀ : G) * ((↑y₀ : G)⁻¹ * ↑(y.1 : ↥L)) = ↑(y.1 : ↥L)
+          group
+        right_inv := fun w => by
+          apply Subtype.ext
+          show (↑y₀ : G)⁻¹ * ((↑y₀ : G) * ↑w) = (↑w : G)
+          group }
+    calc ((Finset.univ : Finset ↥L).filter
+          (fun y : ↥L => B₀.image (fun b => ↑y * b * (↑y : G)⁻¹)
+            = B₀.image (fun b => ↑y₀ * b * (↑y₀ : G)⁻¹))).card
+        = Fintype.card {y : ↥L // B₀.image (fun b => ↑y * b * (↑y : G)⁻¹)
+            = B₀.image (fun b => ↑y₀ * b * (↑y₀ : G)⁻¹)} := (Fintype.card_subtype _).symm
+      _ = Nat.card {y : ↥L // B₀.image (fun b => ↑y * b * (↑y : G)⁻¹)
+            = B₀.image (fun b => ↑y₀ * b * (↑y₀ : G)⁻¹)} := Nat.card_eq_fintype_card.symm
+      _ = Nat.card (setNormalizer L B₀) := Nat.card_congr e
+  have hL := Finset.card_eq_sum_card_image
+    (fun y : ↥L => B₀.image fun b => ↑y * b * (↑y : G)⁻¹) (Finset.univ : Finset ↥L)
+  rw [Finset.sum_congr rfl hfibcard, Finset.sum_const, smul_eq_mul, Finset.card_univ] at hL
+  rw [← hL, Nat.card_eq_fintype_card]
+
+/-- **The alternating cancellation at the heart of (2.10)**: for `b ∈ A` with
+`g ∈ support1 b`, the signed count sum over all `B ∈ calP` normalized by `b` collapses to
+the singleton term `-|C_L(b)|` — the pairing `B ↦ {b} ∪ B` cancels everything else.
+Coq: the `reindex_onto (fun B => a |: B) (fun B => B :\ a)` step of `Dade_expansion`. -/
+private theorem sum_signed_count_self (ddA : DadeHypothesis G L A) {b g : G} (hb : b ∈ A)
+    (hg : g ∈ ddA.support1 b) :
+    ∑ B ∈ {B ∈ (Finset.univ : Finset (Finset G)) |
+        (↑B ⊆ A ∧ B.Nonempty) ∧ b ∈ setNormalizer L B},
+      ((-1 : ℂ) ^ B.card * (Nat.card (ddA.setSignalizer B) : ℂ)⁻¹
+        * (({z ∈ (Finset.univ : Finset G) |
+            (z⁻¹ * g * z) * b⁻¹ ∈ ddA.setSignalizer B}).card : ℂ))
+      = -(Nat.card ↥(L ⊓ Subgroup.centralizer {b}) : ℂ) := by
+  classical
+  set f : Finset G → ℂ := fun B => (-1 : ℂ) ^ B.card
+    * (Nat.card (ddA.setSignalizer B) : ℂ)⁻¹
+    * (({z ∈ (Finset.univ : Finset G) |
+        (z⁻¹ * g * z) * b⁻¹ ∈ ddA.setSignalizer B}).card : ℂ) with hf
+  set Pb : Finset (Finset G) := {B ∈ (Finset.univ : Finset (Finset G)) |
+    (↑B ⊆ A ∧ B.Nonempty) ∧ b ∈ setNormalizer L B} with hPb
+  -- membership of the singleton
+  have hbL : b ∈ L := ddA.mem_of_mem_set hb
+  have hsingPb : ({b} : Finset G) ∈ Pb := by
+    rw [hPb, Finset.mem_filter]
+    refine ⟨Finset.mem_univ _, ⟨?_, Finset.singleton_nonempty b⟩, ?_⟩
+    · intro c hc
+      rw [Finset.coe_singleton, Set.mem_singleton_iff] at hc
+      rw [hc]
+      exact hb
+    · rw [mem_setNormalizer]
+      refine ⟨hbL, fun c => ?_⟩
+      rw [Finset.mem_singleton, Finset.mem_singleton]
+      constructor
+      · rintro rfl
+        group
+      · exact fun hc => conj_eq_self_iff_eq.mp hc
+  -- the singleton term
+  have hsing : f {b} = -(Nat.card ↥(L ⊓ Subgroup.centralizer {b}) : ℂ) := by
+    have hcount : ({z ∈ (Finset.univ : Finset G) |
+        (z⁻¹ * g * z) * b⁻¹ ∈ ddA.setSignalizer {b}}).card
+        = Nat.card (Subgroup.centralizer ({b} : Set G)) := by
+      simp only [ddA.setSignalizer_singleton]
+      exact ddA.card_filter_conj_mem_coset hb hg
+    have hcards : (Nat.card (ddA.signalizer b) : ℂ)
+        * (Nat.card ↥(L ⊓ Subgroup.centralizer {b}) : ℂ)
+        = (Nat.card (Subgroup.centralizer ({b} : Set G)) : ℂ) := by
+      rw [← Nat.cast_mul, ddA.card_signalizer_mul_card hb]
+    have hHb0 : (Nat.card (ddA.signalizer b) : ℂ) ≠ 0 :=
+      Nat.cast_ne_zero.mpr Nat.card_pos.ne'
+    rw [hf]
+    dsimp only
+    rw [hcount, Finset.card_singleton, pow_one, ddA.setSignalizer_singleton, ← hcards]
+    field_simp
+  -- the pairing `B ↦ insert b B` cancels the rest
+  have hrest : ∑ B ∈ Pb.erase {b}, f B = 0 := by
+    rw [← Finset.sum_filter_add_sum_filter_not (Pb.erase {b}) (fun B => b ∈ B) f]
+    have hbij : ∑ B ∈ (Pb.erase {b}).filter (fun B => b ∉ B), f (insert b B)
+        = ∑ B ∈ (Pb.erase {b}).filter (fun B => b ∈ B), f B := by
+      refine Finset.sum_bij (fun B _ => insert b B) ?_ ?_ ?_ ?_
+      · -- membership
+        intro B hB
+        rw [Finset.mem_filter, Finset.mem_erase] at hB
+        obtain ⟨⟨hBne', hBPb⟩, hbB⟩ := hB
+        rw [hPb, Finset.mem_filter] at hBPb
+        obtain ⟨-, ⟨hBA, hBne⟩, hbN⟩ := hBPb
+        rw [Finset.mem_filter, Finset.mem_erase]
+        refine ⟨⟨?_, ?_⟩, Finset.mem_insert_self b B⟩
+        · -- `insert b B ≠ {b}`
+          intro hcon
+          obtain ⟨c, hc⟩ := hBne
+          have hcmem : c ∈ ({b} : Finset G) := hcon ▸ Finset.mem_insert_of_mem hc
+          rw [Finset.mem_singleton] at hcmem
+          exact hbB (hcmem ▸ hc)
+        · rw [hPb, Finset.mem_filter]
+          refine ⟨Finset.mem_univ _, ⟨?_, ?_⟩, ?_⟩
+          · rw [Finset.coe_insert]
+            exact Set.insert_subset hb hBA
+          · exact Finset.insert_nonempty b B
+          · rw [mem_setNormalizer] at hbN ⊢
+            refine ⟨hbL, fun c => ?_⟩
+            rw [Finset.mem_insert, Finset.mem_insert]
+            constructor
+            · rintro (rfl | hc)
+              · left; group
+              · right; exact (hbN.2 c).mp hc
+            · rintro (hc | hc)
+              · left; exact conj_eq_self_iff_eq.mp hc
+              · right; exact (hbN.2 c).mpr hc
+      · -- injectivity
+        intro B₁ hB₁ B₂ hB₂ heq
+        rw [Finset.mem_filter] at hB₁ hB₂
+        have h1 := congrArg (Finset.erase · b) heq
+        simp only [Finset.erase_insert hB₁.2, Finset.erase_insert hB₂.2] at h1
+        exact h1
+      · -- surjectivity
+        intro C hC
+        rw [Finset.mem_filter, Finset.mem_erase] at hC
+        obtain ⟨⟨hCne', hCPb⟩, hbC⟩ := hC
+        rw [hPb, Finset.mem_filter] at hCPb
+        obtain ⟨-, ⟨hCA, -⟩, hbN⟩ := hCPb
+        refine ⟨C.erase b, ?_, Finset.insert_erase hbC⟩
+        rw [Finset.mem_filter, Finset.mem_erase]
+        refine ⟨⟨?_, ?_⟩, Finset.notMem_erase b C⟩
+        · -- `C.erase b ≠ {b}`
+          intro hcon
+          have : b ∈ C.erase b := hcon ▸ Finset.mem_singleton_self b
+          exact Finset.notMem_erase b C this
+        · rw [hPb, Finset.mem_filter]
+          refine ⟨Finset.mem_univ _, ⟨?_, ?_⟩, ?_⟩
+          · exact fun c hc => hCA (Finset.mem_coe.mpr (Finset.mem_of_mem_erase
+              (Finset.mem_coe.mp hc)))
+          · -- `C.erase b` is nonempty since `C ≠ {b}` contains `b`
+            rw [Finset.nonempty_iff_ne_empty]
+            intro hcon
+            apply hCne'
+            apply Finset.eq_singleton_iff_unique_mem.mpr
+            refine ⟨hbC, fun c hc => ?_⟩
+            by_contra hcb
+            have : c ∈ C.erase b := Finset.mem_erase.mpr ⟨hcb, hc⟩
+            rw [hcon] at this
+            exact Finset.notMem_empty c this
+          · rw [mem_setNormalizer] at hbN ⊢
+            refine ⟨hbL, fun c => ?_⟩
+            rw [Finset.mem_erase, Finset.mem_erase]
+            constructor
+            · rintro ⟨hcb, hc⟩
+              refine ⟨?_, (hbN.2 c).mp hc⟩
+              intro hcon
+              exact hcb (conj_eq_self_iff_eq.mp hcon)
+            · rintro ⟨hcb, hc⟩
+              refine ⟨?_, (hbN.2 c).mpr hc⟩
+              rintro rfl
+              exact hcb (by group)
+      · -- the summand identity: `f (insert b B) = -(f B)`... proved below, here `rfl`-shape
+        intro B hB
+        rfl
+    -- with the reindexing in hand, show the two halves cancel
+    have hpair : ∀ B ∈ (Pb.erase {b}).filter (fun B => b ∉ B), f (insert b B) = -(f B) := by
+      intro B hB
+      rw [Finset.mem_filter, Finset.mem_erase] at hB
+      obtain ⟨⟨-, hBPb⟩, hbB⟩ := hB
+      rw [hPb, Finset.mem_filter] at hBPb
+      obtain ⟨-, ⟨hBA, hBne⟩, hbN⟩ := hBPb
+      have hcount := ddA.card_filter_conj_coset_mul hBA hBne hb hbN g
+      have hins : ddA.setSignalizer (insert b B)
+          = ddA.setSignalizer B ⊓ Subgroup.centralizer {b} :=
+        ddA.setSignalizer_insert hb hBA hBne
+      have hC0 : (Nat.card ↥(ddA.setSignalizer B ⊓ Subgroup.centralizer {b}) : ℂ) ≠ 0 :=
+        Nat.cast_ne_zero.mpr Nat.card_pos.ne'
+      have hH0 : (Nat.card (ddA.setSignalizer B) : ℂ) ≠ 0 :=
+        Nat.cast_ne_zero.mpr Nat.card_pos.ne'
+      have hcount' : (({z ∈ (Finset.univ : Finset G) |
+            (z⁻¹ * g * z) * b⁻¹ ∈ ddA.setSignalizer B}).card : ℂ)
+            * (Nat.card ↥(ddA.setSignalizer B ⊓ Subgroup.centralizer {b}) : ℂ)
+          = (Nat.card (ddA.setSignalizer B) : ℂ)
+            * (({z ∈ (Finset.univ : Finset G) | (z⁻¹ * g * z) * b⁻¹
+                ∈ ddA.setSignalizer B ⊓ Subgroup.centralizer {b}}).card : ℂ) := by
+        exact_mod_cast congrArg (Nat.cast (R := ℂ)) hcount
+      rw [hf]
+      dsimp only
+      rw [Finset.card_insert_of_notMem hbB, hins]
+      rw [pow_succ]
+      field_simp
+      linear_combination hcount'
+    calc ∑ B ∈ (Pb.erase {b}).filter (fun B => b ∈ B), f B
+          + ∑ B ∈ (Pb.erase {b}).filter (fun B => b ∉ B), f B
+        = ∑ B ∈ (Pb.erase {b}).filter (fun B => b ∉ B), f (insert b B)
+          + ∑ B ∈ (Pb.erase {b}).filter (fun B => b ∉ B), f B := by rw [hbij]
+      _ = ∑ B ∈ (Pb.erase {b}).filter (fun B => b ∉ B), (-(f B) + f B) := by
+          rw [← Finset.sum_add_distrib]
+          exact Finset.sum_congr rfl fun B hB => by rw [hpair B hB]
+      _ = 0 := by simp
+  calc ∑ B ∈ Pb, f B = ∑ B ∈ Pb.erase {b}, f B + f {b} :=
+        (Finset.sum_erase_add Pb f hsingPb).symm
+    _ = -(Nat.card ↥(L ⊓ Subgroup.centralizer {b}) : ℂ) := by
+        rw [hrest, hsing, zero_add]
+
+/-- **Peterfalvi (2.10)** (`Dade_expansion`): the Dade lift of `α ∈ 'CF(L, A)` expands as
+an alternating sum of induced class functions over any transversal `T` of the `L`-orbits
+of nonempty subsets of `A`:
+`α^τ = -∑_{B ∈ T} (-1)^{|B|} • Ind_{'M(B)}^G 'aa_B`.
+(The Coq states this for its fixed `Dade_transversal`; the statement here is
+transversal-independent, see the module docstring.) -/
+theorem dade_expansion (ddA : DadeHypothesis G L A) {α : ClassFunction ↥L}
+    (hα : α ∈ ClassFunction.supportedOn ↥L (((↑) : ↥L → G) ⁻¹' A))
+    {T : Finset (Finset G)} (hT : IsSetTransversal L A T) :
+    ddA.dade α = -∑ B ∈ T, ((-1 : ℂ) ^ B.card) •
+      ClassFunction.ind (ddA.setProd B) (ddA.dadeRestriction B α) := by
+  classical
+  obtain ⟨hT1, hT2, hT3⟩ := hT
+  ext g
+  set aa1 : Finset G → ℂ := fun B =>
+    ClassFunction.ind (ddA.setProd B) (ddA.dadeRestriction B α) g with haa1
+  have hRHS : (-∑ B ∈ T, ((-1 : ℂ) ^ B.card) •
+      ClassFunction.ind (ddA.setProd B) (ddA.dadeRestriction B α)) g
+      = -∑ B ∈ T, ((-1 : ℂ) ^ B.card) * aa1 B := by
+    rw [ClassFunction.coe_neg, Pi.neg_apply, ClassFunction.sum_apply]
+    congr 1
+  rw [hRHS]
+  by_cases hg : g ∈ ddA.support
+  · -- on the support: the two sides both compute to `α a`
+    obtain ⟨a, ha, hga⟩ := hg
+    rw [ddA.dade_apply_of_mem_support1 α ha hga]
+    -- Step A: collapse the transversal sum onto all of `calP`, with orbit weights
+    set n1 : Finset G → ℂ := fun B =>
+      (Nat.card (setNormalizer L B) : ℂ) * (Nat.card ↥L : ℂ)⁻¹ * (-1 : ℂ) ^ B.card
+      with hn1
+    set calPF : Finset (Finset G) :=
+      {B ∈ (Finset.univ : Finset (Finset G)) | ↑B ⊆ A ∧ B.Nonempty} with hcalPF
+    set orbBF : Finset G → Finset (Finset G) := fun B₀ =>
+      (Finset.univ : Finset ↥L).image (fun y : ↥L => B₀.image fun b => ↑y * b * (↑y : G)⁻¹)
+      with horbBF
+    have hL0 : (Nat.card ↥L : ℂ) ≠ 0 := Nat.cast_ne_zero.mpr Nat.card_pos.ne'
+    have hmem_orb : ∀ {B₀ C : Finset G}, C ∈ orbBF B₀ ↔
+        ∃ y : ↥L, B₀.image (fun b => ↑y * b * (↑y : G)⁻¹) = C := by
+      intro B₀ C
+      rw [horbBF]
+      simp only [Finset.mem_image, Finset.mem_univ, true_and]
+    have hcover : calPF = T.biUnion orbBF := by
+      ext B
+      rw [Finset.mem_biUnion, hcalPF, Finset.mem_filter]
+      constructor
+      · rintro ⟨-, hBA, hBne⟩
+        obtain ⟨B₀, hB₀, x, hx, hxB⟩ := hT2 B hBA hBne
+        refine ⟨B₀, hB₀, hmem_orb.mpr ⟨⟨x⁻¹, inv_mem hx⟩, ?_⟩⟩
+        rw [← hxB, image_conj_image_conj]
+        show B.image (fun b => (x⁻¹ * x) * b * (x⁻¹ * x)⁻¹) = B
+        rw [inv_mul_cancel]
+        exact image_conj_one B
+      · rintro ⟨B₀, hB₀, hBorb⟩
+        obtain ⟨y, rfl⟩ := hmem_orb.mp hBorb
+        obtain ⟨hB₀A, hB₀ne⟩ := hT1 B₀ hB₀
+        refine ⟨Finset.mem_univ _, ?_, hB₀ne.image _⟩
+        intro c hc
+        rw [Finset.mem_coe, Finset.mem_image] at hc
+        obtain ⟨c₀, hc₀, rfl⟩ := hc
+        exact ddA.conj_mem ↑y y.2 c₀ (hB₀A hc₀)
+    have hdisj : ∀ B₁ ∈ T, ∀ B₂ ∈ T, B₁ ≠ B₂ → Disjoint (orbBF B₁) (orbBF B₂) := by
+      intro B₁ h₁ B₂ h₂ hne
+      rw [Finset.disjoint_left]
+      intro C hC₁ hC₂
+      obtain ⟨y, hy⟩ := hmem_orb.mp hC₁
+      obtain ⟨z, hz⟩ := hmem_orb.mp hC₂
+      apply hne
+      refine hT3 B₁ h₁ B₂ h₂ ((↑z : G)⁻¹ * ↑y) (mul_mem (inv_mem z.2) y.2) ?_
+      have := congrArg (Finset.image fun b => (↑z : G)⁻¹ * b * ((↑z : G)⁻¹)⁻¹)
+        (hy.trans hz.symm)
+      rw [image_conj_image_conj, image_conj_image_conj, inv_mul_cancel,
+        image_conj_one] at this
+      exact this
+    have horbsum : ∀ B₀ ∈ T, ∑ B ∈ orbBF B₀, n1 B * aa1 B
+        = (-1 : ℂ) ^ B₀.card * aa1 B₀ := by
+      intro B₀ hB₀
+      obtain ⟨hB₀A, hB₀ne⟩ := hT1 B₀ hB₀
+      have hconst : ∀ B ∈ orbBF B₀, n1 B * aa1 B = n1 B₀ * aa1 B₀ := by
+        intro B hB
+        obtain ⟨y, rfl⟩ := hmem_orb.mp hB
+        have haa : aa1 (B₀.image fun b => ↑y * b * (↑y : G)⁻¹) = aa1 B₀ := by
+          rw [haa1]
+          exact congrArg (fun φ : ClassFunction G => φ g)
+            (ddA.ind_dadeRestriction_image_conj α y.2 hB₀A hB₀ne)
+        have hcards : Nat.card (setNormalizer L (B₀.image fun b => ↑y * b * (↑y : G)⁻¹))
+            = Nat.card (setNormalizer L B₀) := by
+          rw [setNormalizer_image_conj y.2 B₀]
+          exact (Nat.card_congr
+            (Subgroup.equivMapOfInjective _ _ (MulAut.conj (↑y : G)).injective).toEquiv).symm
+        have hcard2 : (B₀.image fun b => ↑y * b * (↑y : G)⁻¹).card = B₀.card := by
+          refine Finset.card_image_of_injective B₀ ?_
+          intro c d hcd
+          exact mul_left_cancel (mul_right_cancel hcd)
+        rw [haa, hn1]
+        dsimp only
+        rw [hcards, hcard2]
+      rw [Finset.sum_congr rfl hconst, Finset.sum_const, nsmul_eq_mul]
+      have horb := card_orbitF_mul_card_setNormalizer L B₀
+      have horb' : ((orbBF B₀).card : ℂ) * (Nat.card (setNormalizer L B₀) : ℂ)
+          = (Nat.card ↥L : ℂ) := by
+        rw [horbBF, ← Nat.cast_mul]
+        exact_mod_cast congrArg (Nat.cast (R := ℂ)) horb
+      rw [hn1]
+      dsimp only
+      field_simp
+      linear_combination aa1 B₀ * horb'
+    -- Step B: rewrite each `aa1 B` by (2.10.3) and exchange the summations
+    have hstepB : ∑ B ∈ calPF, n1 B * aa1 B
+        = (Nat.card ↥L : ℂ)⁻¹ * α ⟨a, ddA.mem_of_mem_set ha⟩
+          * ∑ B ∈ calPF, ∑ b ∈ {b ∈ (Finset.univ : Finset G) |
+              b ∈ setNormalizer L B ∧ ∃ x ∈ L, x * a * x⁻¹ = b},
+            ((-1 : ℂ) ^ B.card * (Nat.card (ddA.setSignalizer B) : ℂ)⁻¹
+              * (({z ∈ (Finset.univ : Finset G) |
+                  (z⁻¹ * g * z) * b⁻¹ ∈ ddA.setSignalizer B}).card : ℂ)) := by
+      rw [Finset.mul_sum]
+      refine Finset.sum_congr rfl fun B hB => ?_
+      rw [hcalPF, Finset.mem_filter] at hB
+      obtain ⟨-, hBA, hBne⟩ := hB
+      rw [haa1]
+      dsimp only
+      rw [ddA.ind_dadeRestriction_apply_of_mem hα hBA hBne ha hga]
+      rw [ddA.card_setProd hBA hBne]
+      have hH0 : (Nat.card (ddA.setSignalizer B) : ℂ) ≠ 0 :=
+        Nat.cast_ne_zero.mpr Nat.card_pos.ne'
+      have hN0 : (Nat.card (setNormalizer L B) : ℂ) ≠ 0 :=
+        Nat.cast_ne_zero.mpr Nat.card_pos.ne'
+      rw [Finset.mul_sum, Finset.mul_sum, Finset.mul_sum]
+      refine Finset.sum_congr rfl fun b hb => ?_
+      rw [hn1]
+      dsimp only
+      push_cast
+      field_simp
+    -- Step C: exchange, then collapse each `b`-column by the alternating cancellation
+    have hexch : ∑ B ∈ calPF, ∑ b ∈ {b ∈ (Finset.univ : Finset G) |
+          b ∈ setNormalizer L B ∧ ∃ x ∈ L, x * a * x⁻¹ = b},
+          ((-1 : ℂ) ^ B.card * (Nat.card (ddA.setSignalizer B) : ℂ)⁻¹
+            * (({z ∈ (Finset.univ : Finset G) |
+                (z⁻¹ * g * z) * b⁻¹ ∈ ddA.setSignalizer B}).card : ℂ))
+        = ∑ b ∈ {b ∈ (Finset.univ : Finset G) | ∃ x ∈ L, x * a * x⁻¹ = b},
+            ∑ B ∈ {B ∈ (Finset.univ : Finset (Finset G)) |
+              (↑B ⊆ A ∧ B.Nonempty) ∧ b ∈ setNormalizer L B},
+            ((-1 : ℂ) ^ B.card * (Nat.card (ddA.setSignalizer B) : ℂ)⁻¹
+              * (({z ∈ (Finset.univ : Finset G) |
+                  (z⁻¹ * g * z) * b⁻¹ ∈ ddA.setSignalizer B}).card : ℂ)) := by
+      refine Finset.sum_comm' fun B b => ?_
+      rw [hcalPF]
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+      constructor
+      · rintro ⟨⟨hBA, hBne⟩, hbN, hborb⟩
+        exact ⟨⟨⟨hBA, hBne⟩, hbN⟩, hborb⟩
+      · rintro ⟨⟨⟨hBA, hBne⟩, hbN⟩, hborb⟩
+        exact ⟨⟨hBA, hBne⟩, hbN, hborb⟩
+    have hcol : ∀ b ∈ {b ∈ (Finset.univ : Finset G) | ∃ x ∈ L, x * a * x⁻¹ = b},
+        ∑ B ∈ {B ∈ (Finset.univ : Finset (Finset G)) |
+            (↑B ⊆ A ∧ B.Nonempty) ∧ b ∈ setNormalizer L B},
+          ((-1 : ℂ) ^ B.card * (Nat.card (ddA.setSignalizer B) : ℂ)⁻¹
+            * (({z ∈ (Finset.univ : Finset G) |
+                (z⁻¹ * g * z) * b⁻¹ ∈ ddA.setSignalizer B}).card : ℂ))
+          = -(Nat.card ↥(L ⊓ Subgroup.centralizer {b}) : ℂ) := by
+      intro b hb
+      rw [Finset.mem_filter] at hb
+      obtain ⟨-, x, hx, rfl⟩ := hb
+      refine ddA.sum_signed_count_self (ddA.conj_mem x hx a ha) ?_
+      rwa [ddA.support1_conj hx ha]
+    -- Step D: the weighted orbit sum evaluates to `|L|`
+    have horbA : {b ∈ (Finset.univ : Finset G) | ∃ x ∈ L, x * a * x⁻¹ = b}
+        = {b ∈ (Finset.univ : Finset G) | b ∈ A ∧ g ∈ ddA.support1 b} := by
+      ext b
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+      constructor
+      · rintro ⟨x, hx, rfl⟩
+        refine ⟨ddA.conj_mem x hx a ha, ?_⟩
+        rwa [ddA.support1_conj hx ha]
+      · rintro ⟨hbA, hgb⟩
+        exact ddA.exists_conj_of_mem_support1 ha hbA hga hgb
+    have hD : ∑ b ∈ {b ∈ (Finset.univ : Finset G) | ∃ x ∈ L, x * a * x⁻¹ = b},
+        -(Nat.card ↥(L ⊓ Subgroup.centralizer {b}) : ℂ) = -(Nat.card ↥L : ℂ) := by
+      rw [Finset.sum_neg_distrib, horbA, ddA.sum_card_inf_centralizer ha hga]
+    -- assemble
+    calc α ⟨a, ddA.mem_of_mem_set ha⟩
+        = -((Nat.card ↥L : ℂ)⁻¹ * α ⟨a, ddA.mem_of_mem_set ha⟩ * -(Nat.card ↥L : ℂ)) := by
+          field_simp
+    _ = -∑ B ∈ T, (-1 : ℂ) ^ B.card * aa1 B := by
+          congr 1
+          calc (Nat.card ↥L : ℂ)⁻¹ * α ⟨a, ddA.mem_of_mem_set ha⟩ * -(Nat.card ↥L : ℂ)
+              = (Nat.card ↥L : ℂ)⁻¹ * α ⟨a, ddA.mem_of_mem_set ha⟩
+                * ∑ b ∈ {b ∈ (Finset.univ : Finset G) | ∃ x ∈ L, x * a * x⁻¹ = b},
+                  -(Nat.card ↥(L ⊓ Subgroup.centralizer {b}) : ℂ) := by rw [hD]
+            _ = (Nat.card ↥L : ℂ)⁻¹ * α ⟨a, ddA.mem_of_mem_set ha⟩
+                * ∑ b ∈ {b ∈ (Finset.univ : Finset G) | ∃ x ∈ L, x * a * x⁻¹ = b},
+                  ∑ B ∈ {B ∈ (Finset.univ : Finset (Finset G)) |
+                    (↑B ⊆ A ∧ B.Nonempty) ∧ b ∈ setNormalizer L B},
+                  ((-1 : ℂ) ^ B.card * (Nat.card (ddA.setSignalizer B) : ℂ)⁻¹
+                    * (({z ∈ (Finset.univ : Finset G) |
+                        (z⁻¹ * g * z) * b⁻¹ ∈ ddA.setSignalizer B}).card : ℂ)) := by
+                rw [Finset.sum_congr rfl hcol]
+            _ = ∑ B ∈ calPF, n1 B * aa1 B := by rw [hstepB, hexch]
+            _ = ∑ B₀ ∈ T, ∑ B ∈ orbBF B₀, n1 B * aa1 B := by
+                rw [hcover, Finset.sum_biUnion]
+                intro B₁ h₁ B₂ h₂ hne
+                exact hdisj B₁ h₁ B₂ h₂ hne
+            _ = ∑ B ∈ T, (-1 : ℂ) ^ B.card * aa1 B := Finset.sum_congr rfl horbsum
+  · -- off the support: both sides vanish
+    rw [ddA.dade_apply_of_notMem_support α hg]
+    rw [Finset.sum_eq_zero, neg_zero]
+    intro B hB
+    obtain ⟨hBA, hBne⟩ := hT1 B hB
+    rw [haa1]
+    dsimp only
+    rw [ddA.ind_dadeRestriction_apply_of_notMem hα hBA hBne hg, mul_zero]
+
+end Expansion10
+
+/-! ### (2.6)(b) Virtual characters and the summary `Dade_Zisometry` -/
+
+section Zisometry
+
+open scoped Classical
+
+variable [Fintype G]
+
+/-- **Peterfalvi (2.6)(b)** (`Dade_vchar`): the Dade lift of a virtual character of `L`
+supported on `A` is a virtual character of `G`.  Immediate from the expansion (2.10),
+since every summand is (a sign times) an induced virtual character. -/
+theorem dade_isVirtualChar [Fintype L] (ddA : DadeHypothesis G L A)
+    {α : ClassFunction ↥L} (hv : α.IsVirtualChar)
+    (hα : α ∈ ClassFunction.supportedOn ↥L (((↑) : ↥L → G) ⁻¹' A)) :
+    (ddA.dade α).IsVirtualChar := by
+  obtain ⟨T, hT⟩ := exists_isSetTransversal L A
+  rw [ddA.dade_expansion hα hT, ClassFunction.isVirtualChar_iff_mem_virtualCharIrr]
+  refine neg_mem (AddSubgroup.sum_mem _ fun B hB => ?_)
+  rw [← ClassFunction.isVirtualChar_iff_mem_virtualCharIrr]
+  have hind : (ClassFunction.ind (ddA.setProd B)
+      (ddA.dadeRestriction B α)).IsVirtualChar :=
+    ClassFunction.IsVirtualChar.ind (ddA.dadeRestriction_isVirtualChar B hv)
+  rcases Nat.even_or_odd B.card with he | ho
+  · rw [he.neg_one_pow, one_smul]
+    exact hind
+  · rw [ho.neg_one_pow, neg_one_smul]
+    exact hind.neg
+
+/-- `α^τ ∈ 'Z[irr G, G^#]` for `α ∈ 'Z[irr L, A]`, in the bundled
+`ClassFunction.VirtualChar` form (via the `zcharD1E` bridge). -/
+theorem dade_mem_virtualChar_compl_one [Fintype L] (ddA : DadeHypothesis G L A)
+    {α : ClassFunction ↥L} (hv : α.IsVirtualChar)
+    (hα : α ∈ ClassFunction.supportedOn ↥L (((↑) : ↥L → G) ⁻¹' A)) :
+    ddA.dade α ∈ ClassFunction.VirtualChar
+      (Finset.univ.image fun χ : Irr G => (χ : ClassFunction G)) ({1}ᶜ : Set G) :=
+  ClassFunction.mem_virtualChar_irr_compl_one_iff.mpr
+    ⟨ddA.dade_isVirtualChar hv hα, ddA.dade_apply_one α⟩
+
+/-- **Summary of Peterfalvi (2.6)** (`Dade_Zisometry`): the Dade lift is an isometry on
+`'Z[irr L, A]` sending it into `'Z[irr G, G^#]` — the export consumed throughout
+PFsections 4–14. -/
+theorem dade_Zisometry [Fintype L] (ddA : DadeHypothesis G L A) :
+    (∀ α β : ClassFunction ↥L,
+        α ∈ ClassFunction.supportedOn ↥L (((↑) : ↥L → G) ⁻¹' A) →
+        ⟪ddA.dade α, ddA.dade β⟫_[G] = ⟪α, β⟫_[↥L])
+      ∧ ∀ α : ClassFunction ↥L, α.IsVirtualChar →
+          α ∈ ClassFunction.supportedOn ↥L (((↑) : ↥L → G) ⁻¹' A) →
+          (ddA.dade α).IsVirtualChar ∧ ddA.dade α 1 = 0 :=
+  ⟨fun _ β hα => ddA.dade_isometry hα β,
+    fun α hv hα => ⟨ddA.dade_isVirtualChar hv hα, ddA.dade_apply_one α⟩⟩
+
+end Zisometry
 
 end DadeHypothesis
 
