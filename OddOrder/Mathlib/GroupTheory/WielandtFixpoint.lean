@@ -747,3 +747,137 @@ theorem exists_wielandt_lift {p : ℕ} (hp : p.Prime) {e : ℕ} (he : e ≠ 0)
 end Representation
 
 end Lift
+
+/-!
+### The elementary abelian case, as a weighted dimension-sum identity
+
+The Coq proof of `solvable_Wielandt_fixpoint`, after reducing to `V` minimal
+normal elementary abelian `p`, proves
+`∑ i, rC i * m i * #|A i| = ∑ i, rC i * n i * #|A i|` (with
+`rC i = logn p #|'C_V(A i)|`) by checking it mod `p ^ e` for every `e`: both
+sides are the trace of one operator `∑ i, k i • ∑ (a ∈ A i), rW a` on the lifted
+module `W`, computed via `gamma i` there.  This section is that argument.
+-/
+
+section ModuleCase
+
+open Finset in
+/-- **The Wielandt weighted dimension-sum identity** (the elementary abelian core
+of Coq `solvable_Wielandt_fixpoint`): for a simple `(ZMod p)[G]`-module `V` with
+`p ∤ |G|`, subgroups `A i ≤ G` and weights `m n : ι → ℕ` with
+`∑ (i | a ∈ A i), m i = ∑ (i | a ∈ A i), n i` for every `a : G`,
+
+`∑ i, m i * |A i| * dim C_V(A i) = ∑ i, n i * |A i| * dim C_V(A i)`. -/
+theorem Representation.wielandt_trace_sum_eq {p : ℕ} (hp : p.Prime)
+    {G : Type*} [Group G] [Finite G] (hG : ¬ p ∣ Nat.card G)
+    {V : Type*} [AddCommGroup V] [Module (ZMod p) V] [Finite V]
+    (ρ : Representation (ZMod p) G V)
+    (hsimple : IsSimpleModule (MonoidAlgebra (ZMod p) G) ρ.asModule)
+    {ι : Type*} [Fintype ι] (A : ι → Subgroup G) (m n : ι → ℕ)
+    [∀ (a : G) (i : ι), Decidable (a ∈ A i)]
+    (hbal : ∀ a : G, ∑ i with a ∈ A i, m i = ∑ i with a ∈ A i, n i) :
+    ∑ i, m i * Nat.card (A i) * Module.finrank (ZMod p)
+        (Representation.invariants (ρ.comp (A i).subtype))
+      = ∑ i, n i * Nat.card (A i) * Module.finrank (ZMod p)
+        (Representation.invariants (ρ.comp (A i).subtype)) := by
+  haveI : Fact p.Prime := ⟨hp⟩
+  set d : ι → ℕ := fun i =>
+    Module.finrank (ZMod p) (Representation.invariants (ρ.comp (A i).subtype)) with hd
+  -- it suffices to prove the identity mod `p ^ e` for every `e ≠ 0`
+  suffices h : ∀ e : ℕ, e ≠ 0 →
+      ((∑ i, m i * Nat.card (A i) * d i : ℕ) : ZMod (p ^ e))
+        = ((∑ i, n i * Nat.card (A i) * d i : ℕ) : ZMod (p ^ e)) by
+    set X := ∑ i, m i * Nat.card (A i) * d i with hX
+    set Y := ∑ i, n i * Nat.card (A i) * d i with hY
+    have he : X + Y + 1 ≠ 0 := by omega
+    haveI : NeZero (p ^ (X + Y + 1)) := ⟨pow_ne_zero _ hp.ne_zero⟩
+    have hXlt : X < p ^ (X + Y + 1) :=
+      lt_of_lt_of_le (Nat.lt_pow_self hp.one_lt)
+        (Nat.pow_le_pow_right hp.pos (by omega))
+    have hYlt : Y < p ^ (X + Y + 1) :=
+      lt_of_lt_of_le (Nat.lt_pow_self hp.one_lt)
+        (Nat.pow_le_pow_right hp.pos (by omega))
+    have h1 := congrArg ZMod.val (h (X + Y + 1) he)
+    rwa [ZMod.val_cast_of_lt hXlt, ZMod.val_cast_of_lt hYlt] at h1
+  intro e he
+  obtain ⟨W, hWfree, hWcard⟩ := ρ.exists_wielandt_lift hp he hG hsimple
+  haveI := hWfree
+  haveI : NeZero (p ^ e) := ⟨pow_ne_zero e hp.ne_zero⟩
+  have hloc : IsLocalRing (ZMod (p ^ e)) := ZMod.isLocalRing_prime_pow hp he
+  haveI : Fintype G := Fintype.ofFinite G
+  haveI hSfin : Finite (G →₀ ZMod (p ^ e)) :=
+    Finite.of_equiv (G → ZMod (p ^ e)) Finsupp.equivFunOnFinite.symm
+  haveI : Finite (MonoidAlgebra (ZMod (p ^ e)) G) := hSfin
+  set ρW := MonoidAlgebra.submoduleRepr W with hρWdef
+  -- the two dimension families agree (comparing the two `p`-power counts)
+  have hrank : ∀ i, p ^ d i = p ^ Module.finrank (ZMod (p ^ e))
+      (Representation.invariants (ρW.comp (A i).subtype)) := by
+    intro i
+    have h2 : Nat.card (Representation.invariants (ρ.comp (A i).subtype))
+        = p ^ d i := by
+      have h3 := Module.natCard_eq_pow_finrank (K := ZMod p)
+        (V := ↥(Representation.invariants (ρ.comp (A i).subtype)))
+      rwa [Nat.card_zmod] at h3
+    rw [← hWcard (A i)]
+    exact h2.symm
+  have hd_eq : ∀ i, d i = Module.finrank (ZMod (p ^ e))
+      (Representation.invariants (ρW.comp (A i).subtype)) :=
+    fun i => Nat.pow_right_injective hp.two_le (hrank i)
+  -- trace of the `A i`-sum, by the averaging trace formula
+  have htrace : ∀ i, LinearMap.trace (ZMod (p ^ e)) ↥W
+      (∑ g ∈ Finset.univ.filter (· ∈ A i), ρW g)
+      = (Nat.card (A i) : ZMod (p ^ e)) * (d i : ZMod (p ^ e)) := by
+    intro i
+    haveI : Fintype ↥(A i) := Fintype.ofFinite _
+    have hA : ¬ p ∣ Nat.card ↥(A i) := fun hdvd =>
+      hG (hdvd.trans (Subgroup.card_subgroup_dvd_card _))
+    have hcop : (Nat.card ↥(A i)).Coprime (p ^ e) :=
+      Nat.Coprime.pow_right e ((hp.coprime_iff_not_dvd.mpr hA).symm)
+    haveI : Invertible ((Fintype.card ↥(A i) : ZMod (p ^ e))) :=
+      (ZMod.unitOfCoprime _ hcop).invertible.copy _
+        (by rw [ZMod.coe_unitOfCoprime, Nat.card_eq_fintype_card])
+    have h1 := Representation.trace_sum_eq_card_mul_finrank_invariants
+      (ρW.comp (A i).subtype) hloc
+    have h2 : ∑ g ∈ Finset.univ.filter (· ∈ A i), ρW g
+        = ∑ a : ↥(A i), (ρW.comp (A i).subtype) a := by
+      refine Finset.sum_subtype _ (fun g => ?_) (fun g => ρW g)
+      simp
+    rw [h2, h1, Nat.card_eq_fintype_card, hd_eq i]
+  -- both weighted sums are traces of one operator
+  have hcast : ∀ k : ι → ℕ,
+      ((∑ i, k i * Nat.card (A i) * d i : ℕ) : ZMod (p ^ e))
+        = LinearMap.trace (ZMod (p ^ e)) ↥W
+            (∑ i, k i • ∑ g ∈ Finset.univ.filter (· ∈ A i), ρW g) := by
+    intro k
+    rw [map_sum, Nat.cast_sum]
+    refine Finset.sum_congr rfl fun i _ => ?_
+    rw [map_nsmul, htrace i, nsmul_eq_mul]
+    push_cast
+    ring
+  -- the exchange: reorder the double sum and apply the balance hypothesis
+  have hswap : ∀ k : ι → ℕ,
+      (∑ i, k i • ∑ g ∈ Finset.univ.filter (· ∈ A i), ρW g)
+        = ∑ g : G, (∑ i with g ∈ A i, k i) • ρW g := by
+    intro k
+    calc ∑ i, k i • ∑ g ∈ Finset.univ.filter (· ∈ A i), ρW g
+        = ∑ i, ∑ g ∈ Finset.univ.filter (· ∈ A i), k i • ρW g := by
+          refine Finset.sum_congr rfl fun i _ => ?_
+          rw [Finset.smul_sum]
+      _ = ∑ i, ∑ g : G, if g ∈ A i then k i • ρW g else 0 := by
+          refine Finset.sum_congr rfl fun i _ => ?_
+          rw [Finset.sum_filter]
+      _ = ∑ g : G, ∑ i, if g ∈ A i then k i • ρW g else 0 := Finset.sum_comm
+      _ = ∑ g : G, (∑ i with g ∈ A i, k i) • ρW g := by
+          refine Finset.sum_congr rfl fun g _ => ?_
+          rw [Finset.sum_filter, Finset.sum_smul]
+          refine Finset.sum_congr rfl fun i _ => ?_
+          by_cases hgi : g ∈ A i
+          · simp [hgi]
+          · simp [hgi]
+  have hΘ : (∑ i, m i • ∑ g ∈ Finset.univ.filter (· ∈ A i), ρW g)
+      = ∑ i, n i • ∑ g ∈ Finset.univ.filter (· ∈ A i), ρW g := by
+    rw [hswap m, hswap n]
+    exact Finset.sum_congr rfl fun g _ => by rw [hbal g]
+  rw [hcast m, hcast n, hΘ]
+
+end ModuleCase
