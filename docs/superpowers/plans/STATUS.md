@@ -4,7 +4,21 @@
 >
 > Newcomer-facing setup instructions and the top-level punchlist live in the repo [README](../../../README.md) — keep the two in sync: README carries the what/checkboxes, this file carries the how/conventions/detail.
 
-## Current state (as of 2026-07-19 — **M2 COMPLETE**)
+## Current state (as of 2026-07-19 — **M3 COMPLETE: the infrastructure layer is done**)
+
+**M3 closed same-day** ([M3 plan](2026-07-19-m3-frobenius-wielandt.md), 5 tasks, each Fable implementer + adversarial review + fix rounds; all approved):
+
+| M3 task | Result | Commits |
+|---|---|---|
+| 1. Internal-action transfer layer (pre-BG dictionary) | done | `091d178`, fix `bbcca8c` |
+| 2. AbelemRepr (D9 bridge, `Vec` design) + sanctioned consolidation | done, zero findings | `31f53dd` |
+| 3. Frobenius predicates (`IsSemiregular`/`IsSemiprime`/`IsFrobenius` w/ bundled Normal) + counting | done, zero findings | `6afff07` |
+| 4. **Frobenius' kernel theorem** (internal + action forms; TI-induction isometry = future PFsection2 Dade seed) | done, zero findings | `9833ebd`..`3018963` |
+| 5. **Wielandt fixpoint order formula** (`wielandt_fixpoint.v`, clause-faithful; homocyclic middle third replaced by Maschke+idempotent-lifting route, bypass documented) | done, zero findings | `73384a7`..`e9152ab` |
+
+Milestone tally: **M0 ✅ M1 ✅ M2 ✅ M3 ✅** — Layer 0 is finished (~11.7k lines). **The port proper begins**: next is the BGsection1 skeleton + M4 plan (design doc required before BG10 per master plan), and the PF track (M6: PF1 toolkit → Dade isometry) is now unblocked to run IN PARALLEL — PF1–7 need zero BG files. Deferred-consolidation status: `commutator_lt_of_isSolvable` promotion + elementary-abelian dedup DONE (Task 2); card-helpers relayer, `isMulCommutative_of_commutator_eq_bot` extraction, SchurZassenhaus inline copy, CoprimeAction file split REMAIN (fix on first touch).
+
+## M2 state (as of 2026-07-19 — complete)
 
 **M2 is closed.** Task 7 (`cfAut`, commit `aefedd9`, Fable implementer + adversarial review, approved) delivered `ClassFunction.conjC` + `Irr.conj`/`conjEquiv` + the real-valuedness fixed-point lemma, and the coprime power twist `Irr.powTwist` (coprime-to-exponent), via a general σ-twisting engine on simple `MonoidAlgebra` submodules (MathComp's `map_repr` route — the dispatch's inner-product route was refuted, see `.superpowers/sdd/m2-task7-report.md`). All five earlier-reviewed M2 files plus CharAut.lean have now passed the adversarial gate (2026-07-13 review round + fixes in `e1044cf`).
 

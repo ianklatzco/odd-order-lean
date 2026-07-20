@@ -18,12 +18,13 @@ the formalization itself is agent-produced — see
 automation setup, and review status.
 
 **Status:** the target theorem is stated (and is the repo's single
-permitted `sorry`, enforced by CI). The arithmetic character-theory
-milestone (M2) is **complete** — through Burnside `p^a q^b`, virtual
-characters, and the Galois action on characters — alongside the Phase-1
-solvable-group infrastructure. None of the 34 Coq theory files is ported
-yet; next up are the pre-BG gates and the Frobenius/Wielandt milestone.
-Live progress:
+permitted `sorry`, enforced by CI). **The entire infrastructure layer
+(milestones M1–M3) is complete** — solvable-group theory, arithmetic
+character theory through Burnside `p^a q^b`, Frobenius groups with the
+kernel theorem, and the Wielandt fixpoint formula (~11.7k lines, all
+adversarially reviewed). The port proper — the 34 Coq theory files —
+begins next: the Bender–Glauberman and Peterfalvi tracks can now run in
+parallel. Live progress:
 [`docs/superpowers/plans/STATUS.md`](docs/superpowers/plans/STATUS.md).
 
 ## Main results so far
@@ -42,6 +43,8 @@ shows only `[propext, Classical.choice, Quot.sound]`.
 | **Frobenius reciprocity** | `cfInner_ind_eq_cfInner_res` (`…/RepresentationTheory/Induced.lean`) | `⟪Ind φ, ψ⟫_G = ⟪φ, Res ψ⟫_H` at the class-function level |
 | **Character integrality** | `Irr.isIntegral_apply`, `Irr.exists_degree_dvd_card` (`…/RepresentationTheory/CharacterArith.lean`) | `χ(g)` is an algebraic integer; `χ(1) ∣ |G|` |
 | **Virtual characters** | `IsVirtualChar.exists_sub_of_cfInner_self_eq_two` (`…/RepresentationTheory/VirtualChar.lean`) | norm-2 virtual characters vanishing at 1 are differences of two irreducibles (MathComp `vchar_norm2`, in the shape Peterfalvi consumes) |
+| **Frobenius' kernel theorem** | `Subgroup.exists_isFrobenius_of_malnormal`, `MulAction.exists_isFrobenius_stabilizer` (`…/GroupTheory/FrobeniusKernel.lean`) | the Frobenius kernel is a normal complement (1901; no character-free proof known), internal + action forms, incl. the TI-induction isometry seeding the future Dade isometry |
+| **Wielandt fixpoint formula** | `solvable_wielandt_fixpoint` (`…/GroupTheory/WielandtFixpoint.lean`) | the weighted fixed-point order formula for coprime solvable actions (MathComp `wielandt_fixpoint.v`, clause-faithful) |
 | Coprime action suite, π-cores, minimal-normal ⇒ elementary abelian | `…/GroupTheory/{CoprimeAction,PiGroup,ChiefFactor}.lean` | the MathComp `hall.v`/`pgroup.v` layer |
 
 ## Setup
@@ -93,22 +96,22 @@ throwing coding agents at any of these.
       unformalized in Lean
 - [x] Virtual characters: the lattice `ℤ[S, A]` with norm lemmas (isometry-
       extension constructors deferred to the PF1 plan, per M2 plan scope)
-- [ ] Galois action on characters (`cfAut`)
+- [x] Galois action on characters (`cfAut`)
 
 **M1 remainder / pre-BG gates:**
 
-- [ ] `AbelemRepr` bridge: G-stable elementary abelian sections as
+- [x] `AbelemRepr` bridge: G-stable elementary abelian sections as
       `ZMod p`-modules with G-action (plan decision D9)
-- [ ] Internal-action transfer layer: identify `FixedPoints.subgroup A H`
+- [x] Internal-action transfer layer: identify `FixedPoints.subgroup A H`
       with centralizer intersections and `actionCommutator` with `⁅H,A⁆`
       for conjugation actions — required before BGsection1
 
 **M3 — Frobenius groups + Wielandt** (needs the induction formula):
 
-- [ ] Frobenius group predicate; Frobenius' kernel theorem
+- [x] Frobenius group predicate; Frobenius' kernel theorem
       (character-theoretic); complement structure facts; solvable-kernel
       nilpotency
-- [ ] Wielandt fixpoint order formula (`wielandt_fixpoint.v`)
+- [x] Wielandt fixpoint order formula (`wielandt_fixpoint.v`)
 
 **Then the port proper:** BGsection1 skeleton — the first of the 34 Coq
 files (master plan §7, milestone M4).
