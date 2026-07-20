@@ -1178,3 +1178,142 @@ theorem solvable_wielandt_fixpoint {G : Type*} [Group G] [Finite G]
   solvable_wielandt_fixpoint_aux A m n hbal (Nat.card V) V le_rfl hco hsol
 
 end Main
+
+/-!
+### The internal form
+
+The statement-faithful port of Coq `solvable_Wielandt_fixpoint`: everything lives
+in one ambient group `gT`, the action is conjugation of `G ≤ 'N(V)` on `V`
+(Task 1's `normalizerMulDistribMulAction` convention), and the fixed points are
+the centralizer intersections `'C_V(A i) = centralizer (A i) ⊓ V`.
+-/
+
+section Internal
+
+open MulAction
+
+variable {gT : Type*} [Group gT] {G V : Subgroup gT}
+
+/-- Fixed points of the conjugation action of `(A.subgroupOf G)` on `V` are the
+elements of `V` centralizing `A` (for `A ≤ G ≤ 'N(V)`). -/
+private theorem mem_fixedPoints_subgroupOf_iff
+    (hnorm : G ≤ Subgroup.normalizer (V : Set gT)) {A : Subgroup gT} (hA : A ≤ G)
+    (v : ↥V) :
+    letI := Subgroup.normalizerMulDistribMulAction hnorm
+    (v ∈ FixedPoints.subgroup ↥(A.subgroupOf G) ↥V
+      ↔ (v : gT) ∈ Subgroup.centralizer (A : Set gT)) := by
+  letI := Subgroup.normalizerMulDistribMulAction hnorm
+  rw [FixedPoints.mem_subgroup, Subgroup.mem_centralizer_iff]
+  have hsmul : ∀ (a : ↥(A.subgroupOf G)),
+      ((a • v : ↥V) : gT) = ((a : ↥G) : gT) * (v : gT) * ((a : ↥G) : gT)⁻¹ :=
+    fun a => Subgroup.conjAction_smul_coe hnorm (a : ↥G) v
+  constructor
+  · intro hfix x hx
+    have h1 := congrArg Subtype.val (hfix ⟨⟨x, hA hx⟩, Subgroup.mem_subgroupOf.mpr hx⟩)
+    rw [hsmul] at h1
+    exact mul_inv_eq_iff_eq_mul.mp h1
+  · intro hcent a
+    refine Subtype.ext ?_
+    rw [hsmul]
+    exact mul_inv_eq_iff_eq_mul.mpr
+      (hcent ((a : ↥G) : gT) (Subgroup.mem_subgroupOf.mp a.2))
+
+/-- Cardinality form of `mem_fixedPoints_subgroupOf_iff`:
+`#|C_V(A)| = #|'C(A) ⊓ V|`. -/
+private theorem card_fixedPoints_subgroupOf
+    (hnorm : G ≤ Subgroup.normalizer (V : Set gT)) {A : Subgroup gT} (hA : A ≤ G) :
+    letI := Subgroup.normalizerMulDistribMulAction hnorm
+    Nat.card (FixedPoints.subgroup ↥(A.subgroupOf G) ↥V)
+      = Nat.card ↥(Subgroup.centralizer (A : Set gT) ⊓ V) := by
+  letI := Subgroup.normalizerMulDistribMulAction hnorm
+  refine Nat.card_congr
+    { toFun := fun v => ⟨((v : ↥V) : gT), Subgroup.mem_inf.mpr
+        ⟨(mem_fixedPoints_subgroupOf_iff hnorm hA _).mp v.2, (v : ↥V).2⟩⟩
+      invFun := fun w => ⟨⟨(w : gT), (Subgroup.mem_inf.mp w.2).2⟩,
+        (mem_fixedPoints_subgroupOf_iff hnorm hA _).mpr (Subgroup.mem_inf.mp w.2).1⟩
+      left_inv := fun v => Subtype.ext (Subtype.ext rfl)
+      right_inv := fun w => Subtype.ext rfl }
+
+open MulAction in
+/-- **The solvable Wielandt fixpoint order formula, internal form** (Coq
+`solvable_Wielandt_fixpoint`, statement-faithful): let `V, G ≤ gT` with
+`G ≤ 'N(V)`, `#|V|` coprime to `#|G|` and `V` solvable; let `A : ι → Subgroup gT`
+be a finite family with `A i ≤ G` whenever `0 < m i + n i`, and suppose
+`∑ (i | a ∈ A i), m i = ∑ (i | a ∈ A i), n i` for every `a ∈ G`.  Then
+
+`∏ i, #|'C_V(A i)| ^ (m i * #|A i|) = ∏ i, #|'C_V(A i)| ^ (n i * #|A i|)`.
+
+Consumers: BGsection3's `Frobenius_Wielandt_fixpoint` (Peterfalvi (9.1)) and
+PFsection9. -/
+theorem Subgroup.solvable_wielandt_fixpoint_internal {gT : Type*} [Group gT]
+    [Finite gT] {ι : Type*} [Fintype ι] (A : ι → Subgroup gT) (m n : ι → ℕ)
+    [∀ (a : gT) (i : ι), Decidable (a ∈ A i)] {G V : Subgroup gT}
+    (hA : ∀ i, 0 < m i + n i → A i ≤ G)
+    (hnorm : G ≤ Subgroup.normalizer (V : Set gT))
+    (hco : (Nat.card V).Coprime (Nat.card G)) (hsol : IsSolvable ↥V)
+    (hbal : ∀ a ∈ G, ∑ i with a ∈ A i, m i = ∑ i with a ∈ A i, n i) :
+    ∏ i, Nat.card ↥(Subgroup.centralizer (A i : Set gT) ⊓ V) ^ (m i * Nat.card (A i))
+      = ∏ i, Nat.card ↥(Subgroup.centralizer (A i : Set gT) ⊓ V)
+          ^ (n i * Nat.card (A i)) := by
+  letI := Subgroup.normalizerMulDistribMulAction hnorm
+  letI : ∀ (a : ↥G) (i : ι), Decidable (a ∈ (A i).subgroupOf G) :=
+    fun a i => decidable_of_iff ((a : gT) ∈ A i) Subgroup.mem_subgroupOf.symm
+  have hbal' : ∀ a : ↥G, ∑ i with a ∈ (A i).subgroupOf G, m i
+      = ∑ i with a ∈ (A i).subgroupOf G, n i := by
+    intro a
+    have hfilter : ∀ (k : ι → ℕ), (∑ i with a ∈ (A i).subgroupOf G, k i)
+        = ∑ i with (a : gT) ∈ A i, k i := fun k =>
+      Finset.sum_congr (Finset.filter_congr fun i _ => by
+        simp [Subgroup.mem_subgroupOf]) fun _ _ => rfl
+    rw [hfilter m, hfilter n]
+    exact hbal (a : gT) a.2
+  have hmain := solvable_wielandt_fixpoint (G := ↥G) (V := ↥V)
+    (fun i => (A i).subgroupOf G) m n hco hsol hbal'
+  have hfactor : ∀ (k : ι → ℕ), (∀ i, k i ≠ 0 → A i ≤ G) →
+      ∏ i, Nat.card ↥(Subgroup.centralizer (A i : Set gT) ⊓ V)
+          ^ (k i * Nat.card (A i))
+        = ∏ i, Nat.card (FixedPoints.subgroup ↥((A i).subgroupOf G) ↥V)
+            ^ (k i * Nat.card ((A i).subgroupOf G)) := by
+    intro k hk
+    refine Finset.prod_congr rfl fun i _ => ?_
+    rcases eq_or_ne (k i) 0 with h0 | h0
+    · rw [h0, zero_mul, zero_mul, pow_zero, pow_zero]
+    · have hAG := hk i h0
+      rw [card_fixedPoints_subgroupOf hnorm hAG,
+        Nat.card_congr (Subgroup.subgroupOfEquivOfLe hAG).toEquiv]
+  rw [hfactor m fun i hi => hA i (by omega), hfactor n fun i hi => hA i (by omega)]
+  exact hmain
+
+/-- Smoke test: the exact instantiation shape used by BGsection3's
+`Frobenius_Wielandt_fixpoint` (Peterfalvi (9.1)).  There the index type is the
+finType of *all* subgroups of `gT` with `A := id`, the weight `m` is `#|K|` at
+`⊥` and `1` at `G` (Coq: `[fun A => 0%N with 1%G |-> #|K|, G |-> 1%N]`), and `n`
+is the indicator of `K |: orbit 'JG K R` (the `K`-conjugates of `R` together
+with `K`); the balance hypothesis is the Frobenius partition.  The example
+checks that `Subgroup.solvable_wielandt_fixpoint_internal` accepts this family
+and weight shape; deriving the balance from `IsFrobenius` is BGsection3 (M4)
+material. -/
+example {gT : Type*} [Group gT] [Finite gT] (G K R M : Subgroup gT)
+    (hnorm : G ≤ Subgroup.normalizer (M : Set gT))
+    (hco : (Nat.card M).Coprime (Nat.card G)) (hsol : IsSolvable ↥M) : True := by
+  classical
+  haveI : Finite (Subgroup gT) :=
+    Finite.of_injective (fun H : Subgroup gT => (H : Set gT)) SetLike.coe_injective
+  letI : Fintype (Subgroup gT) := Fintype.ofFinite _
+  -- the BGsection3 weight functions
+  set m : Subgroup gT → ℕ :=
+    fun B => if B = ⊥ then Nat.card K else if B = G then 1 else 0 with hm
+  set n : Subgroup gT → ℕ :=
+    fun B => if B = K ∨ ∃ x ∈ K, B = R.map (MulAut.conj x).toMonoidHom then 1 else 0
+    with hn
+  have smoke : (∀ B : Subgroup gT, 0 < m B + n B → B ≤ G) →
+      (∀ a ∈ G, ∑ B with a ∈ B, m B = ∑ B with a ∈ B, n B) →
+      ∏ B : Subgroup gT,
+          Nat.card ↥(Subgroup.centralizer (B : Set gT) ⊓ M) ^ (m B * Nat.card B)
+        = ∏ B : Subgroup gT,
+            Nat.card ↥(Subgroup.centralizer (B : Set gT) ⊓ M) ^ (n B * Nat.card B) :=
+    fun hA hbal =>
+      Subgroup.solvable_wielandt_fixpoint_internal (fun B => B) m n hA hnorm hco hsol hbal
+  trivial
+
+end Internal

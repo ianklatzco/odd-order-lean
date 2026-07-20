@@ -148,6 +148,14 @@ Lean/Mathlib ports, per `docs/superpowers/plans/2026-07-06-odd-order-port.md` §
 | `Frobenius_partition` (approximate: the Coq lemma states the partition of `G` into `K` and the conjugates of `H^#`; this is the resulting count) | `Subgroup.card_frobeniusKernelSet` (`= H.index`; supporting bijection `(G ⧸ H) × H^# ≃ (frobeniusKernelSet)ᶜ` inlined) | `OddOrder/Mathlib/GroupTheory/FrobeniusKernel.lean` |
 | `normedTI_isometry`-correspondent (approximate: the trivial-intersection seed of the Dade isometry, to be consumed by the future PFsection2 task; the Coq lemma is stated for `normedTI` configurations) | `ClassFunction.cfInner_ind_ind_of_malnormal` (`⟪ind α, ind β⟫_[G] = ⟪α, β⟫_[H]` for `α 1 = 0`, `H` malnormal; via `ClassFunction.res_ind_eq_self_of_malnormal`) | `OddOrder/Mathlib/GroupTheory/FrobeniusKernel.lean` |
 | self-normalization of a malnormal subgroup (inside MathComp's Frobenius structure theory) | `Subgroup.normalizer_eq_self_of_malnormal` | `OddOrder/Mathlib/GroupTheory/FrobeniusKernel.lean` |
+| `solvable_Wielandt_fixpoint` (wielandt_fixpoint.v, the file's only export) | `Subgroup.solvable_wielandt_fixpoint_internal` (statement-faithful internal form) and `solvable_wielandt_fixpoint` (external `MulDistribMulAction` form, the master proof) | `OddOrder/Mathlib/GroupTheory/WielandtFixpoint.lean` |
+| `iso_quotient_homocyclic_sdprod` / `is_iso_quotient_homocyclic_sdprod` (approximate: ported in module form — the homocyclic `W` of exponent `p ^ m` with `W ⋊ G`-package and `'ker f = 'Mho^1(W)` becomes a free `ZMod (p ^ e)`-module summand of the regular module with matching fixed-point counts for all subgroups; see the module docstring for the exact correspondence) | `Representation.exists_wielandt_lift` | `OddOrder/Mathlib/GroupTheory/WielandtFixpoint.lean` |
+| `coprime_act_abelian_pgroup_structure` (**not ported — bypassed**: the Coq uses it only to locate a homocyclic summand of the regular module over `'Z_q`; on the module route freeness of the summand follows from idempotent lifting + "f.g. projective over the local ring `ZMod (p ^ e)` is free", so no homocyclic decomposition is needed. Re-derive with M4's `Ω`/`℧` toolkit if a later file needs it.) | — (see `ZMod.isLocalRing_prime_pow`, `Module.free_range_of_comp_self_eq` for the replacement ingredients) | `OddOrder/Mathlib/GroupTheory/WielandtFixpoint.lean` |
+| `homocyclic W` (as used in wielandt_fixpoint.v; the general predicate is M4 material) | `Module.Free (ZMod (p ^ e)) W` for the associated `ZMod (p ^ e)`-module (a finite abelian `p`-group of exponent dividing `p ^ e` is homocyclic of exponent `p ^ e` iff free) | `OddOrder/Mathlib/GroupTheory/WielandtFixpoint.lean` |
+| `'Mho^1(W)` (for abelian `W` of exponent dividing `p ^ e`, as used here) | `p • W` (the kernel condition of the lift is spelled `φ w = 0 ↔ ∃ u, w = (p : ZMod (p ^ e)) • u`) | `OddOrder/Mathlib/GroupTheory/WielandtFixpoint.lean` |
+| the trace computation of `solvable_Wielandt_fixpoint` (`gamma i`, `tr_rW_Ai`, the `[~: W, Ai1] \x 'C_W(Ai1)` block decomposition via `coprime_abelian_cent_dprod`) | `Representation.trace_sum_eq_card_mul_finrank_invariants` (averaging projection `Representation.averageMap` instead of the commutator/centralizer splitting) + `Representation.wielandt_trace_sum_eq` | `OddOrder/Mathlib/GroupTheory/WielandtFixpoint.lean` |
+| `rCW`/`coprime_quotient_cent` step of `solvable_Wielandt_fixpoint` (`'r('C_W(Ai1)) = rC i`) | `Representation.card_invariants_eq_pow_finrank_of_lift` (private; coprime averaging + purity of the summand) | `OddOrder/Mathlib/GroupTheory/WielandtFixpoint.lean` |
+| `factorCA_B` step of `solvable_Wielandt_fixpoint` (`#|'C_B(A i)| * #|'C_(V/B)(A i / B)| = #|'C_V(A i)|`, via `coprime_quotient_cent`) | `card_fixedPoints_eq_card_mul_card` (private; via `coprime_fixedPoints_quotient_eq`; externally the actor is not quotiented, so no `#|A i / B| = #|A i|` bookkeeping is needed) | `OddOrder/Mathlib/GroupTheory/WielandtFixpoint.lean` |
 
 Future work (not ported yet, Frobenius theory): `Frobenius_quotient` /
 `Frobenius_proper_quotient` / `Frobenius_normal_proper_ker` — these are proved in
@@ -219,3 +227,23 @@ their trace corollary); rather than exposing this from the already-reviewed
 `Irr.degreeNat` (a natural-number degree accessor, choice witness of `Irr.exists_degree`) and
 two small number-theoretic helpers (`exists_eq_pow_mul_pow_of_dvd`,
 `factorization_pow_mul_pow_self_right`), both private to `Burnside.lean`.
+
+Note: M3 Task 5 (the Wielandt fixpoint order formula) lands in `WielandtFixpoint.lean`.
+The port replaces the Coq file's group-theoretic middle third (homocyclic decomposition
+`coprime_act_abelian_pgroup_structure`, `Ω`/`℧` calculus, `'Z_q`-row-vector matrix
+representations, external `sdpair` semidirect-product gluing) with its module-theoretic
+content over `ZMod (p ^ e)`: Maschke (`MonoidAlgebra.Submodule.exists_isCompl`),
+idempotent lifting along the nilpotent kernel of
+`(ZMod (p ^ e))[G] →+* (ZMod p)[G]` (`exists_isIdempotentElem_eq_of_ker_isNilpotent`),
+"finitely generated projective over a local ring is free"
+(`Module.free_of_flat_of_isLocalRing`, with the new `ZMod.isLocalRing_prime_pow`), and the
+averaging projection `Representation.averageMap` for the trace computation.  The exported
+order formula `solvable_Wielandt_fixpoint` — the only lemma of `wielandt_fixpoint.v`
+consumed downstream (BGsection3, PFsection9) — is ported sorry-free in both external
+(`solvable_wielandt_fixpoint`) and statement-faithful internal
+(`Subgroup.solvable_wielandt_fixpoint_internal`) forms; a smoke `example` checks the
+BGsection3 (`Frobenius_Wielandt_fixpoint`, Peterfalvi (9.1)) instantiation shape (family
+indexed by all subgroups, `A := id`, the `⊥ ↦ #|K|, G ↦ 1` vs `{K} ∪ orbit` weights).
+The strong induction on `#|V|` avoids minimal-normal machinery: it splits along any
+`G`-invariant normal subgroup and, when none exists, shows `V` elementary abelian
+directly (commutator, then `p`-torsion, both invariant-or-full).

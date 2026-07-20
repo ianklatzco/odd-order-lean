@@ -14,6 +14,7 @@ import OddOrder.Mathlib.GroupTheory.FrobeniusKernel
 import OddOrder.Mathlib.GroupTheory.Hall
 import OddOrder.Mathlib.GroupTheory.PiGroup
 import OddOrder.Mathlib.GroupTheory.SchurZassenhaus
+import OddOrder.Mathlib.GroupTheory.WielandtFixpoint
 import OddOrder.Mathlib.RepresentationTheory.Burnside
 import OddOrder.Mathlib.RepresentationTheory.CharAut
 import OddOrder.Mathlib.RepresentationTheory.CharacterArith
