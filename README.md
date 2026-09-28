@@ -1,5 +1,33 @@
 # odd-order-lean
 
+> ## ⚰️ Archived — 2026-09-28
+>
+> **This project is wound down.** It set out to be the first Lean 4 / Mathlib
+> formalization of the Feit–Thompson odd order theorem. It was not: while this
+> port was mid-way through the Peterfalvi character theory,
+> [**yawara/odd-order**](https://github.com/yawara/odd-order) (Yawara Ishida)
+> completed a full, sorry-free, axiom-clean Lean 4 proof of the theorem on
+> **2026-07-15** — five days before our final work session — and went on to
+> formalize all 775 numbered results across Isaacs, Bender–Glauberman, and
+> Peterfalvi, plus the first accepted lean-eval `feit_thompson` solution. The
+> summit was already taken; go read theirs.
+>
+> **What this repo did reach** (all sorry-free, adversarially reviewed,
+> ~12k lines): the complete solvable-group + arithmetic-character-theory
+> infrastructure — P. Hall's theorems, Schur–Zassenhaus conjugacy, π-cores,
+> the Fitting subgroup with `C_G(F(G)) ≤ F(G)`, `#Irr = #ConjClasses` and the
+> second orthogonality relation, **Burnside `p^a q^b`** (a comparator-passed
+> lean-eval entry, 2026-07-14), character integrality, virtual characters, the
+> Galois action on characters, Frobenius' kernel theorem, the Wielandt fixpoint
+> formula, and Peterfalvi §1–§2 including the **Dade isometry**. See the
+> `## Main results` section and `formalization.yaml` for the full record.
+>
+> Left standing exactly where the race ended: milestone M6 (Peterfalvi 1–7)
+> at task 3½ of 10, `feit_thompson` still a single budgeted `sorry` in
+> `OddOrder/Basic.lean`. Nothing below this line is being maintained.
+
+---
+
 A Lean 4 / Mathlib port of the Coq/MathComp formalization of the
 **Feit–Thompson odd order theorem** (every finite group of odd order is
 solvable). The port mirrors the Coq development at statement granularity
